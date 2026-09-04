@@ -1,9 +1,10 @@
 // scripts/fb_realtime_bot.js
 // 24/7 Real-time Facebook Messenger AI Bot Engine
 // Runs inside the VPS container alongside Next.js
+const path = require("path");
+require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const fs = require("fs");
-const path = require("path");
 
 const PAGE_ID = process.env.FACEBOOK_PAGE_ID || "110644118793600";
 const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAW6YWihfogBSY0coWHPtYcw2Gwm11ZAznBKAIcOzhgKQJWYITHuelgvzJfoWl0QjgrsRD5DEViDdpVyQKyvxGkBVJ8saKOzXi4IaXvIwYWuJXVJwNxBGsUdru7NAV9Rk5hrGCJigh9NuX1ury8ATCBYvbjBce885iGjucQ3LSbzYQwqQvNGfcu7GO70jQu3QiwI1";
