@@ -1,10 +1,16 @@
 // @ts-nocheck
 import Database from "better-sqlite3";
 import path from "path";
+import crypto from "crypto";
+import fs from "fs";
 
-const dbFile = path.resolve(process.cwd(), "prisma/social_inbox.db");
+const dbDir = path.resolve(process.cwd(), "prisma");
+const dbFile = path.resolve(dbDir, "social_inbox.db");
 
 function getDb() {
+  if (!fs.existsSync(dbDir)) {
+    fs.mkdirSync(dbDir, { recursive: true });
+  }
   const db = new Database(dbFile);
   db.pragma('encoding = "UTF-8"');
   db.pragma('journal_mode = WAL');
