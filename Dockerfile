@@ -24,4 +24,4 @@ ENV PORT=3000
 
 EXPOSE 3000
 
-CMD ["npm", "start"]
+CMD ["node", "scripts/start-all.js"]
