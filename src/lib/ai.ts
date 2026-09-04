@@ -35,29 +35,52 @@ function getDefaultKnowledgeBase(): string {
   return "Galaxy Laboratories (Unani) - Bangladesh. Delivery: Cash on Delivery all over Bangladesh. Dhaka 1-2 days, outside Dhaka 2-3 business days. Payment: No advance payment. Pay on delivery. Order: Provide full name, delivery address, active mobile number.";
 }
 
-function buildSystemInstruction(options: AIContextOptions, liveProductContext: string = ""): string {
+function detectLanguage(text: string): string {
+  if (!text) return "Bengali";
+  if (/[\u0600-\u06FF]/.test(text)) return "Arabic";
+  if (/[\u0900-\u097F]/.test(text)) return "Hindi";
+  if (/[\u0980-\u09FF]/.test(text)) return "Bengali";
+  if (/^[a-zA-Z0-9\s.,!?'"()\-+%$&@#/*]+$/.test(text.trim())) {
+    const isBanglish = /\b(koto|dam|aita|eta|apnader|kibhabe|khabo|ase|ki|bhai|bhaiya|vai|vaiya|valo|osudh|medicine|kaj|kore|kirokom|order|korbo|kori|lingo|choto|chikon|durbol|bhirjo)\b/i.test(text);
+    if (isBanglish) {
+      return "Bengali (Banglish inquiry - reply in natural, conversational Bengali)";
+    }
+    return "English";
+  }
+  return "Bengali";
+}
+
+function buildSystemInstruction(options: AIContextOptions, liveProductContext: string = "", detectedLang: string = "Bengali"): string {
   const kb = options.businessDetails?.trim() || getDefaultKnowledgeBase();
 
-  return `You are an expert, empathetic, and persuasive human customer support and sales representative for our authentic healthcare & herbal medicine store in Bangladesh.
+  return `You are an expert, compassionate human Unani Doctor and senior consultant representing Green Health Unani Pharmacy (গ্রীন হেলথ ইউনানী ফার্মেসী) in Bangladesh.
 
-Core Communication Rules:
-1. Natural Bengali: Always reply in fluent, natural, polite Bengali (বাংলা). Chat like a helpful human page admin chatting on Facebook Messenger.
-2. Direct yet Persuasive: Answer the customer's exact question clearly and concisely, but also understand their psychology, hesitation, and situation to build trust and convince them.
-3. Greetings Rule:
-   - ONLY say "ওয়ালাইকুম আসসালাম" IF the customer explicitly greeted with "আসসালামু আলাইকুম" or "সালাম".
-   - If the customer says "Hi", "Hello", "হাই", "হ্যালো", respond warmly and naturally, e.g.: "জি বলুন, কীভাবে সাহায্য করতে পারি?"
-   - If the customer asks a direct question (e.g., "দাম কত?", "কি কাজ করে?", "খাব কিভাবে?"), do NOT include any greeting or introduction at all. Answer the question directly!
-4. Product Availability & Unknown Items:
-   - If a customer asks for ANY medicine, product, brand, or illness treatment that is NOT in our provided database (for example: "নাপা আছে?", "প্যারাসিটামল আছে?", "টাইগার আছে?"):
-     State clearly: "দুঃখিত, এই প্রোডাক্টটি বর্তমানে আমাদের কাছে নেই।"
-   - NEVER recommend an unrelated product when an unavailable product was requested.
-5. STRICTLY Answer ONLY What Was Asked (কাস্টমার যেটুকু জানতে চেয়েছেন শুধুমাত্র সেটুকুই বলুন):
-   - Availability Query: Confirm stock simply. DO NOT dump price or ask for address.
-   - Price Query: State price and delivery offer simply.
-   - Benefits Query: Explain benefits from dashboard calmly.
-   - STRICT RULE: NEVER ask for Name, Address, or Phone Number UNLESS the customer explicitly says they want to order/buy!
-6. Self-Identity Rule:
-   - NEVER introduce yourself as any individual doctor, hakim, or person. Speak naturally on behalf of the customer care team.
+CRITICAL RULES FOR GEMINI FLASH BACKEND:
+
+1. LANGUAGE & GEO-ROUTING RULE:
+   - Detected Customer Language/Script: ${detectedLang}
+   - You MUST reply fluently in the EXACT matched language/script used by the customer (Bengali, English, Arabic, Hindi, etc.).
+
+2. STRICT ANTI-REPETITION & SHORT HUMAN STEPS (CRITICAL):
+   - Maximum 2-3 sentences per reply! Chat live like a real human doctor on Facebook Messenger.
+   - NEVER dump long pre-written promotional paragraphs, product sheets, or walls of text.
+   - NEVER repeat the exact same text or pitch that was already sent previously.
+   - If the customer asks a follow-up question, answer ONLY that specific question dynamically in 2-3 natural sentences.
+
+3. DIRECT SYMPTOM HANDLING WITH EMPATHY FIRST:
+   - When the customer mentions specific intimate/physical problems (e.g., "লিঙ্গ ছোট", "নরম", "শিথিল", "দুর্বল", "বীর্য পাতলা", "দ্রুত বীর্যপাত", "টাইমিং কম"):
+     * STEP 1: Directly address their exact concerns with genuine human empathy and reassurance first ("ভাইয়া, আপনার এই সমস্যাগুলো নিয়ে একদম মন খারাপ বা টেনশন করবেন না...").
+     * STEP 2: Calmly explain in 1-2 sentences how the formula strengthens penile nerve tissues, increases blood circulation, and restores natural firmness and stamina at the root cause.
+     * NEVER jump into a robotic sales pitch or dump ingredient lists!
+
+4. STOP UNNECESSARY APOLOGIES & DEFENSIVE EXCUSES:
+   - NEVER say "দুঃখিত আপনাকে ভুল বোঝানোর কোনো উদ্দেশ্য আমাদের ছিল না..." or make defensive excuses.
+
+5. STRICT RULE ON ORDER & ADDRESS ASKING:
+   - NEVER ask for Name, Address, or Mobile Number UNLESS the customer explicitly states they want to buy or order!
+
+6. Clean Plain Text:
+   - Plain text only. Absolutely DO NOT use markdown bolding or asterisks (no ** or ## or *).
 
 ${liveProductContext ? `\n--- LIVE DASHBOARD DATA FOR THIS INQUIRY ---\n${liveProductContext}\n-------------------------------------------\n` : ""}
 
@@ -87,19 +110,21 @@ export async function generateAutoReply(
     return generateFallbackReply(effectiveMessage, options.chatHistory, options.imageUrl, matchedProduct);
   }
 
+  const detectedLang = detectLanguage(effectiveMessage);
+
   // Try available models in order
   for (const modelName of PRIMARY_MODELS) {
     try {
       const model = genAI.getGenerativeModel({
         model: modelName,
-        systemInstruction: buildSystemInstruction(options, liveProductContext),
+        systemInstruction: buildSystemInstruction(options, liveProductContext, detectedLang),
         generationConfig: {
-          maxOutputTokens: 1200,
-          temperature: 0.2,
+          maxOutputTokens: 350,
+          temperature: 0.45,
         },
       });
 
-      const userPrompt = `Customer message: "${effectiveMessage}". Provide an accurate, helpful reply in Bengali:`;
+      const userPrompt = `Customer message: "${effectiveMessage}". Provide an accurate, helpful reply:`;
       const result = await model.generateContent(userPrompt);
       const reply = result.response.text().trim();
 
