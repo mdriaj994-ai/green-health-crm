@@ -1,7 +1,7 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  serverExternalPackages: ["fs", "path"],
+  serverExternalPackages: ["better-sqlite3", "bcryptjs"],
   allowedDevOrigins: ["*.trycloudflare.com"],
   typescript: {
     ignoreBuildErrors: true,
