@@ -138,19 +138,25 @@ Core Communication Rules:
 8. Ordering & Delivery:
    - Delivery is Cash on Delivery (ক্যাশ অন ডেলিভারি - পার্সেল হাতে পেয়ে মূল্য পরিশোধ)।
    - Packaging is 100% discrete (১০০% গোপনীয়তা বজায় রেখে পার্সেল পাঠানো হয়)।
-9. Clean Plain Text:
+9. Store Catalog & Available Offerings:
+    - If the customer asks what kinds of products we sell or what is available (e.g., "কী কী প্রোডাক্ট আছে?", "কী কী ধরনের প্রোডাক্ট বিক্রি করেন?", "কী কী পাওয়া যায়?"):
+      Reply warmly, professionally, and completely:
+      "আমাদের এখানে মূলত পুরুষদের শারীরিক ও দাম্পত্য দুর্বলতা দূর করা, দ্রুত বীর্যপাত রোধ, দীর্ঘস্থায়ী স্ট্যামিনা বৃদ্ধি, নারীদের দুর্বলতা ও হরমোন ব্যালেন্স, লিভার ও গ্যাস্ট্রিক সমস্যা, এবং বাত-ব্যথা নিরাময়ের ১০০% প্রাকৃতিক ভেষজ ইউনানি ওষুধ রয়েছে। আমাদের অন্যতম জনপ্রিয় ও শীর্ষ কার্যকরী ফর্মুলা হলো Soul Mate (সোল মেট)। 
+
+আপনার কি নির্দিষ্ট কোনো সমস্যা রয়েছে বা কোনো নির্দিষ্ট ওষুধ সম্পর্কে বিস্তারিত জানতে চান? জানালে সঠিক সমাধান দিতে পারব।"
+10. Clean Plain Text:
    - Plain text only. Absolutely DO NOT use markdown bolding or asterisks (no ** or ## or *). Keep it completely clean.
 
 ${productContext ? `\n--- LIVE MEDICINE DASHBOARD DATA ---\n${productContext}\n-----------------------------------\n` : ""}
 `;
 
-  const models = ["gemini-3.7-flash", "gemini-3.5-flash", "gemini-3.6-flash", "gemini-3.5-flash-lite"];
+  const models = ["gemini-3.1-flash-lite", "gemini-flash-latest", "gemini-3.7-flash", "gemini-3.5-flash"];
   for (const m of models) {
     try {
       const model = genAI.getGenerativeModel({
         model: m,
         systemInstruction,
-        generationConfig: { maxOutputTokens: 350, temperature: 0.2 }
+        generationConfig: { maxOutputTokens: 1200, temperature: 0.2 }
       });
 
       const prompt = `Customer (${senderName || "Customer"}): "${customerMessage}"\nReply:`;
