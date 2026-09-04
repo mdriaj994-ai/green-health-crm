@@ -81,7 +81,7 @@ Rules:
 ${productContext ? `\n--- LIVE MEDICINE DASHBOARD DATA ---\n${productContext}\n-----------------------------------\n` : ""}
 `;
 
-  const models = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"];
+  const models = ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.6-flash"];
   for (const m of models) {
     try {
       const model = genAI.getGenerativeModel({
@@ -146,7 +146,7 @@ async function pollOnce() {
       const isFromCustomer = lastMsg.from?.id && lastMsg.from.id !== PAGE_ID;
 
       if (isFromCustomer && lastMsg.id && !processedIds.has(lastMsg.id)) {
-        saveProcessedId(lastMsg.id);
+        processedIds.add(lastMsg.id); // Mark in memory to prevent duplicate in next tick
         const customerName = lastMsg.from?.name || "Customer";
         const messageText = (lastMsg.message || "").trim();
 
@@ -159,6 +159,7 @@ async function pollOnce() {
         // Send reply to Messenger
         const sendResult = await sendFacebookMessage(lastMsg.from.id, replyText);
         console.log(`[FB_BOT] 🚀 SENT [${sendResult.status}]:`, sendResult.data?.message_id || sendResult.data);
+        saveProcessedId(lastMsg.id); // Persist to file once successfully attempted
       }
     }
   } catch (err) {
