@@ -203,9 +203,9 @@ function getLiveProductInfo(query, senderId = null, recentHistory = []) {
       const sl = String(matched.SL);
       const edit = edits[sl] || {};
       const name = matched["ওষুধের নাম (Brand Name)"] || "প্রাকৃতিক ফর্মুলা";
-      const price = edit.discount_price || edit.custom_price || "৩,০০০";
-      const regPrice = edit.custom_price || "";
-      const note = edit.custom_note || "ক্যাশ অন ডেলিভারি, পার্সেল হাতে পেয়ে পেমেন্ট।";
+      const price = edit.discount_price || edit.custom_price || "২,৯০০";
+      const regPrice = edit.custom_price || "৩,৫০০";
+      const note = edit.custom_note || "ক্যাশ অন ডেলিভারি, সারা দেশে ফ্রি হোম ডেলিভারি।";
       const pitch = edit.custom_pitch || matched["১. কাস্টমারের আসল সমস্যা ও পেইন পয়েন্ট (Pain Point Mapping)"] || "";
       const dosage = edit.dosageForm || matched["১৩. স্ট্যান্ডার্ড মেডিকেল ডোজ ও সেবন প্রোটোকল (Dosage & Protocols)"] || matched["ডোজ ফর্ম ও শক্তি (Dosage Form & Strength)"] || "";
       const indications = matched["১. কাস্টমারের আসল সমস্যা ও পেইন পয়েন্ট (Pain Point Mapping)"] || "";
@@ -253,7 +253,7 @@ function buildStoreCatalog(master, edits) {
     const sl = String(p.SL);
     const ed = edits[sl] || {};
     const name = p["ওষুধের নাম (Brand Name)"];
-    const price = ed.discount_price || ed.custom_price || "৩,০০০";
+    const price = ed.discount_price || ed.custom_price || "২,৯০০";
     const note = ed.custom_note || "ক্যাশ অন ডেলিভারি, সারা দেশে ফ্রি হোম ডেলিভারি।";
     return `#${sl} | ${name} | অফার মূল্য: ${price} টাকা | ডেলিভারি: ${note}`;
   }).join("\n");
