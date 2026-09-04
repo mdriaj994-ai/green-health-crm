@@ -40,24 +40,49 @@ function getLiveProductContext(query) {
     const edits = fs.existsSync(editsPath) ? JSON.parse(fs.readFileSync(editsPath, "utf-8")) : {};
 
     const q = (query || "").toLowerCase();
-    for (const p of master) {
-      const edit = edits[p.sl] || {};
-      const name = p.name || "";
-      const bengali = p.bengali_name || "";
-      const key = (p.product_key || "").toLowerCase();
+    let matched = null;
 
-      if (
-        (key && q.includes(key)) ||
-        (name && q.includes(name.toLowerCase())) ||
-        (bengali && q.includes(bengali))
-      ) {
-        const price = edit.discount_price || edit.regular_price || p.regular_price || p.price;
-        const note = edit.custom_offer_note || p.custom_offer_note || "";
-        const dosage = edit.dosage_instructions || p.dosage_instructions || "";
-        return `\nMATCHED PRODUCT: ${name} (${bengali})\nPRICE: ${price} BDT\nSPECIAL OFFER/NOTE: ${note}\nDOSAGE: ${dosage}\nINDICATION: ${p.indication || p.pain_points_solved || ""}\n`;
+    // Search query for specific product
+    if (q) {
+      for (const p of master) {
+        const name = (p["ওষুধের নাম (Brand Name)"] || "").toLowerCase();
+        const generic = (p["জেনেরিক ও ফার্মাকোলজিক্যাল ক্লাস (Generic & Class)"] || "").toLowerCase();
+        if ((name && q.includes(name)) || (generic && q.includes(generic))) {
+          matched = p;
+          break;
+        }
       }
     }
-  } catch {}
+
+    // Default to Soul Mate (SL 39) if no specific product matched or query is general
+    if (!matched) {
+      matched = master.find(p => String(p.SL) === "39");
+    }
+
+    if (matched) {
+      const sl = String(matched.SL);
+      const edit = edits[sl] || {};
+      const name = matched["ওষুধের নাম (Brand Name)"] || "Soul Mate (সোল মেট)";
+      const price = edit.discount_price || edit.custom_price || "৩,০০০";
+      const regPrice = edit.custom_price || "";
+      const note = edit.custom_note || "ক্যাশ অন ডেলিভারি, পার্সেল হাতে পেয়ে পেমেন্ট।";
+      const pitch = edit.custom_pitch || matched["১. কাস্টমারের আসল সমস্যা ও পেইন পয়েন্ট (Pain Point Mapping)"] || "";
+      const dosage = edit.dosageForm || matched["১৩. স্ট্যান্ডার্ড মেডিকেল ডোজ ও সেবন প্রোটোকল (Dosage & Protocols)"] || matched["ডোজ ফর্ম ও শক্তি (Dosage Form & Strength)"] || "";
+      const indications = matched["১. কাস্টমারের আসল সমস্যা ও পেইন পয়েন্ট (Pain Point Mapping)"] || "";
+
+      return `
+[লাইভ ড্যাশবোর্ড প্রোডাক্ট তথ্য / Live Dashboard Product Data]
+ওষুধের নাম: ${name}
+মূল্য: ${price} টাকা ${regPrice && regPrice !== price ? `(রেগুলার: ${regPrice} টাকা)` : ""}
+অফার ও ডেলিভারি নোট: ${note}
+কার্যকারিতা ও সমাধান: ${pitch}
+সেবনবিধি / ডোজ: ${dosage}
+সমস্যা ও ইন্ডিকেশন: ${indications}
+      `.trim();
+    }
+  } catch (err) {
+    console.error("DB error:", err);
+  }
   return "";
 }
 
@@ -67,17 +92,30 @@ const genAI = new GoogleGenerativeAI(GEMINI_KEY);
 async function generateReply(customerMessage, senderName) {
   const productContext = getLiveProductContext(customerMessage);
 
-  const systemInstruction = `You are Hakim Rejaul Karim - an experienced Unani physician and customer service representative of Galaxy Laboratories (Unani), Bangladesh.
-Your identity:
-- Name: Hakim Rejaul Karim (হাকিম রেজাউল করিম)
-- Title: Unani Physician & Health Consultant, Galaxy Laboratories (Unani)
-- Personality: Warm, respectful, trustworthy, deeply knowledgeable in Unani medicine.
-Rules:
-- Always reply in natural, polite Bengali (বাংলা).
-- Start with an Islamic greeting (আসসালামু আলাইকুম) when starting a conversation.
-- Do NOT use markdown bolding (like ** or ##). Keep it clean and natural.
-- Keep replies direct, concise, and focused on the query.
-- If asked about price or medicine: Always use exact price and offer from the live database.
+  const systemInstruction = `You are a professional, polite, and natural human customer support representative for our healthcare & herbal medicine store in Bangladesh.
+
+Core Communication Rules:
+1. Natural Bengali: Always reply in fluent, natural, polite Bengali (বাংলা). Chat like a helpful human page admin / customer support representative chatting on Facebook Messenger.
+2. Straight to the Point: Answer the customer's exact question directly, clearly, and concisely without unnecessary rambling, repetitive greetings, or fluff.
+3. Greetings Rule:
+   - ONLY say "ওয়ালাইকুম আসসালাম" IF the customer explicitly greeted with "আসসালামু আলাইকুম" or "সালাম".
+   - If the customer says "Hi", "Hello", "হাই", "হ্যালো", respond warmly and naturally, e.g.: "জি বলুন, কীভাবে সাহায্য করতে পারি?"
+   - If the customer asks a direct question (e.g., "দাম কত?", "কি কাজ করে?", "খাব কিভাবে?"), do NOT include any greeting or introduction at all. Answer the question directly!
+4. Self-Identity Rule:
+   - NEVER introduce yourself as any individual doctor, hakim, or person. Do NOT say "আমি হাকিম...", "আমি অমুক বলছি", or "আমাদের প্রতিষ্ঠানে স্বাগতম".
+   - Speak naturally on behalf of the customer support team.
+5. Product Context & Live Dashboard Truth:
+   - Our main active campaign product is Soul Mate (সোল মেট / Lion Strong™).
+   - If the customer asks about price, efficacy, dosage, or order without mentioning a product, assume they are asking about Soul Mate (সোল মেট).
+   - If the customer asks about another specific medicine, use that medicine's data.
+   - All prices, offers, and dosage MUST strictly match the Live Medicine Dashboard Data provided below.
+6. Ordering & Delivery:
+   - Delivery is Cash on Delivery (ক্যাশ অন ডেলিভারি - পার্সেল হাতে পেয়ে মূল্য পরিশোধ)।
+   - Packaging is 100% discrete (১০০% গোপনীয়তা বজায় রেখে পার্সেল পাঠানো হয়)।
+   - To place an order, politely ask for their Name, Full Address, and Phone Number.
+7. Clean Plain Text:
+   - Plain text only. Absolutely DO NOT use markdown bolding or asterisks (no ** or ## or *). Keep it completely clean.
+
 ${productContext ? `\n--- LIVE MEDICINE DASHBOARD DATA ---\n${productContext}\n-----------------------------------\n` : ""}
 `;
 
@@ -87,13 +125,13 @@ ${productContext ? `\n--- LIVE MEDICINE DASHBOARD DATA ---\n${productContext}\n-
       const model = genAI.getGenerativeModel({
         model: m,
         systemInstruction,
-        generationConfig: { maxOutputTokens: 350, temperature: 0.15 }
+        generationConfig: { maxOutputTokens: 300, temperature: 0.1 }
       });
 
-      const prompt = `Customer (${senderName || "Patient"}): "${customerMessage}". Reply as Hakim Rejaul Karim:`;
+      const prompt = `Customer (${senderName || "Customer"}): "${customerMessage}"\nReply:`;
       const res = await model.generateContent(prompt);
       const text = res.response.text().trim();
-      if (text && text.length > 5) {
+      if (text && text.length > 3) {
         return text.replace(/[*#]+/g, "").trim();
       }
     } catch (err) {
@@ -102,7 +140,7 @@ ${productContext ? `\n--- LIVE MEDICINE DASHBOARD DATA ---\n${productContext}\n-
   }
 
   // Safe fallback
-  return "আসসালামু আলাইকুম। গ্যালাক্সি ল্যাবরেটরিজের ইউনানি চিকিৎসালয়ে আপনাকে জানাই আন্তরিক মোবারকবাদ। আমি হাকিম রেজাউল করিম বলছি। আপনার শারীরিক কোনো সমস্যা বা কোনো ঔষধ সম্পর্কে বিস্তারিত জানতে চাইলে আমাকে বলুন, আমি সঠিক সমাধান দিচ্ছি।";
+  return "জি, বলুন কীভাবে সাহায্য করতে পারি? আপনি যে ওষুধ বা সমস্যা সম্পর্কে জানতে চান তা দয়া করে বলুন।";
 }
 
 // ── Send Message via Facebook Graph API ──────────────────────────────────────
