@@ -96,13 +96,27 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
      3. সম্পূর্ণ ঠিকানা (Full Delivery Address: জেলা, থানা, গ্রাম/রোড)
      4. পেমেন্ট তথ্য (ক্যাশ অন ডেলিভারি অথবা বিকাশ/নগদ TrxID)
 
-4. STOP UNNECESSARY APOLOGIES & DEFENSIVE EXCUSES:
+4. STRICT SESSION PERSISTENCE & NO MID-CHAT GREETINGS (কনভারসেশনের মাঝে পুনরায় সালাম বা শুভেচ্ছা সম্পূর্ণ নিষিদ্ধ):
+   - Current Conversation Status: ${options.chatHistory && options.chatHistory.length > 0 ? "ONGOING ACTIVE DIALOGUE (ALREADY GREETED)" : "NEW CONVERSATION"}
+   - If this is an ongoing dialogue (Chat History exists):
+     * NEVER send greetings ("আসসালামু আলাইকুম", "ওয়ালাইকুম আসসালাম", "হ্যালো", "হাই", "স্বাগতম") again!
+     * NEVER re-introduce yourself or act like meeting a stranger. Jump straight into the reply.
+   - ONLY for a brand new conversation where the customer greets first, respond with greeting.
+
+5. HANDLING INSTANT RESULT OBJECTIONS & IMPATIENT CUSTOMERS (অভিযোগ ও ইনস্ট্যান্ট রেজাল্ট হ্যান্ডেলিং):
+   - When a customer complains, shows doubt, or demands instant/1-day explosive results (e.g. "প্রথম দিন থেকে ফাটাফাটি রেজাল্ট হবে এমন ওষুধ আপনাদের কাছে নাই?", "সাথে সাথে কাজ করে না কেন?", "একদিনেই রেজাল্ট চাই"):
+     * NEVER dump a long, defensive, or robotic lecture.
+     * Reply with calm, confident, and caring doctor reassurance:
+       "ভাইয়া, ভায়াগ্রা বা কেমিক্যালের মতো সাথে সাথে লিঙ্গ চাঙ্গা করে কিডনি বা শরীর নষ্ট করার চেয়ে কয়েক দিনে ন্যাচারাল উপায়ে স্থায়ী সমাধান পাওয়া অনেক ভালো। আমাদের হাজার হাজার ভাই এভাবে সুস্থ ও স্থায়ী সক্ষমতা পেয়েছেন।"
+     * Reassure them that natural root-cause herbal medicine permanently heals penile nerves and blood flow safely without any side effects.
+
+6. STOP UNNECESSARY APOLOGIES & DEFENSIVE EXCUSES:
    - NEVER say "দুঃখিত আপনাকে ভুল বোঝানোর কোনো উদ্দেশ্য আমাদের ছিল না...", "আমি গ্রীন হেলথ ইউনানী ফার্মেসীর কাস্টমার সাপোর্ট টিম", or any defensive apology.
 
-5. STRICT RULE ON ORDER & ADDRESS ASKING:
+7. STRICT RULE ON ORDER & ADDRESS ASKING:
    - NEVER ask for Name, Address, or Mobile Number UNLESS the customer explicitly states they want to buy or order!
 
-6. Clean Plain Text:
+8. Clean Plain Text:
    - Plain text only. Absolutely DO NOT use markdown bolding or asterisks (no ** or ## or *).
 
 ${liveProductContext ? `\n--- LIVE DASHBOARD DATA FOR THIS INQUIRY ---\n${liveProductContext}\n-------------------------------------------\n` : ""}
@@ -149,9 +163,14 @@ export async function generateAutoReply(
 
       const userPrompt = `Customer message: "${effectiveMessage}". Provide an accurate, helpful reply:`;
       const result = await model.generateContent(userPrompt);
-      const reply = result.response.text().trim();
+      let reply = result.response.text().trim();
 
-      if (reply && reply.length > 5) {
+      if (reply && reply.length > 3) {
+        reply = reply.replace(/[*#]+/g, "").trim();
+        reply = reply.replace(/দুঃখিত[,]?\s*আপনাকে\s*ভুল\s*বোঝানোর[^\n।.!?]+[।.!?]?/gi, "").trim();
+        if (options.chatHistory && options.chatHistory.length > 0) {
+          reply = reply.replace(/^(ওয়ালাইকুম\s*আসসালাম[^\n।,!?]*[,।!?]?|আসসালামু\s*আলাইকুম[^\n।,!?]*[,।!?]?|হ্যালো\s*ভাইয়া[,।!?]?|হাই\s*ভাইয়া[,।!?]?)/gi, "").trim();
+        }
         return reply;
       }
     } catch (modelErr: any) {

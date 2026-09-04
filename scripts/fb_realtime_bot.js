@@ -348,19 +348,30 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
      You MUST answer specifically about ${matched ? matched.name : "the discussed product"}.
      NEVER switch to another product unless the customer explicitly mentions another medicine by name!
 
-7. GREETINGS & DIRECT ANSWERS:
-   - ONLY say "ওয়ালাইকুম আসসালাম" IF the customer explicitly greeted with "আসসালামু আলাইকুম" or "সালাম".
-   - If the customer asks a direct question (e.g. "দাম কত?", "কাজ কি?", "কীভাবে খাব?"), do NOT include any greeting. Answer the question directly!
+7. STRICT SESSION PERSISTENCE & NO MID-CHAT GREETINGS (কনভারসেশনের মাঝে পুনরায় সালাম বা শুভেচ্ছা সম্পূর্ণ নিষিদ্ধ):
+   - Current Conversation Status: ${recentHistory && recentHistory.length > 0 ? "ONGOING ACTIVE DIALOGUE (ALREADY GREETED)" : "NEW CONVERSATION"}
+   - If this is an ongoing dialogue (Recent History exists):
+     * NEVER send greetings ("আসসালামু আলাইকুম", "ওয়ালাইকুম আসসালাম", "হ্যালো", "হাই", "স্বাগতম") again!
+     * NEVER re-introduce yourself or act like meeting a stranger. Jump straight into the reply.
+   - ONLY for a brand new conversation where the customer greets first, respond with greeting.
+   - If the customer asks a direct question, answer directly without any greeting.
 
-8. PRODUCT AVAILABILITY & STOCK:
+8. HANDLING INSTANT RESULT OBJECTIONS & IMPATIENT CUSTOMERS (অভিযোগ ও ইনস্ট্যান্ট রেজাল্ট হ্যান্ডেলিং):
+   - When a customer complains, shows doubt, or demands instant/1-day explosive results (e.g. "প্রথম দিন থেকে ফাটাফাটি রেজাল্ট হবে এমন ওষুধ আপনাদের কাছে নাই?", "সাথে সাথে কাজ করে না কেন?", "একদিনেই রেজাল্ট চাই"):
+     * NEVER dump a long, defensive, or robotic lecture.
+     * Reply with calm, confident, and caring doctor reassurance:
+       "ভাইয়া, ভায়াগ্রা বা কেমিক্যালের মতো সাথে সাথে লিঙ্গ চাঙ্গা করে কিডনি বা শরীর নষ্ট করার চেয়ে কয়েক দিনে ন্যাচারাল উপায়ে স্থায়ী সমাধান পাওয়া অনেক ভালো। আমাদের হাজার হাজার ভাই এভাবে সুস্থ ও স্থায়ী সক্ষমতা পেয়েছেন।"
+     * Reassure them that natural root-cause herbal medicine permanently heals penile nerves and blood flow safely without any side effects.
+
+9. PRODUCT AVAILABILITY & STOCK:
    - If the customer asks if an authentic medicine is in stock, confirm stock warmly in 1 sentence.
    - If customer asks for external commercial drugs (like Napa, Seclo, Paracetamol) not in our store:
      "দুঃখিত, এই প্রোডাক্টটি বর্তমানে আমাদের কাছে নেই।"
 
-9. STRICT RULE ON ORDER & ADDRESS ASKING:
-   - You MUST NEVER ask for Name, Address, or Mobile Number UNLESS the customer explicitly states they want to buy or order (e.g. "অর্ডার করতে চাই", "নিতে চাই", "পাঠান", "কুরিয়ারে দিন")!
+10. STRICT RULE ON ORDER & ADDRESS ASKING:
+    - You MUST NEVER ask for Name, Address, or Mobile Number UNLESS the customer explicitly states they want to buy or order (e.g. "অর্ডার করতে চাই", "নিতে চাই", "পাঠান", "কুরিয়ারে দিন")!
 
-10. Clean Plain Text:
+11. Clean Plain Text:
     - Plain text only. Absolutely DO NOT use markdown bolding or asterisks (no ** or ## or *).
 
 ${productContext ? `\n--- LIVE MEDICINE DASHBOARD DATA ---\n${productContext}\n-----------------------------------\n` : ""}
@@ -387,6 +398,11 @@ ${productContext ? `\n--- LIVE MEDICINE DASHBOARD DATA ---\n${productContext}\n-
         // Strict safety: remove any accidental defensive apology or robotic excuses
         text = text.replace(/দুঃখিত[,]?\s*আপনাকে\s*ভুল\s*বোঝানোর[^\n।.!?]+[।.!?]?/gi, "").trim();
         text = text.replace(/আমি\s*গ্রীন\s*হেলথ\s*ইউনানী\s*ফার্মেসীর\s*কাস্টমার\s*সাপোর্ট[^\n।.!?]+[।.!?]?/gi, "").trim();
+
+        // If ongoing conversation, strip any accidental mid-chat greeting slipped by LLM
+        if (recentHistory && recentHistory.length > 0) {
+          text = text.replace(/^(ওয়ালাইকুম\s*আসসালাম[^\n।,!?]*[,।!?]?|আসসালামু\s*আলাইকুম[^\n।,!?]*[,।!?]?|হ্যালো\s*ভাইয়া[,।!?]?|হাই\s*ভাইয়া[,।!?]?)/gi, "").trim();
+        }
         return text;
       }
     } catch (err) {
