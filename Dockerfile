@@ -1,19 +1,24 @@
-# Base Node image
-FROM node:20-alpine
+FROM node:20-slim
 WORKDIR /app
 
-# Install dependencies including build tools
+# Install required build and runtime dependencies (OpenSSL for Prisma, build tools for native addons)
+RUN apt-get update -y && apt-get install -y openssl python3 make g++ && rm -rf /var/lib/apt/lists/*
+
+# Copy dependency manifests
 COPY package*.json ./
 COPY prisma ./prisma/
-RUN npm ci --include=dev
 
-# Copy source code
+# Install all dependencies including build-time tools
+RUN npm ci
+
+# Copy application source code
 COPY . .
 
-# Generate Prisma Client and build Next.js application
+# Generate Prisma Client and compile Next.js application
 RUN npx prisma generate
 RUN npm run build
 
+# Configure runtime environment
 ENV NODE_ENV=production
 ENV PORT=3000
 
