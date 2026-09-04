@@ -73,15 +73,26 @@ function getLiveProductContext(query) {
       const pitch = edit.custom_pitch || matched["১. কাস্টমারের আসল সমস্যা ও পেইন পয়েন্ট (Pain Point Mapping)"] || "";
       const dosage = edit.dosageForm || matched["১৩. স্ট্যান্ডার্ড মেডিকেল ডোজ ও সেবন প্রোটোকল (Dosage & Protocols)"] || matched["ডোজ ফর্ম ও শক্তি (Dosage Form & Strength)"] || "";
       const indications = matched["১. কাস্টমারের আসল সমস্যা ও পেইন পয়েন্ট (Pain Point Mapping)"] || "";
+      const dietary = matched["৬. পুষ্টি ও দ্রুত ফলাফল পাওয়ার খাদ্যাভ্যাস (Dietary Blueprint)"] || "";
+      const superiority = matched["২. বাজারের অন্যান্য ওষুধের সাথে শ্রেষ্ঠত্ব (Superiority Matrix)"] || "";
+      const ageSolutions = matched["৩. বয়স ভিত্তিক কাস্টমাইজড সমাধান (Age-Specific Solutions)"] || "";
+      const objectionsList = matched["৫. কাস্টমারের ৪টি কঠিন আপত্তি ও উত্তর (Objection Destroyers)"] || [];
+      const objectionsFormatted = Array.isArray(objectionsList)
+        ? objectionsList.map(o => `প্রশ্ন: ${o.objection}\nউত্তর: ${o.script}`).join("\n\n")
+        : "";
 
       return `
-[লাইভ ড্যাশবোর্ড প্রোডাক্ট তথ্য / Live Dashboard Product Data]
+[লাইভ ড্যাশবোর্ড ও এনসাইক্লোপিডিয়া প্রোডাক্ট তথ্য / Live Encyclopedia Product Data]
 ওষুধের নাম: ${name}
 মূল্য: ${price} টাকা ${regPrice && regPrice !== price ? `(রেগুলার: ${regPrice} টাকা)` : ""}
 অফার ও ডেলিভারি নোট: ${note}
 কার্যকারিতা ও সমাধান: ${pitch}
 সেবনবিধি / ডোজ: ${dosage}
 সমস্যা ও ইন্ডিকেশন: ${indications}
+${superiority ? `শ্রেষ্ঠত্ব ও কেন সেরা: ${superiority}` : ""}
+${dietary ? `খাদ্যাভ্যাস ও পথ্য (Diet Plan): ${dietary}` : ""}
+${ageSolutions ? `বয়স ভিত্তিক পরামর্শ: ${ageSolutions}` : ""}
+${objectionsFormatted ? `কাস্টমারের কমন আপত্তি ও বিক্রির সঠিক উত্তর:\n${objectionsFormatted}` : ""}
       `.trim();
     }
   } catch (err) {
