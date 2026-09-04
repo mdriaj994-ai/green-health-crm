@@ -224,7 +224,7 @@ async function transcribeAudioWithGroq(audioUrl: string): Promise<string> {
   }
 }
 
-async function handleMessengerMessage(pageId: string, event: any) {
+export async function handleMessengerMessage(pageId: string, event: any) {
   if (event.message?.is_echo) return;
 
   const senderId  = event.sender?.id;

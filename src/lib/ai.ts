@@ -66,8 +66,8 @@ Knowledge Base:
 ${kb}`.trim();
 }
 
-// Correct Gemini model names - try in priority order
-const PRIMARY_MODELS = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.0-pro"];
+// Active Gemini model names - try in priority order
+const PRIMARY_MODELS = ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite"];
 
 export async function generateAutoReply(
   incomingMessage: string,
