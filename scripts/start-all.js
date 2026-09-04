@@ -6,11 +6,11 @@ console.log("==========================================");
 console.log("  STARTING SOCIAL INBOX & FB REALTIME BOT ");
 console.log("==========================================");
 
-// 1. Start Next.js Server on port 3000
-const nextServer = spawn("npm", ["run", "start"], {
+// 1. Start Next.js Server on port 3000 binding to 0.0.0.0
+const nextServer = spawn("npx", ["next", "start", "-H", "0.0.0.0", "-p", "3000"], {
   stdio: "inherit",
   shell: true,
-  env: process.env,
+  env: { ...process.env, HOSTNAME: "0.0.0.0", PORT: "3000" },
 });
 
 nextServer.on("exit", (code) => {
