@@ -81,7 +81,7 @@ Rules:
 ${productContext ? `\n--- LIVE MEDICINE DASHBOARD DATA ---\n${productContext}\n-----------------------------------\n` : ""}
 `;
 
-  const models = ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-flash-latest"];
+  const models = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"];
   for (const m of models) {
     try {
       const model = genAI.getGenerativeModel({
@@ -185,10 +185,10 @@ async function startBot() {
         const m = msgs[i];
         const isLatest = (i === 0);
         const isFromCustomer = m.from?.id && m.from.id !== PAGE_ID;
-        const isRecent = (now - new Date(m.created_time).getTime()) < 10 * 60 * 1000;
+        const isRecent = (now - new Date(m.created_time).getTime()) < 24 * 60 * 60 * 1000;
 
         if (isLatest && isFromCustomer && isRecent && !processedIds.has(m.id)) {
-          console.log(`[FB_BOT] Found pending recent message: "${m.message}". Will process immediately.`);
+          console.log(`[FB_BOT] Found pending unreplied message from ${m.from?.name || "Customer"}: "${m.message}". Processing immediately.`);
         } else {
           if (m.id) processedIds.add(m.id);
         }
