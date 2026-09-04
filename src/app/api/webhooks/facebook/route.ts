@@ -1,4 +1,10 @@
 import { NextResponse } from "next/server";
+import { startMessengerPoller } from "@/lib/messenger-poller";
+
+// Start background poller ensuring it is always active
+try {
+  startMessengerPoller();
+} catch {}
 
 const VERIFY_TOKEN = process.env.FACEBOOK_WEBHOOK_VERIFY_TOKEN ?? "social_inbox_verify_token";
 

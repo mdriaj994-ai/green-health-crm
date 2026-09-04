@@ -28,15 +28,26 @@ export async function startMessengerPoller() {
   const pageId = process.env.FACEBOOK_PAGE_ID || DEFAULT_PAGE_ID;
   const pageToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || DEFAULT_PAGE_TOKEN;
 
-  // 1. Preload recent messages so we never reply to old historical messages
+  // 1. Preload messages - ignore old ones, but catch any recent unreplied customer messages (< 10 mins)
   try {
     const initConvs = await fetchConversations(pageId, pageToken);
+    const now = Date.now();
     for (const conv of initConvs) {
-      for (const msg of conv.messages?.data || []) {
-        if (msg.id) processedIds.add(msg.id);
+      const msgs = conv.messages?.data || [];
+      for (let i = 0; i < msgs.length; i++) {
+        const msg = msgs[i];
+        const isLatest = (i === 0);
+        const isFromCustomer = msg.from?.id && msg.from.id !== pageId;
+        const isRecent = (now - new Date(msg.created_time).getTime()) < 10 * 60 * 1000;
+
+        if (isLatest && isFromCustomer && isRecent) {
+          console.log(`[MESSENGER_POLLER] 🎯 Queued unreplied customer message for immediate reply: "${msg.message}" (${msg.id})`);
+        } else {
+          if (msg.id) processedIds.add(msg.id);
+        }
       }
     }
-    console.log(`[MESSENGER_POLLER] Preloaded ${processedIds.size} historical message IDs.`);
+    console.log(`[MESSENGER_POLLER] Initialized. Ignored ${processedIds.size} old messages.`);
   } catch (err: any) {
     console.warn("[MESSENGER_POLLER_INIT_WARN]", err.message);
   }
