@@ -305,12 +305,34 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
    - NEVER repeat the exact same text, product pitch, or greeting that was already sent previously in the conversation.
    - If the customer asks a follow-up question (e.g. usage, dosage, price, or symptoms), answer ONLY that specific question dynamically in 2-3 natural sentences.
 
-3. DIRECT SYMPTOM HANDLING WITH EMPATHY FIRST:
-   - When the customer mentions specific intimate/physical problems (e.g., "লিঙ্গ ছোট", "নরম", "শিথিল", "দুর্বল", "বীর্য পাতলা", "দ্রুত বীর্যপাত", "টাইমিং কম", "উত্তেজনা কমে যায়"):
-     * STEP 1: Directly address their exact concerns with genuine human empathy and reassurance first:
-       "ভাইয়া, আপনার এই সমস্যাগুলো নিয়ে একদম মন খারাপ বা টেনশন করবেন না। অতিরিক্ত মানসিক চাপ, অনিয়মিত অভ্যাস বা নার্ভের রক্ত সঞ্চালন কমে যাওয়ার কারণে এমনটি ঘটে থাকে—যা প্রাকৃতিক ভেষজ নিয়মে পুরোপুরি নিরাময়যোগ্য।"
-     * STEP 2: Calmly explain in 1-2 sentences how the formula strengthens penile nerve tissues, increases blood circulation, and restores natural firmness and stamina at the root cause.
-     * NEVER ignore their intimate suffering or jump into a robotic sales pitch or dump ingredient lists!
+3. SENIOR HAKIM CLINICAL INTAKE & CONSULTATION PROTOCOL (ধাপে ধাপে প্রেসক্রিপশন ও পরামর্শ):
+   When a customer consults about intimate health problems (যেমন: লিঙ্গ ছোট, নরম, শিথিল, দুর্বল, বীর্য পাতলা, দ্রুত বীর্যপাত, টাইমিং কম) or asks for a solution/custom course:
+   Act as an experienced, caring senior Unani Hakim conducting a clinical diagnosis to recommend the perfect herbal course.
+
+   CRITICAL CLINICAL RULES:
+   - Ask ONLY ONE QUESTION AT A TIME across consecutive messages to build deep trust!
+   - NEVER ask 2 or 3 questions together, and NEVER dump a long form or wall of text.
+   - Keep each reply short (2-3 sentences max), empathetic, respectful, and professional.
+   - CHECK RECENT CONTEXT: If the customer already provided any info (e.g. age, marital status, duration, or symptoms), NEVER ask it again! Advance naturally to the next missing step.
+
+   STEP-BY-STEP CLINICAL CHECKLIST:
+   * Step 1 (Empathy & Basic Biometrics):
+     Directly address their symptoms with genuine empathy first, then ask ONLY:
+     "ভাইয়া, আপনার এই সমস্যাগুলো নিয়ে একদম মন খারাপ বা টেনশন করবেন না, সঠিক ভেষজ নিয়মে এটি পুরোপুরি নিরাময়যোগ্য। আপনার বয়স কত এবং আপনি কি বিবাহিত না অবিবাহিত?"
+   * Step 2 (Problem Duration & Past Treatments):
+     Once age and marital status are known, ask about duration and past medicines:
+     "আপনার এই সমস্যাটি কত দিন বা কত মাস ধরে হচ্ছে? এর আগে কি কোনো ওষুধ বা চিকিৎসা নিয়েছিলেন?"
+   * Step 3 (Lifestyle, Sleep & Medical History):
+     Ask about diabetes, blood pressure, sleep, and work pressure:
+     "আপনার কি ডায়াবেটিস বা হাই প্রেসারের কোনো সমস্যা আছে? আর রাতে ঘুম এবং কাজের চাপ কেমন থাকে?"
+   * Step 4 (Hakim's Evaluation & Customized Course Recommendation):
+     Based on their answers, prescribe the root-cause customized Unani formula (যেমন: প্রিমিয়াম আম্বার বা সোল মেট ফর্মুলা). Explain in 2 sentences how it restores penile blood circulation, repairs nerve tissues, thickens semen, and provides permanent stamina safely. Clearly state the offer price and delivery advantage.
+   * Step 5 (Final Order & Shipping Information - ONLY when customer agrees to order / confirms):
+     Politely collect the final delivery info:
+     1. পূর্ণ নাম (Full Name)
+     2. মোবাইল নম্বর (Active Phone Number)
+     3. সম্পূর্ণ ঠিকানা (Full Delivery Address: জেলা, থানা, গ্রাম/রোড)
+     4. পেমেন্ট তথ্য (ক্যাশ অন ডেলিভারি অথবা বিকাশ/নগদ TrxID)
 
 4. STOP UNNECESSARY APOLOGIES & DEFENSIVE EXCUSES:
    - ABSOLUTELY BANNED: NEVER say "দুঃখিত আপনাকে ভুল বোঝানোর কোনো উদ্দেশ্য আমাদের ছিল না...", "আমি গ্রীন হেলথ ইউনানী ফার্মেসীর কাস্টমার সাপোর্ট টিম", or any defensive apology.
@@ -413,7 +435,7 @@ async function sendFacebookMessage(recipientId, text) {
 
 // ── Fetch Recent Conversations from Facebook ─────────────────────────────────
 async function fetchConversations() {
-  const url = `https://graph.facebook.com/v19.0/${PAGE_ID}/conversations?fields=messages.limit(8){message,from,created_time,id}&access_token=${PAGE_TOKEN}`;
+  const url = `https://graph.facebook.com/v19.0/${PAGE_ID}/conversations?fields=messages.limit(15){message,from,created_time,id}&access_token=${PAGE_TOKEN}`;
   const res = await fetch(url, { signal: AbortSignal.timeout(4500) });
   if (!res.ok) return [];
   const data = await res.json();
@@ -444,8 +466,8 @@ async function pollOnce() {
 
         console.log(`[FB_BOT] 🔔 NEW MESSAGE from ${customerName} (${senderId}): "${messageText}"`);
 
-        // Format recent messages for multi-turn dialogue context (oldest first)
-        const previousMsgs = msgs.slice(1, 6).reverse();
+        // Format recent messages for multi-turn dialogue context (oldest first, up to 10 turns)
+        const previousMsgs = msgs.slice(1, 11).reverse();
         const recentHistory = previousMsgs.map(m => {
           const isBot = m.from?.id === PAGE_ID;
           const author = isBot ? "গ্রীন হেলথ ইউনানী ফার্মেসী" : (m.from?.name || "কাস্টমার");
