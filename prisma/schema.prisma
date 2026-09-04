@@ -1,0 +1,195 @@
+// This is your Prisma schema file
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+}
+
+// â”€â”€â”€ Users & Auth â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  password      String
+  role          UserRole  @default(AGENT)
+  avatar        String?
+  isActive      Boolean   @default(true)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  // Relations
+  assignedConversations Conversation[] @relation("AssignedAgent")
+  messages              Message[]      @relation("SentByUser")
+  team                  Team?          @relation(fields: [teamId], references: [id])
+  teamId                String?
+  connectedAccounts     ConnectedAccount[]
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  AGENT
+}
+
+model Team {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+  users     User[]
+}
+
+// â”€â”€â”€ Connected Social Accounts (Facebook Pages, WA, TG) â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+model ConnectedAccount {
+  id              String          @id @default(cuid())
+  platform        Platform
+  pageId          String          // Facebook Page ID / WA number / TG chat ID
+  pageName        String
+  avatar          String?
+  accessToken     String          
+  isActive        Boolean         @default(true)
+  createdAt       DateTime        @default(now())
+  updatedAt       DateTime        @updatedAt
+
+  // â”€â”€ AI Auto-Reply Config â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  aiAutoReply     Boolean         @default(true)
+  businessDetails String?            // Product info, pricing, delivery policy
+  aiTone          String?         @default("friendly") // friendly | professional | casual
+
+  user         User            @relation(fields: [userId], references: [id])
+  userId       String
+  conversations Conversation[]
+  comments      Comment[]
+
+  @@unique([platform, pageId, userId])
+}
+
+
+enum Platform {
+  FACEBOOK
+  MESSENGER
+  WHATSAPP
+  TELEGRAM
+}
+
+// â”€â”€â”€ Contacts (Customers) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+model Contact {
+  id               String         @id @default(cuid())
+  platformUserId   String         // User ID on the platform
+  platform         Platform
+  name             String
+  avatar           String?
+  email            String?
+  phone            String?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+
+  conversations    Conversation[]
+
+  @@unique([platformUserId, platform])
+}
+
+// â”€â”€â”€ Conversations â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+model Conversation {
+  id              String             @id @default(cuid())
+  status          ConversationStatus @default(OPEN)
+  lastMessageAt   DateTime           @default(now())
+  isRead          Boolean            @default(false)
+  createdAt       DateTime           @default(now())
+  updatedAt       DateTime           @updatedAt
+
+  contact         Contact            @relation(fields: [contactId], references: [id])
+  contactId       String
+  account         ConnectedAccount   @relation(fields: [accountId], references: [id])
+  accountId       String
+  assignedAgent   User?              @relation("AssignedAgent", fields: [assignedAgentId], references: [id])
+  assignedAgentId String?
+  messages        Message[]
+}
+
+enum ConversationStatus {
+  OPEN
+  PENDING
+  RESOLVED
+  SPAM
+}
+
+// â”€â”€â”€ Messages â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+model Message {
+  id              String      @id @default(cuid())
+  content         String      
+  messageType     MessageType @default(TEXT)
+  senderType      SenderType
+  platformMsgId   String?     @unique // ID from Facebook/WA/TG
+  mediaUrl        String?
+  isRead          Boolean     @default(false)
+  createdAt       DateTime    @default(now())
+
+  conversation    Conversation @relation(fields: [conversationId], references: [id])
+  conversationId  String
+  sentByUser      User?       @relation("SentByUser", fields: [sentByUserId], references: [id])
+  sentByUserId    String?
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  FILE
+  STICKER
+}
+
+enum SenderType {
+  CUSTOMER
+  AGENT
+  BOT
+}
+
+// â”€â”€â”€ Comments â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+model Comment {
+  id              String        @id @default(cuid())
+  postId          String
+  postText        String?       
+  postThumbnail   String?
+  platformCommentId String      @unique
+  userName        String
+  userAvatar      String?
+  text            String        
+  status          CommentStatus @default(PENDING)
+  repliedText     String?       
+  repliedAt       DateTime?
+  commentedAt     DateTime
+  createdAt       DateTime      @default(now())
+
+  account         ConnectedAccount @relation(fields: [accountId], references: [id])
+  accountId       String
+}
+
+enum CommentStatus {
+  PENDING
+  REPLIED
+  HIDDEN
+  DELETED
+}
+
+// â”€â”€â”€ Auto Reply Rules â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+model AutoReplyRule {
+  id             String   @id @default(cuid())
+  triggerKeyword String
+  replyText      String   
+  platform       Platform?
+  isActive       Boolean  @default(true)
+  createdAt      DateTime @default(now())
+  accountId      String
+}
+
