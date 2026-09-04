@@ -42,7 +42,7 @@ function getLiveProductContext(query) {
     const q = (query || "").toLowerCase();
     let matched = null;
 
-    // Search query for specific product
+    // Search query for specific product in master database
     if (q) {
       for (const p of master) {
         const name = (p["ওষুধের নাম (Brand Name)"] || "").toLowerCase();
@@ -54,8 +54,12 @@ function getLiveProductContext(query) {
       }
     }
 
-    // Default to Soul Mate (SL 39) if no specific product matched or query is general
-    if (!matched) {
+    // Only default to Soul Mate if the customer's query is general about price, order, usage, or mentions soul mate
+    const isGeneralAdQuery = /^(দাম|কত|প্রাইস|price|কাজ|উপকার|কিভাবে|অর্ডার|ডেলিভারি|খাব|নিয়ম|order|koto|dam|kaj|rule)/i.test(q) ||
+      q.includes("soul") || q.includes("সোল") || q.includes("মেট") || q.includes("mate") ||
+      q.includes("খাওয়ার") || q.includes("কাজ কি") || q.includes("দাম কত") || q.includes("নিতে চাই");
+
+    if (!matched && isGeneralAdQuery) {
       matched = master.find(p => String(p.SL) === "39");
     }
 
@@ -101,25 +105,31 @@ Core Communication Rules:
    - ONLY say "ওয়ালাইকুম আসসালাম" IF the customer explicitly greeted with "আসসালামু আলাইকুম" or "সালাম".
    - If the customer says "Hi", "Hello", "হাই", "হ্যালো", respond warmly and naturally, e.g.: "জি বলুন, কীভাবে সাহায্য করতে পারি?"
    - If the customer asks a direct question (e.g., "দাম কত?", "কি কাজ করে?", "খাব কিভাবে?"), do NOT include any greeting or introduction at all. Answer the question directly!
-4. Self-Identity Rule:
+4. Product Availability & Unknown Items (CRITICAL):
+   - If a customer asks for ANY medicine, product, brand, or illness treatment that is NOT in our provided database (for example: "নাপা আছে?", "প্যারাসিটামল আছে?", "টাইগার আছে?", "সারজেল আছে?", "ক্যান্সারের ওষুধ আছে?"):
+     You MUST state clearly and directly: "দুঃখিত, এই প্রোডাক্টটি বর্তমানে আমাদের কাছে নেই।" (or "দুঃখিত, এটার ওষুধ আমাদের কাছে নেই।")
+   - If a customer asks about something we do not know or do not have in our database:
+     Reply: "দুঃখিত, এ বিষয়ে আমাদের কাছে তথ্য নেই।"
+   - NEVER make up fake product info, and NEVER recommend an unrelated product like Soul Mate when an unavailable product was requested.
+5. Self-Identity Rule:
    - NEVER introduce yourself as any individual doctor, hakim, or person. Do NOT say "আমি হাকিম...", "আমি অমুক বলছি", or "আমাদের প্রতিষ্ঠানে স্বাগতম".
    - Speak naturally on behalf of the customer support team.
-5. Product Context & Live Dashboard Truth:
+6. Product Context & Live Dashboard Truth:
    - Our main active campaign product is Soul Mate (সোল মেট / Lion Strong™).
-   - If the customer asks about price, efficacy, dosage, or order without mentioning a product, assume they are asking about Soul Mate (সোল মেট).
-   - If the customer asks about another specific medicine, use that medicine's data.
+   - If the customer asks general questions about the ad ("দাম কত?", "কাজ কি?", "অর্ডার করব কিভাবে?") without asking for an unavailable brand name, answer strictly using Soul Mate data.
+   - If the customer asks about another specific medicine that IS in our database, use that medicine's data.
    - All prices, offers, and dosage MUST strictly match the Live Medicine Dashboard Data provided below.
-6. Ordering & Delivery:
+7. Ordering & Delivery:
    - Delivery is Cash on Delivery (ক্যাশ অন ডেলিভারি - পার্সেল হাতে পেয়ে মূল্য পরিশোধ)।
    - Packaging is 100% discrete (১০০% গোপনীয়তা বজায় রেখে পার্সেল পাঠানো হয়)।
    - To place an order, politely ask for their Name, Full Address, and Phone Number.
-7. Clean Plain Text:
+8. Clean Plain Text:
    - Plain text only. Absolutely DO NOT use markdown bolding or asterisks (no ** or ## or *). Keep it completely clean.
 
 ${productContext ? `\n--- LIVE MEDICINE DASHBOARD DATA ---\n${productContext}\n-----------------------------------\n` : ""}
 `;
 
-  const models = ["gemini-3.5-flash-lite", "gemini-3.5-flash", "gemini-3.6-flash"];
+  const models = ["gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.5-flash-lite"];
   for (const m of models) {
     try {
       const model = genAI.getGenerativeModel({
@@ -140,7 +150,7 @@ ${productContext ? `\n--- LIVE MEDICINE DASHBOARD DATA ---\n${productContext}\n-
   }
 
   // Safe fallback
-  return "জি, বলুন কীভাবে সাহায্য করতে পারি? আপনি যে ওষুধ বা সমস্যা সম্পর্কে জানতে চান তা দয়া করে বলুন।";
+  return "দুঃখিত, এই প্রোডাক্টটি বর্তমানে আমাদের কাছে নেই।";
 }
 
 // ── Send Message via Facebook Graph API ──────────────────────────────────────
