@@ -11,7 +11,9 @@ const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAW6YWihfogBSY0co
 const GEMINI_KEY = process.env.GEMINI_API_KEY || "";
 
 const PROCESSED_FILE = path.join(process.cwd(), "data", "processed_msg_ids.json");
+const THREAD_MEMORY_FILE = path.join(process.cwd(), "data", "thread_memory.json");
 const processedIds = new Set();
+const threadMemory = new Map();
 
 // Preload processed IDs from file if exists
 try {
@@ -27,6 +29,36 @@ function saveProcessedId(id) {
     const list = Array.from(processedIds).slice(-500); // keep last 500
     fs.writeFileSync(PROCESSED_FILE, JSON.stringify(list), "utf-8");
   } catch {}
+}
+
+function loadThreadMemory() {
+  try {
+    if (fs.existsSync(THREAD_MEMORY_FILE)) {
+      const data = JSON.parse(fs.readFileSync(THREAD_MEMORY_FILE, "utf-8"));
+      const now = Date.now();
+      for (const [k, v] of Object.entries(data)) {
+        // Retain thread context for up to 7 days
+        if (v && v.time && (now - v.time < 7 * 24 * 60 * 60 * 1000)) {
+          threadMemory.set(k, v);
+        }
+      }
+      console.log(`[FB_BOT] Loaded ${threadMemory.size} active conversation threads into memory.`);
+    }
+  } catch (e) {
+    console.warn("[FB_BOT] Thread memory load error:", e.message);
+  }
+}
+
+function saveThreadMemory() {
+  try {
+    const obj = {};
+    for (const [k, v] of threadMemory.entries()) {
+      obj[k] = v;
+    }
+    fs.writeFileSync(THREAD_MEMORY_FILE, JSON.stringify(obj, null, 2), "utf-8");
+  } catch (e) {
+    console.warn("[FB_BOT] Thread memory save error:", e.message);
+  }
 }
 
 // ── Live Product Database Loader & Bilingual Matcher ────────────────────────
@@ -76,7 +108,7 @@ function findMatchedProduct(query, master) {
   return null;
 }
 
-function getLiveProductInfo(query) {
+function getLiveProductInfo(query, senderId = null, recentHistory = []) {
   try {
     const masterPath = path.join(process.cwd(), "data", "medicine_master_complete_db.json");
     const editsPath = path.join(process.cwd(), "data", "custom_user_edits.json");
@@ -86,14 +118,54 @@ function getLiveProductInfo(query) {
     const edits = fs.existsSync(editsPath) ? JSON.parse(fs.readFileSync(editsPath, "utf-8")) : {};
 
     const q = (query || "").toLowerCase();
+    
+    // 1. First priority: Check if current query explicitly names any medicine
     let matched = findMatchedProduct(q, master);
 
-    // If query is general about ad / price / order without specifying another medicine, default to Soul Mate
+    // 2. If current message didn't name a product, check thread memory for this sender
+    if (!matched && senderId && threadMemory.has(senderId)) {
+      const saved = threadMemory.get(senderId);
+      if (saved && saved.sl) {
+        matched = master.find(p => String(p.SL) === String(saved.sl));
+      }
+    }
+
+    // 3. If still no match, inspect recent conversation history
+    if (!matched && recentHistory && recentHistory.length > 0) {
+      for (const line of recentHistory) {
+        const hMatch = findMatchedProduct(line, master);
+        if (hMatch) {
+          matched = hMatch;
+          break;
+        }
+      }
+    }
+
+    // Save/update thread memory when a product is identified
+    if (matched && senderId) {
+      threadMemory.set(senderId, {
+        sl: String(matched.SL),
+        name: matched["ওষুধের নাম (Brand Name)"],
+        time: Date.now()
+      });
+      saveThreadMemory();
+    }
+
+    // 4. ONLY if NO product was found in current query, thread memory, or recent history,
+    // check if this is a general ad inquiry (e.g. initial click on our page ad)
     const isGeneralAdQuery = /^(দাম|কত|প্রাইস|price|কাজ|উপকার|কিভাবে|অর্ডার|ডেলিভারি|খাব|নিয়ম|order|koto|dam|kaj|rule)/i.test(q) ||
       q.includes("খাওয়ার") || q.includes("কাজ কি") || q.includes("দাম কত") || q.includes("নিতে চাই");
 
     if (!matched && isGeneralAdQuery) {
-      matched = master.find(p => String(p.SL) === "39");
+      matched = master.find(p => String(p.SL) === "39"); // Soul Mate default
+      if (senderId) {
+        threadMemory.set(senderId, {
+          sl: "39",
+          name: "সোল মেট (Soul Mate)",
+          time: Date.now()
+        });
+        saveThreadMemory();
+      }
     }
 
     if (matched) {
@@ -145,67 +217,72 @@ ${ageSolutions ? `বয়স ভিত্তিক পরামর্শ: ${ageSo
 // ── Gemini AI Generator ──────────────────────────────────────────────────────
 const genAI = new GoogleGenerativeAI(GEMINI_KEY);
 
-async function generateReply(customerMessage, senderName) {
-  const { context: productContext, matched } = getLiveProductInfo(customerMessage);
+async function generateReply(customerMessage, senderName, senderId = null, recentHistory = []) {
+  const { context: productContext, matched } = getLiveProductInfo(customerMessage, senderId, recentHistory);
 
   const systemInstruction = `You are an expert, empathetic, and persuasive human customer support and sales representative for our authentic healthcare & herbal medicine store in Bangladesh.
 
 Core Communication Rules:
 1. Natural Bengali: Always reply in fluent, natural, polite Bengali (বাংলা). Chat like a helpful human page admin chatting on Facebook Messenger.
 2. Direct yet Persuasive: Answer the customer's exact question clearly and concisely, but also understand their psychology, hesitation, and situation to build trust and convince them.
-3. Greetings Rule:
+3. CONVERSATIONAL CONTINUITY & PRONOUNS (CRITICAL):
+   - Current Product Under Discussion: ${matched ? matched.name : "None"}
+   - If the customer asks follow-up questions using pronouns like "aitar", "er", "eta" ("এটার কাজ কি?", "দাম কত?", "কীভাবে খাব?", "এটার কি কোনো সাইড এফেক্ট আছে?"):
+     You MUST answer specifically about ${matched ? matched.name : "the discussed product"}.
+     NEVER switch to another product (like Soul Mate or Men's Burner) unless the customer explicitly asks for another medicine by name!
+4. Greetings Rule:
    - ONLY say "ওয়ালাইকুম আসসালাম" IF the customer explicitly greeted with "আসসালামু আলাইকুম" or "সালাম".
    - If the customer says "Hi", "Hello", "হাই", "হ্যালো", respond warmly and naturally, e.g.: "জি বলুন, কীভাবে সাহায্য করতে পারি?"
    - If the customer asks a direct question (e.g., "দাম কত?", "কি কাজ করে?", "খাব কিভাবে?"), do NOT include any greeting or introduction at all. Answer the question directly!
-4. Product Availability & Unknown Items (CRITICAL):
+5. Product Availability & Unknown Items (CRITICAL):
    - If a customer asks for ANY medicine, product, brand, or illness treatment that is NOT in our provided database (for example: "নাপা আছে?", "প্যারাসিটামল আছে?", "টাইগার আছে?", "সারজেল আছে?", "ক্যান্সারের ওষুধ আছে?"):
      You MUST state clearly and directly: "দুঃখিত, এই প্রোডাক্টটি বর্তমানে আমাদের কাছে নেই।" (or "দুঃখিত, এটার ওষুধ আমাদের কাছে নেই।")
    - If a customer asks about something we do not know or do not have in our database:
      Reply: "দুঃখিত, এ বিষয়ে আমাদের কাছে তথ্য নেই।"
    - NEVER make up fake product info, and NEVER recommend an unrelated product like Soul Mate when an unavailable product was requested.
-5. STRICTLY Answer ONLY What Was Asked (কাস্টমার যেটুকু জানতে চেয়েছেন শুধুমাত্র সেটুকুই উত্তর দিন):
+6. STRICTLY Answer ONLY What Was Asked (কাস্টমার যেটুকু জানতে চেয়েছেন শুধুমাত্র সেটুকুই উত্তর দিন):
    - Do NOT dump prices, dosages, pitches, or order requests when not asked.
    - Do NOT sound like an aggressive salesman or an automated robot.
    - Speak in natural, respectful, conversational Bengali like an attentive human healthcare consultant.
 
-5.1. Product Availability Question ("আছে কি না?", "পাওয়া যাবে কি?"):
+6.1. Product Availability Question ("আছে কি না?", "পাওয়া যাবে কি?"):
    - When a customer asks if a product is available (e.g. "Men's Burner aita ase apnader kase", "এটা কি আপনাদের কাছে আছে?"):
      Confirm availability simply and politely. DO NOT tell price, DO NOT pitch, and NEVER ask for an order or address.
      Example: "জি, [ওষুধের নাম] আমাদের কাছে ১০০% অরিজিনাল স্টকে রয়েছে। এটি সম্পর্কে কি কোনো তথ্য জানতে চাচ্ছেন?"
 
-5.2. Price Question ("দাম কত?", "প্রাইস কত?"):
+6.2. Price Question ("দাম কত?", "প্রাইস কত?"):
    - State ONLY the current price and offer clearly. Do NOT ask for address or tell them to order.
      Example: "এর বর্তমান অফার মূল্য [মূল্য] টাকা। সাথে ফ্রি হোম ডেলিভারি সুবিধা রয়েছে।"
 
-5.3. Function / Benefits Question ("কাজ কি?", "কী উপকার হবে?"):
+6.3. Function / Benefits Question ("কাজ কি?", "কী উপকার হবে?"):
    - Explain the key health benefits, root-cause healing, and how it solves the issue gently using the dashboard data. Do NOT push to buy.
 
-5.4. Usage / Dosage Question ("কীভাবে খাব?", "নিয়ম কি?"):
+6.4. Usage / Dosage Question ("কীভাবে খাব?", "নিয়ম কি?"):
    - Explain the dosage instructions clearly and concisely.
 
-5.5. STRICT RULE ON ORDER & ADDRESS ASKING (অর্ডার ও ঠিকানা চাওয়ার কঠোর নিয়ম):
+6.5. STRICT RULE ON ORDER & ADDRESS ASKING (অর্ডার ও ঠিকানা চাওয়ার কঠোর নিয়ম):
    - You MUST NEVER ask for Name, Address, or Mobile Number ("আপনার নাম, ঠিকানা ও মোবাইল নম্বর দিন") UNLESS the customer explicitly states they want to buy or order (e.g. "অর্ডার করতে চাই", "নিতে চাই", "দেন", "পাঠান", "কুরিয়ারে দিন", "কীভাবে অর্ডার করব")!
    - Asking for an order or address prematurely scares customers away, creates confusion, and feels like an annoying robot.
 
-6. Sales Psychology & Reassurance (When Customer Shows Hesitation):
+7. Sales Psychology & Reassurance (When Customer Shows Hesitation):
    - Fraud/Scam Fear: If customer is afraid of being cheated or getting fake products, remove all risk: "আপনার এমন ভাবাটা স্বাভাবিক। তবে নিশ্চিন্ত থাকুন, আপনাকে ১ টাকাও অগ্রিম দিতে হবে না। সম্পূর্ণ ক্যাশ অন ডেলিভারিতে পার্সেল হাতে পেয়ে নিশ্চিত হয়ে তারপর মূল্য পরিশোধ করবেন।"
    - Price Objection (দাম বেশি মনে করলে): Politely explain the value of pure, rare herbal ingredients that give safe, permanent root-cause healing without any harmful side effects.
 
-7. Self-Identity Rule:
+8. Self-Identity Rule:
    - NEVER introduce yourself as any individual doctor, hakim, or person. Do NOT say "আমি হাকিম...", "আমি অমুক বলছি", or "আমাদের প্রতিষ্ঠানে স্বাগতম". Speak naturally on behalf of the customer care team.
 
-8. Product Context & Live Dashboard Truth:
+9. Product Context & Live Dashboard Truth:
    - If the customer asks for a specific medicine (like Men's Burner, Soul Mate, etc.), use that medicine's exact data from the dashboard.
    - If customer asks general ad questions without naming any medicine, use Soul Mate data.
 
-9. Store Catalog & Available Offerings:
+10. Store Catalog & Available Offerings:
    - If the customer asks what kinds of products we sell or what is available (e.g., "কী কী প্রোডাক্ট আছে?", "কী কী ধরনের প্রোডাক্ট বিক্রি করেন?", "কী কী পাওয়া যায়?"):
      Reply warmly, professionally, and completely without pushing an order:
      "আমাদের এখানে মূলত পুরুষদের শারীরিক ও দাম্পত্য দুর্বলতা দূর করা, দ্রুত বীর্যপাত রোধ, দীর্ঘস্থায়ী স্ট্যামিনা বৃদ্ধি, নারীদের দুর্বলতা ও হরমোন ব্যালেন্স, লিভার ও গ্যাস্ট্রিক সমস্যা, এবং বাত-ব্যথা নিরাময়ের ১০০% প্রাকৃতিক ভেষজ ইউনানি ওষুধ রয়েছে। আমাদের অন্যতম জনপ্রিয় ও শীর্ষ কার্যকরী ফর্মুলা হলো Soul Mate (সোল মেট)। 
 
 আপনার কি নির্দিষ্ট কোনো সমস্যা রয়েছে বা কোনো নির্দিষ্ট ওষুধ সম্পর্কে বিস্তারিত জানতে চান? জানালে সঠিক পরামর্শ দিতে পারব।"
 
-10. Clean Plain Text:
+11. Clean Plain Text:
    - Plain text only. Absolutely DO NOT use markdown bolding or asterisks (no ** or ## or *). Keep it completely clean.
 
 ${productContext ? `\n--- LIVE MEDICINE DASHBOARD DATA ---\n${productContext}\n-----------------------------------\n` : ""}
@@ -220,7 +297,10 @@ ${productContext ? `\n--- LIVE MEDICINE DASHBOARD DATA ---\n${productContext}\n-
         generationConfig: { maxOutputTokens: 1200, temperature: 0.2 }
       });
 
-      const prompt = `Customer (${senderName || "Customer"}): "${customerMessage}"\nReply:`;
+      const historyText = recentHistory && recentHistory.length > 0
+        ? `Recent Conversation Context:\n${recentHistory.join("\n")}\n\n`
+        : "";
+      const prompt = `${historyText}Customer (${senderName || "Customer"}): "${customerMessage}"\nReply:`;
       const res = await model.generateContent(prompt);
       const text = res.response.text().trim();
       if (text && text.length > 3) {
@@ -230,6 +310,7 @@ ${productContext ? `\n--- LIVE MEDICINE DASHBOARD DATA ---\n${productContext}\n-
       console.warn(`[AI_MODEL_WARN] (${m}):`, err.message);
     }
   }
+
 
   // Smart Fallback if Gemini models hit 503 or fail
   if (matched) {
@@ -271,7 +352,7 @@ async function sendFacebookMessage(recipientId, text) {
 
 // ── Fetch Recent Conversations from Facebook ─────────────────────────────────
 async function fetchConversations() {
-  const url = `https://graph.facebook.com/v19.0/${PAGE_ID}/conversations?fields=messages.limit(2){message,from,created_time,id}&access_token=${PAGE_TOKEN}`;
+  const url = `https://graph.facebook.com/v19.0/${PAGE_ID}/conversations?fields=messages.limit(8){message,from,created_time,id}&access_token=${PAGE_TOKEN}`;
   const res = await fetch(url, { signal: AbortSignal.timeout(4500) });
   if (!res.ok) return [];
   const data = await res.json();
@@ -297,16 +378,25 @@ async function pollOnce() {
       if (isFromCustomer && lastMsg.id && !processedIds.has(lastMsg.id)) {
         processedIds.add(lastMsg.id); // Mark in memory to prevent duplicate in next tick
         const customerName = lastMsg.from?.name || "Customer";
+        const senderId = lastMsg.from.id;
         const messageText = (lastMsg.message || "").trim();
 
-        console.log(`[FB_BOT] 🔔 NEW MESSAGE from ${customerName} (${lastMsg.from.id}): "${messageText}"`);
+        console.log(`[FB_BOT] 🔔 NEW MESSAGE from ${customerName} (${senderId}): "${messageText}"`);
 
-        // Generate AI reply
-        const replyText = await generateReply(messageText, customerName);
-        console.log(`[FB_BOT] 🤖 HAKIM REPLY: "${replyText.slice(0, 70)}..."`);
+        // Format recent messages for multi-turn dialogue context (oldest first)
+        const previousMsgs = msgs.slice(1, 6).reverse();
+        const recentHistory = previousMsgs.map(m => {
+          const isBot = m.from?.id === PAGE_ID;
+          const author = isBot ? "গ্রীন হেলথ ইউনানী ফার্মেসী" : (m.from?.name || "কাস্টমার");
+          return `${author}: "${(m.message || '').trim()}"`;
+        }).filter(line => line.length > 5);
+
+        // Generate AI reply with thread memory and context
+        const replyText = await generateReply(messageText, customerName, senderId, recentHistory);
+        console.log(`[FB_BOT] 🤖 BOT REPLY: "${replyText.slice(0, 70)}..."`);
 
         // Send reply to Messenger
-        const sendResult = await sendFacebookMessage(lastMsg.from.id, replyText);
+        const sendResult = await sendFacebookMessage(senderId, replyText);
         console.log(`[FB_BOT] 🚀 SENT [${sendResult.status}]:`, sendResult.data?.message_id || sendResult.data);
         saveProcessedId(lastMsg.id); // Persist to file once successfully attempted
       }
@@ -321,9 +411,12 @@ async function pollOnce() {
 // ── Start Engine ─────────────────────────────────────────────────────────────
 async function startBot() {
   console.log("=================================================");
-  console.log("  GALAXY BOT - 24/7 REAL-TIME MESSENGER ENGINE   ");
+  console.log("  GREEN HEALTH BOT - REAL-TIME MESSENGER ENGINE  ");
   console.log("  Page ID:", PAGE_ID);
   console.log("=================================================");
+
+  // Load existing conversation thread memory
+  loadThreadMemory();
 
   // Initialize: preload old messages so we only reply to new or unreplied recent messages
   try {
@@ -354,3 +447,4 @@ async function startBot() {
 }
 
 startBot();
+
