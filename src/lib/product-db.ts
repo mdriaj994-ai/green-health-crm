@@ -149,9 +149,41 @@ export function saveProductEdit(sl: string, payload: Partial<ProductEdit>): Merg
 // Find best matching product by customer query
 export function findProductInDB(query: string): MergedProduct | null {
   const db = loadMergedDB();
-  const q = query.toLowerCase().replace(/[^\u0080-\uFFFF\w\s]/g, "").trim();
+  const q = query.toLowerCase().replace(/['"’`]/g, "").trim();
   if (!q) return null;
 
+  const aliases: Record<string, string[]> = {
+    "dream touch": ["dream touch", "dreamtouch", "ড্রিম টাচ", "ড্রিমটাচ", "ড্রিম"],
+    "men's burner": ["men's burner", "mens burner", "men burner", "মেনস বার্নার", "বার্নার"],
+    "soul mate": ["soul mate", "soulmate", "সোল মেট", "সোলমেট", "সুল মেট"],
+    "black ginseng": ["black ginseng", "ginseng", "ব্ল্যাক জিনসেং", "জিনসেং"],
+    "egypt gawa": ["egypt gawa", "egypt", "gawa", "ইজিপ্ট", "গাওয়া", "গাওয়া"],
+    "enjoy hunter": ["enjoy hunter", "enjoy", "hunter", "হান্টার"],
+    "hammer of thor": ["hammer of thor", "hammer", "হ্যামার"],
+    "maxman": ["maxman", "ম্যাক্সম্যান"],
+    "titan gel": ["titan gel", "টাইটান জেল"],
+    "viga": ["viga", "ভিগা"],
+    "shark": ["shark", "শার্ক"],
+    "rheumarex": ["rheumarex", "রিউমারেক্স"]
+  };
+
+  // 1. Alias match
+  for (const [key, aliasList] of Object.entries(aliases)) {
+    if (aliasList.some(a => q.includes(a))) {
+      const found = db.find(p => p.name.toLowerCase().includes(key));
+      if (found) return found;
+    }
+  }
+
+  // 2. Clean brand name match (without parentheses)
+  for (const p of db) {
+    const cleanName = p.name.toLowerCase().replace(/\s*\([^)]*\)/g, "").trim();
+    if (cleanName && cleanName.length >= 3 && q.includes(cleanName)) {
+      return p;
+    }
+  }
+
+  // 3. Fallback to scoring
   const results = db.map((item) => {
     const name = item.name.toLowerCase();
     const mfg = item.manufacturer.toLowerCase();

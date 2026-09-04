@@ -29,34 +29,67 @@ function saveProcessedId(id) {
   } catch {}
 }
 
-// ── Live Product Database Loader ─────────────────────────────────────────────
-function getLiveProductContext(query) {
+// ── Live Product Database Loader & Bilingual Matcher ────────────────────────
+function findMatchedProduct(query, master) {
+  if (!query) return null;
+  const q = query.toLowerCase().replace(/['"’`]/g, "");
+
+  const aliases = {
+    "dream touch": ["dream touch", "dreamtouch", "ড্রিম টাচ", "ড্রিমটাচ", "ড্রিম"],
+    "men's burner": ["men's burner", "mens burner", "men burner", "মেনস বার্নার", "বার্নার"],
+    "soul mate": ["soul mate", "soulmate", "সোল মেট", "সোলমেট", "সুল মেট"],
+    "black ginseng": ["black ginseng", "ginseng", "ব্ল্যাক জিনসেং", "জিনসেং"],
+    "egypt gawa": ["egypt gawa", "egypt", "gawa", "ইজিপ্ট", "গাওয়া", "গাওয়া"],
+    "enjoy hunter": ["enjoy hunter", "enjoy", "hunter", "হান্টার"],
+    "hammer of thor": ["hammer of thor", "hammer", "হ্যামার"],
+    "maxman": ["maxman", "ম্যাক্সম্যান"],
+    "titan gel": ["titan gel", "টাইটান জেল"],
+    "viga": ["viga", "ভিগা"],
+    "shark": ["shark", "শার্ক"],
+    "rheumarex": ["rheumarex", "রিউমারেক্স"]
+  };
+
+  // 1. Check known aliases
+  for (const [key, aliasList] of Object.entries(aliases)) {
+    if (aliasList.some(a => q.includes(a))) {
+      const found = master.find(p => {
+        const name = (p["ওষুধের নাম (Brand Name)"] || "").toLowerCase();
+        return name.includes(key);
+      });
+      if (found) return found;
+    }
+  }
+
+  // 2. Clean regex/substring match for every product in master (strip parentheses)
+  for (const p of master) {
+    const rawName = (p["ওষুধের নাম (Brand Name)"] || "").toLowerCase();
+    const cleanName = rawName.replace(/\s*\([^)]*\)/g, "").trim();
+    if (cleanName && cleanName.length >= 3 && q.includes(cleanName)) {
+      return p;
+    }
+    const generic = (p["জেনেরিক ও ফার্মাকোলজিক্যাল ক্লাস (Generic & Class)"] || "").toLowerCase();
+    if (generic && generic.length >= 5 && q.includes(generic)) {
+      return p;
+    }
+  }
+
+  return null;
+}
+
+function getLiveProductInfo(query) {
   try {
     const masterPath = path.join(process.cwd(), "data", "medicine_master_complete_db.json");
     const editsPath = path.join(process.cwd(), "data", "custom_user_edits.json");
 
-    if (!fs.existsSync(masterPath)) return "";
+    if (!fs.existsSync(masterPath)) return { context: "", matched: null };
     const master = JSON.parse(fs.readFileSync(masterPath, "utf-8"));
     const edits = fs.existsSync(editsPath) ? JSON.parse(fs.readFileSync(editsPath, "utf-8")) : {};
 
     const q = (query || "").toLowerCase();
-    let matched = null;
+    let matched = findMatchedProduct(q, master);
 
-    // Search query for specific product in master database
-    if (q) {
-      for (const p of master) {
-        const name = (p["ওষুধের নাম (Brand Name)"] || "").toLowerCase();
-        const generic = (p["জেনেরিক ও ফার্মাকোলজিক্যাল ক্লাস (Generic & Class)"] || "").toLowerCase();
-        if ((name && q.includes(name)) || (generic && q.includes(generic))) {
-          matched = p;
-          break;
-        }
-      }
-    }
-
-    // Only default to Soul Mate if the customer's query is general about price, order, usage, or mentions soul mate
+    // If query is general about ad / price / order without specifying another medicine, default to Soul Mate
     const isGeneralAdQuery = /^(দাম|কত|প্রাইস|price|কাজ|উপকার|কিভাবে|অর্ডার|ডেলিভারি|খাব|নিয়ম|order|koto|dam|kaj|rule)/i.test(q) ||
-      q.includes("soul") || q.includes("সোল") || q.includes("মেট") || q.includes("mate") ||
       q.includes("খাওয়ার") || q.includes("কাজ কি") || q.includes("দাম কত") || q.includes("নিতে চাই");
 
     if (!matched && isGeneralAdQuery) {
@@ -66,7 +99,7 @@ function getLiveProductContext(query) {
     if (matched) {
       const sl = String(matched.SL);
       const edit = edits[sl] || {};
-      const name = matched["ওষুধের নাম (Brand Name)"] || "Soul Mate (সোল মেট)";
+      const name = matched["ওষুধের নাম (Brand Name)"] || "প্রাকৃতিক ফর্মুলা";
       const price = edit.discount_price || edit.custom_price || "৩,০০০";
       const regPrice = edit.custom_price || "";
       const note = edit.custom_note || "ক্যাশ অন ডেলিভারি, পার্সেল হাতে পেয়ে পেমেন্ট।";
@@ -76,12 +109,8 @@ function getLiveProductContext(query) {
       const dietary = matched["৬. পুষ্টি ও দ্রুত ফলাফল পাওয়ার খাদ্যাভ্যাস (Dietary Blueprint)"] || "";
       const superiority = matched["২. বাজারের অন্যান্য ওষুধের সাথে শ্রেষ্ঠত্ব (Superiority Matrix)"] || "";
       const ageSolutions = matched["৩. বয়স ভিত্তিক কাস্টমাইজড সমাধান (Age-Specific Solutions)"] || "";
-      const objectionsList = matched["৫. কাস্টমারের ৪টি কঠিন আপত্তি ও উত্তর (Objection Destroyers)"] || [];
-      const objectionsFormatted = Array.isArray(objectionsList)
-        ? objectionsList.map(o => `প্রশ্ন: ${o.objection}\nউত্তর: ${o.script}`).join("\n\n")
-        : "";
 
-      return `
+      const context = `
 [লাইভ ড্যাশবোর্ড ও এনসাইক্লোপিডিয়া প্রোডাক্ট তথ্য / Live Encyclopedia Product Data]
 ওষুধের নাম: ${name}
 মূল্য: ${price} টাকা ${regPrice && regPrice !== price ? `(রেগুলার: ${regPrice} টাকা)` : ""}
@@ -92,20 +121,32 @@ function getLiveProductContext(query) {
 ${superiority ? `শ্রেষ্ঠত্ব ও কেন সেরা: ${superiority}` : ""}
 ${dietary ? `খাদ্যাভ্যাস ও পথ্য (Diet Plan): ${dietary}` : ""}
 ${ageSolutions ? `বয়স ভিত্তিক পরামর্শ: ${ageSolutions}` : ""}
-${objectionsFormatted ? `কাস্টমারের কমন আপত্তি ও বিক্রির সঠিক উত্তর:\n${objectionsFormatted}` : ""}
       `.trim();
+
+      return {
+        context,
+        matched: {
+          sl,
+          name,
+          price,
+          regPrice,
+          note,
+          dosage,
+          pitch,
+        }
+      };
     }
   } catch (err) {
     console.error("DB error:", err);
   }
-  return "";
+  return { context: "", matched: null };
 }
 
 // ── Gemini AI Generator ──────────────────────────────────────────────────────
 const genAI = new GoogleGenerativeAI(GEMINI_KEY);
 
 async function generateReply(customerMessage, senderName) {
-  const productContext = getLiveProductContext(customerMessage);
+  const { context: productContext, matched } = getLiveProductInfo(customerMessage);
 
   const systemInstruction = `You are an expert, empathetic, and persuasive human customer support and sales representative for our authentic healthcare & herbal medicine store in Bangladesh.
 
@@ -190,7 +231,26 @@ ${productContext ? `\n--- LIVE MEDICINE DASHBOARD DATA ---\n${productContext}\n-
     }
   }
 
-  // Safe fallback
+  // Smart Fallback if Gemini models hit 503 or fail
+  if (matched) {
+    const qLower = (customerMessage || "").toLowerCase();
+    const isPrice = /দাম|কত|প্রাইস|price|koto|dam|টাকা/i.test(qLower);
+    const isAvailability = /আছে|পাব|পাওয়া|ase|available|pawa/i.test(qLower);
+    const isDosage = /খাব|সেবন|নিয়ম|how to|khabo/i.test(qLower);
+
+    if (isPrice) {
+      return `${matched.name}-এর বর্তমান অফার মূল্য ${matched.price} টাকা ${matched.regPrice && matched.regPrice !== matched.price ? `(রেগুলার: ${matched.regPrice} টাকা)` : ""}। ${matched.note || "সারা দেশে ক্যাশ অন ডেলিভারিতে হোম ডেলিভারি নিতে পারেন।"}`;
+    }
+    if (isAvailability) {
+      return `জি, ${matched.name} আমাদের কাছে ১০০% অরিজিনাল স্টকে রয়েছে। এটি সম্পর্কে কি কোনো তথ্য জানতে চাচ্ছেন?`;
+    }
+    if (isDosage) {
+      return `${matched.name}-এর সেবনবিধি: ${matched.dosage || "নিয়ম অনুযায়ী সেবন করলে সেরা ফলাফল পাবেন"}।`;
+    }
+    return `জি, ${matched.name} সম্পর্কে আপনি কি কোনো বিশেষ তথ্য বা পরামর্শ জানতে চাচ্ছেন?`;
+  }
+
+  // Safe fallback for unavailable items
   return "দুঃখিত, এই প্রোডাক্টটি বর্তমানে আমাদের কাছে নেই।";
 }
 
