@@ -16,7 +16,7 @@ const navItems = [
   { href: "/dashboard", label: "ইনবক্স", icon: MessageSquare },
   { href: "/dashboard/comments", label: "কমেন্টস", icon: MessageCircle },
   { href: "/dashboard/agents", label: "এজেন্টস", icon: Users },
-  { href: "/dashboard/products", label: "প্রোডাক্টস", icon: ShoppingBag },
+  { href: "/dashboard/products", label: "মেডিসিন ড্যাশবোর্ড", icon: ShoppingBag },
   { href: "/dashboard/settings", label: "সেটিংস", icon: Settings },
 ];
 

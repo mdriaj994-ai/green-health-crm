@@ -1,8 +1,9 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import fs from "fs";
 import path from "path";
+import { findProductInDB, buildProductAIContext, loadMergedDB } from "./product-db";
 
-// ── Runtime API key resolution (NOT cached at module load time) ──
+// Runtime API key resolution (NOT cached at module load time)
 function getGenAI(): GoogleGenerativeAI | null {
   const key = process.env.GEMINI_API_KEY || "";
   if (key && key !== "your-gemini-api-key-here") {
@@ -30,65 +31,63 @@ function getDefaultKnowledgeBase(): string {
       return cachedDefaultKB;
     }
   } catch {}
-  return "আমরা Galaxy Laboratories (Unani)-এর পক্ষ থেকে প্রাকৃতিক ও নিরাপদ ইউনানি ঔষধ সরবরাহ করি। সারা বাংলাদেশে ক্যাশ অন ডেলিভারি সুবিধা আছে। ঢাকা সিটিতে ডেলিভারি চার্জ ৬০ টাকা, ঢাকার বাইরে ১২০ টাকা।";
+  return "Galaxy Laboratories (Unani) - Bangladesh. Delivery: Cash on Delivery all over Bangladesh. Dhaka city 60 taka, outside Dhaka 120 taka. Dhaka 1-2 days, outside Dhaka 2-3 business days. Payment: No advance payment. Pay on delivery. Order: Provide full name, delivery address, active mobile number.";
 }
 
-function buildSystemInstruction(options: AIContextOptions): string {
-  const tone = options.tone ?? "friendly";
-  const toneGuide =
-    tone === "professional"
-      ? "Use formal, respectful language. Address as 'আপনি'."
-      : tone === "casual"
-      ? "Use casual, friendly language."
-      : "Be warm, helpful, and natural in everyday Bengali.";
-
+function buildSystemInstruction(options: AIContextOptions, liveProductContext: string = ""): string {
   const kb = options.businessDetails?.trim() || getDefaultKnowledgeBase();
 
-  return `
-You are a precise, friendly customer support assistant for "${options.businessName ?? "Galaxy Laboratories (Unani)"}" in Bangladesh.
+  return `You are Hakim Rejaul Karim - an experienced Unani physician and customer service representative of Galaxy Laboratories (Unani), Bangladesh.
 
-${toneGuide}
+Your identity:
+- Name: Hakim Rejaul Karim (হাকিম রেজাউল করিম)
+- Title: Unani Physician & Health Consultant, Galaxy Laboratories (Unani)
+- Personality: Warm, respectful, trustworthy, deeply knowledgeable in Unani medicine. Speak with dignity like a genuine experienced physician.
 
-CRITICAL INSTRUCTIONS — ANSWER ONLY WHAT THE CUSTOMER ASKS (STRICT ACCURACY):
-1. If the customer sends an IMAGE or asks about a product in an image (e.g. image + "price koto", "kaj ki"):
-   👉 Read the medicine name printed on the box/bottle (e.g. APPLE-G, ALKOGEN, PEPTO-G, GL TON, RHEUMAREX, etc.).
-   👉 Answer the question directly in 1 complete sentence with that exact product's info.
-   Example for Apple-G: "এটি অ্যাপেল-জি (Apple-G) সিরাপ, যা শারীরিক দুর্বলতা দূর করতে, রোগ প্রতিরোধ ক্ষমতা বৃদ্ধি এবং যকৃতের সুরক্ষায় অত্যন্ত কার্যকর। এর মূল্য ১০০ টাকা থেকে ৩৫০ টাকা।"
+Communication rules:
+- Always reply in natural, polite Bengali (বাংলা). Only use Banglish if the customer strictly writes in Banglish.
+- Start with an Islamic greeting (আসসালামু আলাইকুম) when starting a fresh conversation.
+- Speak warmly and empathetically. Address the customer with respect.
+- Complete your thoughts and sentences fully.
+- Keep replies direct, concise, and focused on their exact query.
+- Do NOT use markdown bolding (like ** or ##) in messenger messages, keep formatting clean and easy to read.
 
-2. If the customer asks "aitar kaj ki", "aitar dam koto", "eita ki" WITHOUT an image and WITHOUT naming any medicine:
-   👉 DO NOT guess an old medicine from past conversations! Politely ask: "অনুগ্রহ করে কাঙ্ক্ষিত ঔষধের নামটি বলুন অথবা ছবি পাঠান, আমি সঠিক তথ্য জানিয়ে দিচ্ছি।"
+Important instructions:
+1. Live Product Data:
+   If live product data is provided below, ALWAYS use its exact price, discount offer, note, dosage, and pain point solutions. Never contradict the live dashboard data.
+2. If customer asks for price: State the exact current price and special discount/offer clearly.
+3. If customer asks for dosage/how to take: Explain the dosage form and instructions clearly.
+4. If customer wants to order: Welcome the order and politely request: 1. তাদের নাম, 2. সম্পূর্ণ ঠিকানা (জেলা/থানা সহ), 3. সচল মোবাইল নম্বর।
+5. Payment & Delivery: Remind them that Cash on Delivery (ক্যাশ অন ডেলিভারি) is available across all 64 districts in Bangladesh with 0 advance payment. Dhaka city 60 taka (1-2 days), outside Dhaka 120 taka (2-3 days).
 
-3. If the customer asks ONLY for price (e.g. "price koto", "dam koto", "কত দাম"):
-   👉 Give ONLY the exact price of the named product in 1 short complete sentence.
-
-4. If the customer asks ONLY how to take / dosage (e.g. "kivabe khabo", "খাওয়ার নিয়ম কি"):
-   👉 Give ONLY the dosage / usage rule in 1 short complete sentence.
-
-5. If the customer asks how to order / what is needed to order:
-   👉 State: "অর্ডার করতে আপনার নাম, ডেলিভারি ঠিকানা ও মোবাইল নম্বর লিখে পাঠান। সারা বাংলাদেশে ক্যাশ অন ডেলিভারি সুবিধা আছে।"
-
-RULES:
-- Always finish your sentences completely. Never leave half-written sentences.
-- Never dump unasked information.
-- Do not use markdown asterisks (* or **). Use clean plain text.
+${liveProductContext ? `\n--- LIVE DASHBOARD DATA FOR THIS INQUIRY ---\n${liveProductContext}\n-------------------------------------------\n` : ""}
 
 Knowledge Base:
-${kb}
-`.trim();
+${kb}`.trim();
 }
 
-const PRIMARY_MODELS = ["gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
+// Correct Gemini model names - try in priority order
+const PRIMARY_MODELS = ["gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.0-pro"];
 
 export async function generateAutoReply(
   incomingMessage: string,
   options: AIContextOptions = {}
 ): Promise<string> {
-  const effectiveMessage = incomingMessage?.trim() || "এই ছবির প্রোডাক্ট সম্পর্কে বিস্তারিত ও দাম জানতে চাই।";
+  const effectiveMessage = incomingMessage?.trim() || "Ei chobi-r product somporke bistarito o dam jante chai.";
+
+  // Search live VPS database for matched product
+  const matchedProduct = findProductInDB(effectiveMessage);
+  let liveProductContext = "";
+  if (matchedProduct) {
+    liveProductContext = buildProductAIContext(matchedProduct);
+    console.log(`[AI_LIVE_PRODUCT_MATCH] Found: ${matchedProduct.name} (SL: ${matchedProduct.sl}, Price: ${matchedProduct.discount_price || matchedProduct.custom_price})`);
+  }
+
   const genAI = getGenAI();
 
   if (!genAI) {
-    console.warn("[AI_AUTO_REPLY] GEMINI_API_KEY not set. Using smart Galaxy Laboratories fallback.");
-    return generateFallbackReply(effectiveMessage, options.chatHistory, options.imageUrl);
+    console.warn("[AI_AUTO_REPLY] GEMINI_API_KEY not set. Using smart Galaxy Laboratories fallback with live DB.");
+    return generateFallbackReply(effectiveMessage, options.chatHistory, options.imageUrl, matchedProduct);
   }
 
   // Try available models in order
@@ -96,10 +95,10 @@ export async function generateAutoReply(
     try {
       const model = genAI.getGenerativeModel({
         model: modelName,
-        systemInstruction: buildSystemInstruction(options),
+        systemInstruction: buildSystemInstruction(options, liveProductContext),
         generationConfig: {
           maxOutputTokens: 500,
-          temperature: 0.1,
+          temperature: 0.15,
         },
       });
 
@@ -119,221 +118,122 @@ export async function generateAutoReply(
             },
           };
 
-          const visionPrompt = `Read the medicine name printed on the box/bottle in the image (for example: APPLE-G, ALKOGEN, PEPTO-G, GL TON, RHEUMAREX, MOBIC, etc.). Match it with the exact product in Galaxy Laboratories knowledge base, and answer the customer's question: "${effectiveMessage}" in 1 complete, accurate Bengali sentence.`;
-          const result = await model.generateContent([visionPrompt, imagePart]);
-          const text = result.response.text();
-          if (text && text.trim().length > 3) {
-            return text.trim();
+          const prompt = effectiveMessage.length > 5
+            ? `Customer query: "${effectiveMessage}". Identify this Galaxy Laboratories product image and give warm reply as Hakim Rejaul Karim.`
+            : "Identify this medicine image from Galaxy Laboratories and provide its brand name, key health benefits, price, and how to order in Bengali.";
+
+          const result = await model.generateContent([prompt, imagePart]);
+          const reply = result.response.text().trim();
+          if (reply && reply.length > 10) {
+            console.log(`[AI_VISION_SUCCESS] (${modelName}) -> ${reply.slice(0, 60)}...`);
+            return reply;
           }
-        } catch (visErr: any) {
-          console.error(`[AI_VISION_ERROR] with ${modelName}:`, visErr.message || visErr);
-          continue;
+        } catch (visionErr: any) {
+          console.warn(`[AI_VISION_ERROR] (${modelName})`, visionErr.message);
         }
       }
 
-      // Text Chat with History
-      const historyParts: { role: "user" | "model"; parts: { text: string }[] }[] = [];
+      // Format Chat History for context
+      const chatHistory = options.chatHistory || [];
+      const historySummary = chatHistory.length > 0
+        ? chatHistory
+            .slice(-6)
+            .map((m) => `${m.sender === "CUSTOMER" ? "Customer" : "Hakim"}: ${m.text}`)
+            .join("\n")
+        : "";
 
-      if (options.chatHistory && options.chatHistory.length > 0) {
-        const contextHistory = options.chatHistory.slice(-9, -1);
-        const validHistory: typeof contextHistory = [];
-        for (const h of contextHistory) {
-          const lastRole = validHistory.length > 0 ? validHistory[validHistory.length - 1].sender : null;
-          if (lastRole === null || lastRole !== h.sender) {
-            validHistory.push(h);
-          }
-        }
+      const userPrompt = historySummary
+        ? `Previous conversation:\n${historySummary}\n\nCustomer's newest message:\n"${effectiveMessage}"\n\nReply as Hakim Rejaul Karim:`
+        : `Customer says: "${effectiveMessage}". Reply as Hakim Rejaul Karim:`;
 
-        const startIdx = validHistory.findIndex((h) => h.sender === "CUSTOMER");
-        const trimmedHistory = startIdx >= 0 ? validHistory.slice(startIdx) : [];
+      const result = await model.generateContent(userPrompt);
+      const reply = result.response.text().trim();
 
-        for (const h of trimmedHistory) {
-          historyParts.push({
-            role: h.sender === "CUSTOMER" ? "user" : "model",
-            parts: [{ text: h.text || "..." }],
-          });
-        }
+      if (reply && reply.length > 5) {
+        console.log(`[AI_AUTO_REPLY_SUCCESS] (${modelName}) -> ${reply.slice(0, 60)}...`);
+        return reply;
       }
-
-      const chat = model.startChat({ history: historyParts });
-      const result = await chat.sendMessage(effectiveMessage);
-      const reply = result.response.text();
-      if (reply && reply.trim().length > 5) {
-        return reply.trim();
-      }
-    } catch (error: any) {
-      console.error(`[AI_GENERATE_ERROR] with ${modelName}:`, error.message || error);
+    } catch (modelErr: any) {
+      console.warn(`[AI_AUTO_REPLY_ERROR] (${modelName}):`, modelErr.message);
+      // continue to next fallback model
     }
   }
 
-  // Fallback if all models fail
-  return generateFallbackReply(effectiveMessage, options.chatHistory, options.imageUrl);
+  // Fallback if all Gemini models fail or rate limit
+  return generateFallbackReply(effectiveMessage, options.chatHistory, options.imageUrl, matchedProduct);
 }
 
-// ── Smart Multi-Intent & Conversational Fallback ──
-
+// ── Smart Fallback Engine using Live Product DB ─────────────────────────────
 function generateFallbackReply(
-  incomingMessage: string,
+  message: string,
   history?: { sender: "CUSTOMER" | "AGENT"; text: string }[],
-  hasImage?: string | null
+  imageUrl?: string | null,
+  matchedProduct?: any
 ): string {
-  const lower = incomingMessage.toLowerCase().trim();
+  const lower = message.toLowerCase().trim();
   const historyText = (history || []).map((h) => h.text.toLowerCase()).join(" ");
 
-  // 1. Image recognition inquiry (ONLY if an image is actually attached)
-  if (hasImage) {
-    if (historyText.includes("apple") || historyText.includes("অ্যাপেল") || lower.includes("apple")) {
-      return "এটি আমাদের 'Apple-G (অ্যাপেল জি)' সিরাপ। এটি সাধারণ দুর্বলতা দূর করতে, রোগ প্রতিরোধ ক্ষমতা বৃদ্ধি ও যকৃতের সুরক্ষায় অত্যন্ত কার্যকর। মূল্য: ১০০৳ থেকে ৩৫০৳।";
+  // If specific product matched from live database!
+  if (matchedProduct) {
+    const name = matchedProduct.name;
+    const price = matchedProduct.discount_price || matchedProduct.custom_price;
+    const note = matchedProduct.custom_note ? ` (${matchedProduct.custom_note})` : "";
+    const dosage = matchedProduct.dosageForm ? ` সেবনবিধি: ${matchedProduct.dosageForm}।` : "";
+
+    if (lower.includes("dam") || lower.includes("price") || lower.includes("কত") || lower.includes("টাকা") || lower.includes("koto")) {
+      return `আসসালামু আলাইকুম। আমাদের ${name}-এর মূল্য: ${price ? price + " টাকা" : "অফার জানতে ইনবক্সে যোগাযোগ করুন"}${note}। সারা দেশে ক্যাশ অন ডেলিভারিতে হোম ডেলিভারি নিতে পারেন। অর্ডার করতে আপনার নাম, ঠিকানা ও মোবাইল নম্বর দিন।`;
     }
-    if (historyText.includes("alkogen") || historyText.includes("অ্যালকোজেন") || lower.includes("alkogen")) {
-      return "এটি আমাদের 'Alkogen (অ্যালকোজেন)' সিরাপ। এটি প্রস্রাবের সমস্যা দূর করতে, জন্ডিস নিরাময়ে এবং কিডনির সুরক্ষায় কার্যকর। মূল্য: ৭০৳ থেকে ২০০৳।";
+
+    if (lower.includes("khabo") || lower.includes("খাব") || lower.includes("সেবন") || lower.includes("নিয়ম") || lower.includes("dosage")) {
+      return `আসসালামু আলাইকুম। ${name}${dosage} আরও কোনো শারীরিক পরামর্শ থাকলে জানান, আমি হাকিম রেজাউল করিম বিস্তারিত জানিয়ে দিচ্ছি।`;
     }
-    if (historyText.includes("pepto") || historyText.includes("পেপটো") || lower.includes("pepto")) {
-      return "এটি আমাদের 'Pepto-G (পেপটো-জি)' সিরাপ। এটি পেটফাঁপা, বদহজম ও গ্যাসের সমস্যায় অত্যন্ত কার্যকর। মূল্য: ৭০৳ থেকে ২০০৳।";
-    }
-    if (historyText.includes("zymoliv") || historyText.includes("জাইমোলিভ") || lower.includes("zymoliv")) {
-      return "এটি আমাদের 'Zymoliv (জাইমোলিভ)' সিরাপ। এটি লিভারের সুরক্ষা ও জন্ডিস নিরাময়ে অত্যন্ত কার্যকর। মূল্য: ৭০৳ থেকে ২০০৳।";
-    }
-    if (historyText.includes("rheumarex") || historyText.includes("রিউমারেক্স") || lower.includes("rheumarex")) {
-      return "এটি আমাদের 'Rheumarex (রিউমারেক্স)' ক্যাপসুল। এটি বাত-বেদনা ও জয়েন্ট পেইনের জন্য অত্যন্ত ফলপ্রসূ। মূল্য: ৩০০৳ থেকে ৪৯০৳।";
-    }
-    return "ছবিতে থাকা ঔষধের সঠিক তথ্য ও দাম জানতে অনুগ্রহ করে মেসেজে পণ্যের নাম লিখুন, আমরা সাথে সাথে বিস্তারিত জানিয়ে দিচ্ছি।";
+
+    return `আসসালামু আলাইকুম। আমি হাকিম রেজাউল করিম। আমাদের ${name} ${matchedProduct.custom_pitch || "ইউনানি প্রাকৃতিক ফর্মুলায় প্রস্তুত অত্যন্ত কার্যকরী ওষুধ"}।${price ? ` মূল্য: ${price} টাকা${note}।` : ""}${dosage} অর্ডার করতে চাইলে আপনার নাম, সম্পূর্ণ ঠিকানা ও মোবাইল নম্বর পাঠান।`;
   }
 
-  // 1.1 Pronoun question without image
-  if (lower.includes("aitar") || lower.includes("eita") || lower.includes("এইটার") || lower.includes("এটার")) {
-    return "অনুগ্রহ করে কাঙ্ক্ষিত ঔষধটির নাম বলুন অথবা ছবি পাঠান, আমি সঠিক তথ্য জানিয়ে দিচ্ছি।";
+  // 1. Image query without text
+  if (imageUrl && (!message || message.length < 5)) {
+    return "আসসালামু আলাইকুম! ছবিটির জন্য ধন্যবাদ। এটি আমাদের গ্যালাক্সি ল্যাবরেটরিজের অন্যতম জনপ্রিয় ইউনানি ফর্মুলেশন। আপনি কি এর বর্তমান অফার মূল্য ও সেবনবিধি জানতে চান নাকি সরাসরি অর্ডার করতে চান?";
   }
 
-  // 2. Order Details Inquiry
+  // 2. Order Information
   if (
     lower.includes("ki ki") ||
-    lower.includes("কী কী") ||
-    lower.includes("কী দিতে হবে") ||
-    lower.includes("কি দিতে হবে") ||
     lower.includes("dite hobe") ||
     lower.includes("lagbe") ||
-    lower.includes("লাগবে") ||
     lower.includes("kivabe order") ||
-    lower.includes("কিভাবে অর্ডার") ||
     lower.includes("kivabe nibo") ||
-    lower.includes("কিভাবে নিব") ||
-    lower.includes("kivabe pabo") ||
-    lower.includes("কিভাবে পাব") ||
-    lower.includes("nিয়ম") ||
-    lower.includes("process")
+    lower.includes("order") ||
+    lower.includes("অর্ডার") ||
+    lower.includes("নিতে চাই")
   ) {
-    return "অর্ডার করতে অনুগ্রহ করে আপনার:\n১. সম্পূর্ণ নাম\n২. সম্পূর্ণ ডেলিভারি ঠিকানা (জেলা, থানা/এলাকা সহ)\n৩. সচল মোবাইল নম্বর\nএখানে মেসেজে লিখে পাঠান। পণ্য হাতে পেয়ে মূল্য পরিশোধ করতে পারবেন।";
+    return "ধন্যবাদ! অর্ডার কনফার্ম করতে অনুগ্রহ করে আপনার: ১. নাম, ২. সম্পূর্ণ ডেলিভারি ঠিকানা (জেলা ও থানা সহ), ৩. সচল মোবাইল নম্বর লিখে পাঠান। পার্সেল হাতে পেয়ে মূল্য পরিশোধ করতে পারবেন।";
   }
 
-  // 3. Side Effect & Safety Questions
-  if (
-    lower.includes("side effect") ||
-    lower.includes("পার্শ্বপ্রতিক্রিয়া") ||
-    lower.includes("ক্ষতি") ||
-    lower.includes("khoti") ||
-    lower.includes("safe") ||
-    lower.includes("নিরাপদ") ||
-    lower.includes("parsho")
-  ) {
-    return "আমাদের সকল ঔষধ ১০০% প্রাকৃতিক ভেষজ উপাদানে প্রস্তুতকৃত এবং বাংলাদেশ ইউনানি ফর্মুলারি অনুমোদিত। সঠিক নিয়মে সেবনে কোনো ক্ষতিকর পার্শ্বপ্রতিক্রিয়া নেই এবং এটি সম্পূর্ণ নিরাপদ।";
+  // 3. Side Effect & Safety
+  if (lower.includes("side effect") || lower.includes("khoti") || lower.includes("safe") || lower.includes("ক্ষতি") || lower.includes("পার্শ্বপ্রতিক্রিয়া")) {
+    return "আমাদের প্রতিটি ওষুধ শতভাগ প্রাকৃতিক ভেষজ উপাদান সমৃদ্ধ এবং বাংলাদেশ ইউনানি ফর্মুলারি দ্বারা অনুমোদিত। সঠিক নিয়মে সেবনে কোনো ক্ষতিকর পার্শ্বপ্রতিক্রিয়া নেই।";
   }
 
   // 4. Authenticity
-  if (
-    lower.includes("asol") ||
-    lower.includes("আসল") ||
-    lower.includes("original") ||
-    lower.includes("নকল") ||
-    lower.includes("authentic")
-  ) {
-    return "আমরা সরাসরি Galaxy Laboratories (Unani)-এর প্রস্তুতকৃত ১০০% আসল ও গুণগত মানসম্পন্ন ঔষধ সরবরাহ করি। নিশ্চিত হয়ে অর্ডার করতে পারেন।";
+  if (lower.includes("asol") || lower.includes("original") || lower.includes("authentic") || lower.includes("আসল")) {
+    return "আমরা সরাসরি গ্যালাক্সি ল্যাবরেটরিজ (ইউনানি)-এর শতভাগ আসল ও পরীক্ষিত ওষুধ সরবরাহ করি। কোনো দ্বিধা ছাড়াই নিশ্চিন্তে অর্ডার করতে পারেন।";
   }
 
   // 5. Payment Methods
-  if (
-    lower.includes("payment") ||
-    lower.includes("পেমেন্ট") ||
-    lower.includes("টাকা") ||
-    lower.includes("taka") ||
-    lower.includes("bikash") ||
-    lower.includes("বিকাশ") ||
-    lower.includes("nagad") ||
-    lower.includes("নগদ") ||
-    lower.includes("advance") ||
-    lower.includes("অগ্রিম")
-  ) {
-    return "আমাদের কোনো অগ্রিম টাকা দিতে হয় না! সারা বাংলাদেশে 'ক্যাশ অন ডেলিভারি' সুবিধা আছে — পার্সেল হাতে পেয়ে দেখে মূল্য পরিশোধ করবেন।";
+  if (lower.includes("payment") || lower.includes("advance") || lower.includes("অগ্রিম") || lower.includes("টাকা")) {
+    return "আমাদের কোনো অগ্রিম টাকা দিতে হয় না! সারা বাংলাদেশে ক্যাশ অন ডেলিভারি সুবিধা রয়েছে—পার্সেল হাতে পেয়ে দেখে মূল্য পরিশোধ করবেন।";
   }
 
   // 6. Delivery Time
-  if (
-    lower.includes("kobe") ||
-    lower.includes("কবে") ||
-    lower.includes("kotodin") ||
-    lower.includes("কতদিন") ||
-    lower.includes("koto din") ||
-    lower.includes("সময় লাগবে") ||
-    lower.includes("delivery") ||
-    lower.includes("ডেলিভারি") ||
-    lower.includes("পৌঁছাবে") ||
-    lower.includes("পাঠাবেন") ||
-    lower.includes("চার্জ")
-  ) {
-    return "আমাদের ডেলিভারি চার্জ: ঢাকা সিটিতে ৬০ টাকা এবং ঢাকার বাইরে ১২০ টাকা। ঢাকায় ১-২ দিন এবং ঢাকার বাইরে ২-৩ কার্যদিবসের মধ্যে হোম ডেলিভারি পৌঁছে যাবে ইন শা আল্লাহ।";
+  if (lower.includes("kobe") || lower.includes("delivery") || lower.includes("কবে") || lower.includes("কত দিন")) {
+    return "আমাদের ডেলিভারি চার্জ: ঢাকা সিটিতে ৬০ টাকা এবং ঢাকার বাইরে ১২০ টাকা। ঢাকায় ১-২ দিন এবং ঢাকার বাইরে ২-৩ কার্যদিবসের মধ্যে ইন শা আল্লাহ পৌঁছে যাবে।";
   }
 
-  // 7. Dosage / How to take
-  if (
-    lower.includes("kivabe khabo") ||
-    lower.includes("কিভাবে খাব") ||
-    lower.includes("খাওয়ার নিয়ম") ||
-    lower.includes("সেবনবিধি") ||
-    lower.includes("dosage") ||
-    lower.includes("koybar") ||
-    lower.includes("খাব")
-  ) {
-    if (historyText.includes("rheumarex") || historyText.includes("রিউমারেক্স") || lower.includes("rheumarex") || lower.includes("রিউমারেক্স")) {
-      return "রিউমারেক্স (Rheumarex) ক্যাপসুল: ২ ক্যাপসুল করে দিনে ১-২ বার খাবারের পর সেব্য।";
-    }
-    if (historyText.includes("zymoliv") || historyText.includes("জাইমোলিভ") || lower.includes("zymoliv") || lower.includes("জাইমোলিভ")) {
-      return "জাইমোলিভ (Zymoliv) সিরাপ: ২-৪ চা চামচ দৈনিক ২-৩ বার খাবারের পর সেব্য।";
-    }
-    if (historyText.includes("gl ton") || historyText.includes("জিএল") || lower.includes("gl ton") || lower.includes("জিএল")) {
-      return "জিএল টন (GL Ton) সিরাপ: ২-৪ চা-চামচ (১০-২০ মিলি) দিনে ১-২ বার খাবারের পর সেব্য।";
-    }
-    return "সাধারণত সিরাপ জাতীয় ঔষধ ২-৪ চা চামচ দিনে ১-২ বার এবং ট্যাবলেট/ক্যাপসুল ১-২ টি করে দিনে ২ বার সেবন করতে হয়। আপনি কোন ঔষধের সেবনবিধি জানতে চান নাম বলুন।";
+  // 7. General Greetings
+  if (lower.includes("salam") || lower.includes("assalamu") || lower.includes("সালাম") || lower.includes("hi") || lower.includes("hello")) {
+    return "আসসালামু আলাইকুম! আমি হাকিম রেজাউল করিম, গ্যালাক্সি ল্যাবরেটরিজ (ইউনানি) থেকে বলছি। আমাদের প্রাকৃতিক ও ভেষজ ওষুধ সম্পর্কে কীভাবে সাহায্য করতে পারি?";
   }
 
-  // 8. Order Intent
-  if (
-    lower.includes("order") ||
-    lower.includes("অর্ডার") ||
-    lower.includes("কিনতে") ||
-    lower.includes("নিতে চাই") ||
-    lower.includes("পাঠিয়ে দিন") ||
-    lower.includes("পাঠান")
-  ) {
-    return "ধন্যবাদ! অর্ডার কনফার্ম করতে অনুগ্রহ করে আপনার:\n১. নাম\n২. সম্পূর্ণ ঠিকানা\n৩. মোবাইল নম্বর\nলিখে পাঠান। আমরা দ্রুত পার্সেল পাঠিয়ে দেব ইন শা আল্লাহ!";
-  }
-
-  // 9. Specific Products
-  if (lower.includes("রিউমারেক্স") || lower.includes("rheumarex") || lower.includes("বাত") || lower.includes("জয়েন্ট")) {
-    return "আমাদের 'Rheumarex (রিউমারেক্স)' ক্যাপসুল বাত-বেদনা, গেঁটেবাত ও জয়েন্টের ব্যথায় দ্রুত আরাম দেয়। মূল্য: ৩০০৳ থেকে ৪৯০৳। সেবনবিধি: ২ ক্যাপসুল করে দিনে ১-২ বার। অর্ডার করতে নাম ও ঠিকানা দিন।";
-  }
-
-  if (lower.includes("জাইমোলিভ") || lower.includes("zymoliv") || lower.includes("জন্ডিস") || lower.includes("রুচি")) {
-    return "লিভারের সুরক্ষা, জন্ডিস ও ক্ষুধামন্দায় 'Zymoliv (জাইমোলিভ)' সিরাপ অত্যন্ত কার্যকর। মূল্য: ৭০৳ থেকে ২০০৳। সেবনবিধি: ২-৪ চা চামচ দৈনিক ২-৩ বার।";
-  }
-
-  if (lower.includes("জিএল টন") || lower.includes("gl ton") || lower.includes("হার্ট")) {
-    return "আমাদের 'GL Ton (জিএল টন)' সিরাপ হার্টের সুরক্ষা ও রক্ত সঞ্চালন স্বাভাবিক রাখতে অত্যন্ত কার্যকর। মূল্য: ১০০৳ থেকে ৮৫০৳। সেবনবিধি: ২-৪ চামচ দিনে ১-২ বার।";
-  }
-
-  // 10. General Greetings / Default
-  if (lower.includes("salam") || lower.includes("সালাম") || lower.includes("assalamu") || lower.includes("hi") || lower.includes("hello") || lower.includes("হ্যালো")) {
-    return "আসসালামু আলাইকুম! Galaxy Laboratories (Unani)-এ আপনাকে স্বাগতম 🙂 আমাদের প্রাকৃতিক ও ইউনানি ঔষুধ সম্পর্কে কীভাবে সাহায্য করতে পারি?";
-  }
-
-  return "Galaxy Laboratories-এর যেকোনো ঔষধের দাম, সেবনবিধি জানতে বা অর্ডার করতে আপনার পছন্দের ঔষধের নাম অথবা শারীরিক সমস্যার কথা জানান, আমরা সাথে সাথে বিস্তারিত জানিয়ে দেব।";
+  return "আসসালামু আলাইকুম, আমি হাকিম রেজাউল করিম। গ্যালাক্সি ল্যাবরেটরিজের যেকোনো ওষুধের দাম, সেবনবিধি জানতে বা অর্ডার করতে আপনার পছন্দের ওষুধের নাম অথবা শারীরিক সমস্যার কথা জানান, আমি বিস্তারিত জানিয়ে দিচ্ছি।";
 }

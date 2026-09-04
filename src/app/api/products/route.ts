@@ -1,72 +1,43 @@
 import { NextResponse } from "next/server";
-import fs from "fs";
-import path from "path";
 import type { NextRequest } from "next/server";
+import { loadMergedDB, saveProductEdit } from "@/lib/product-db";
 
-// ── Path to the Data Deshbord folder ─────────────────────────────────────────
-const DATA_DESHBORD_PATH = process.env.DATA_DIR || path.join(process.cwd(), "data");
-const DB_FILE = path.join(DATA_DESHBORD_PATH, "medicine_master_complete_db.json");
-const IMAGE_FOLDER = path.join(DATA_DESHBORD_PATH, "Product Image");
-
-// ── Load and normalize products ──────────────────────────────────────────────
-function loadProducts() {
-  if (!fs.existsSync(DB_FILE)) return [];
-  const raw = fs.readFileSync(DB_FILE, "utf-8");
-  const data = JSON.parse(raw);
-
-  return data.map((item: Record<string, unknown>, index: number) => {
-    const imagePath = (item["ছবি পাথ (Image Path)"] as string) || "";
-    const imageFile = path.basename(imagePath);
-
-    return {
-      id: index + 1,
-      sl: item["SL"] || index + 1,
-      name: item["ওষুধের নাম (Brand Name)"] || "Unknown",
-      imageFile,
-      imagePath,
-      generic: item["জেনেরিক ও ফার্মাকোলজিক্যাল ক্লাস (Generic & Class)"] || "",
-      manufacturer: item["প্রস্তুতকারক ও ল্যাবরেটরি (Manufacturer & Lab)"] || "",
-      dosageForm: item["ডোজ ফর্ম ও শক্তি (Dosage Form & Strength)"] || "",
-      painPoints: item["১. কাস্টমারের আসল সমস্যা ও পেইন পয়েন্ট (Pain Point Mapping)"] || "",
-      superiority: item["২. বাজারের অন্যান্য ওষুধের সাথে শ্রেষ্ঠত্ব (Superiority Matrix)"] || "",
-      ageSolutions: item["৩. বয়স ভিত্তিক কাস্টমাইজড সমাধান (Age-Specific Solutions)"] || "",
-      authenticity: item["৪. আসল প্রোডাক্ট চেনার সিকিউরিটি প্রোটোকল (Authenticity System)"] || "",
-      objections: item["৫. কাস্টমারের ৪টি কঠিন আপত্তি ও উত্তর (Objection Destroyers)"] || [],
-      dietary: item["৬. পুষ্টি ও দ্রুত ফলাফল পাওয়ার খাদ্যাভ্যাস (Dietary Blueprint)"] || "",
-      specialists: item["বিশ্বখ্যাত ৫ ডাক্তার ও হাকিমদের উক্তি (Named Specialists & Hakims)"] || [],
-      // Add image API URL for serving locally
-      imageUrl: imageFile ? `/api/products/image?file=${encodeURIComponent(imageFile)}` : null,
-    };
-  });
-}
-
-// ── GET /api/products — list all products ────────────────────────────────────
+// ── GET /api/products — list all products or filter by search/id ──────────────
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
-    const search = searchParams.get("search")?.toLowerCase() || "";
+    const search = searchParams.get("search")?.toLowerCase().trim() || "";
     const id = searchParams.get("id");
+    const sl = searchParams.get("sl");
 
-    let products = loadProducts();
+    let products = loadMergedDB();
 
-    // Filter by ID if requested
-    if (id) {
-      const product = products.find((p: {id: number}) => p.id === parseInt(id));
-      if (!product) return NextResponse.json({ error: "Product not found" }, { status: 404 });
+    // Filter by ID or SL
+    if (id || sl) {
+      const product = products.find(
+        (p) => String(p.id) === id || String(p.sl) === (sl || id)
+      );
+      if (!product) {
+        return NextResponse.json({ error: "Product not found" }, { status: 404 });
+      }
       return NextResponse.json({ product });
     }
 
-    // Filter by search term
+    // Filter by search query
     if (search) {
-      products = products.filter((p: {name: string}) =>
-        p.name.toLowerCase().includes(search)
+      products = products.filter((p) =>
+        p.name.toLowerCase().includes(search) ||
+        p.generic.toLowerCase().includes(search) ||
+        p.manufacturer.toLowerCase().includes(search) ||
+        p.painPoints.toLowerCase().includes(search) ||
+        p.custom_pitch.toLowerCase().includes(search)
       );
     }
 
     return NextResponse.json({
       products,
       total: products.length,
-      dataSource: "Data Deshbord / medicine_master_complete_db.json",
+      dataSource: "VPS Live Database (medicine_master_complete_db.json + custom_user_edits.json)",
     });
   } catch (error: unknown) {
     console.error("[PRODUCTS_GET]", error);
@@ -75,6 +46,53 @@ export async function GET(req: NextRequest) {
   }
 }
 
-// ── GET /api/products/image?file=xxx — serve product images ─────────────────
-// This is handled in a separate route file below
+// ── POST/PUT /api/products — 2s Debounced Auto-Save endpoint ─────────────────
+export async function POST(req: NextRequest) {
+  try {
+    const body = await req.json();
+    const sl = String(body.sl || body.id || "").trim();
+
+    if (!sl) {
+      return NextResponse.json(
+        { error: "Product SL is required for saving" },
+        { status: 400 }
+      );
+    }
+
+    const updatedProduct = saveProductEdit(sl, {
+      custom_price: body.custom_price,
+      discount_price: body.discount_price,
+      custom_note: body.custom_note,
+      custom_pitch: body.custom_pitch,
+      custom_details: body.custom_details,
+      stock_status: body.stock_status,
+      stock_count: body.stock_count,
+      dosageForm: body.dosageForm,
+      painPoints: body.painPoints,
+    });
+
+    if (!updatedProduct) {
+      return NextResponse.json(
+        { error: "Product not found or failed to update" },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({
+      status: "success",
+      message: "সফলভাবে ২ সেকেন্ডে সেভ হয়েছে!",
+      product: updatedProduct,
+      savedAt: new Date().toISOString(),
+    });
+  } catch (error: unknown) {
+    console.error("[PRODUCTS_SAVE_ERROR]", error);
+    const message = error instanceof Error ? error.message : "Server error";
+    return NextResponse.json({ error: message }, { status: 500 });
+  }
+}
+
+export async function PUT(req: NextRequest) {
+  return POST(req);
+}
+
 export const dynamic = "force-dynamic";

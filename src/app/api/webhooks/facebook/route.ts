@@ -73,45 +73,87 @@ interface PendingSenderEvent {
 }
 const pendingSenderEvents = new Map<string, PendingSenderEvent>();
 
-function flushSenderEvent(senderId: string) {
+async function flushSenderEvent(senderId: string) {
   const pending = pendingSenderEvents.get(senderId);
   if (!pending) return;
   pendingSenderEvents.delete(senderId);
 
   const { pageId, text, imageUrl, audioUrl, timestamp } = pending;
-  const contextProduct = (global as any)._sharedSenderContext?.get(senderId) || null;
 
-  // Build attachments array (image + audio)
-  const attachments: any[] = [];
-  if (imageUrl) attachments.push({ type: "image", payload: { url: imageUrl } });
-  if (audioUrl) attachments.push({ type: "audio", payload: { url: audioUrl } });
+  console.log(`[AUTO_REPLY] Processing message from ${senderId} | Text: "${text}" | Image: ${imageUrl ? "YES" : "NO"}`);
 
-  // Forward merged single event to N8N Gemini AI Workflow
-  fetch("http://localhost:5678/webhook/galaxy-messenger", {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      object: "page",
-      entry: [{
-        id: pageId,
-        time: timestamp,
-        messaging: [{
-          sender: { id: senderId },
-          recipient: { id: pageId },
-          timestamp,
-          contextProduct,
-          message: {
-            mid: "mid.merged." + Date.now(),
-            text: text,
-            contextProduct,
-            attachments
+  // Generate AI reply using Gemini (Hakim Rejaul Karim persona)
+  try {
+    const { generateAutoReply } = await import("@/lib/ai");
+
+    // Fetch chat history from DB for context
+    let chatHistory: { sender: "CUSTOMER" | "AGENT"; text: string }[] = [];
+    try {
+      const { prisma } = await import("@/lib/prisma");
+      const account = await prisma.connectedAccount.findFirst({
+        where: { pageId, platform: { in: ["MESSENGER", "FACEBOOK"] }, isActive: true },
+      }) as any;
+      if (account) {
+        const contact = await prisma.contact.findFirst({
+          where: { platformUserId: senderId, platform: "MESSENGER" },
+        });
+        if (contact) {
+          const convId = `conv_${account.id}_${contact.id}`;
+          const recentMsgs = await (prisma as any).message.findMany({
+            where: { conversationId: convId },
+            orderBy: { createdAt: "desc" },
+            take: 10,
+          });
+          chatHistory = recentMsgs.reverse().map((m: any) => ({
+            sender: m.senderType as "CUSTOMER" | "AGENT",
+            text: m.content || "",
+          }));
+        }
+      }
+    } catch (histErr) {
+      console.warn("[CHAT_HISTORY_WARN]", histErr);
+    }
+
+    const replyText = await generateAutoReply(text || "ছবি পাঠালাম", {
+      imageUrl: imageUrl || null,
+      chatHistory,
+    });
+
+    if (replyText && PAGE_TOKEN) {
+      await sendMessengerReply(pageId, senderId, replyText, PAGE_TOKEN);
+      console.log(`[AUTO_REPLY_SENT] To: ${senderId} | Reply: "${replyText.substring(0, 80)}..."`);
+
+      // Save bot reply to DB
+      try {
+        const { prisma } = await import("@/lib/prisma");
+        const account = await prisma.connectedAccount.findFirst({
+          where: { pageId, platform: { in: ["MESSENGER", "FACEBOOK"] }, isActive: true },
+        }) as any;
+        if (account) {
+          const contact = await prisma.contact.findFirst({
+            where: { platformUserId: senderId, platform: "MESSENGER" },
+          });
+          if (contact) {
+            const convId = `conv_${account.id}_${contact.id}`;
+            await (prisma as any).message.create({
+              data: {
+                conversationId: convId,
+                content: replyText,
+                senderType: "AGENT",
+                platformMsgId: "auto_" + Date.now(),
+              },
+            });
           }
-        }],
-      }],
-    }),
-  }).catch((e) => console.warn("[N8N_FORWARD_ERROR]", e.message));
-
-  console.log(`[NEXTJS_WEBHOOK] Flushed message to N8N. Sender: ${senderId} | Text: "${text}" | Context: ${contextProduct}`);
+        }
+      } catch (saveErr) {
+        console.warn("[SAVE_REPLY_WARN]", saveErr);
+      }
+    } else {
+      console.warn("[AUTO_REPLY_SKIP] No reply generated or PAGE_TOKEN missing.");
+    }
+  } catch (aiErr: any) {
+    console.error("[AUTO_REPLY_ERROR]", aiErr.message || aiErr);
+  }
 }
 
 const GROQ_KEY = process.env.GROQ_API_KEY || "";
