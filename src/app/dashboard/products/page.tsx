@@ -12,11 +12,12 @@ interface Product {
   manufacturer: string;
   dosageForm: string;
   painPoints: string;
-  superiority: string;
-  ageSolutions: string;
-  objections: Array<{ objection: string; script: string }>;
-  dietary: string;
-  specialists?: Array<{ name: string; institute: string; quote: string }>;
+  superiority?: string;
+  ageSolutions?: string;
+  authenticity?: string;
+  objections?: Array<{ objection: string; script: string }>;
+  dietary?: string;
+  specialists?: Array<{ name: string; title?: string; institute: string; quote: string; flag?: string }>;
   custom_price: string;
   discount_price: string;
   custom_note: string;
@@ -154,10 +155,33 @@ export default function ProductsPage() {
             </p>
           </div>
 
-          {/* VPS Live Sync Badge */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#13131f", padding: "8px 16px", borderRadius: 12, border: "1px solid #2a2a3e" }}>
-            <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#10b981", display: "inline-block", boxShadow: "0 0 8px #10b981" }} />
-            <span style={{ fontSize: 13, color: "#10b981", fontWeight: 600 }}>ভিপিএস অলটাইম লাইভ (২৪/৭)</span>
+          {/* Mega Encyclopedia and VPS Live Sync Badge */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <a
+              href="/dashboard/encyclopedia"
+              target="_blank"
+              style={{
+                background: "linear-gradient(135deg, #7c3aed, #2563eb)",
+                color: "#fff",
+                padding: "8px 18px",
+                borderRadius: 12,
+                border: "1px solid rgba(255,255,255,0.2)",
+                textDecoration: "none",
+                fontSize: 13,
+                fontWeight: 700,
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                boxShadow: "0 4px 16px rgba(124,58,237,0.35)",
+              }}
+            >
+              📖 সম্পূর্ণ ৫৭টি ওষুধের ইন-ডিটেইলস মেগা এনসাইক্লোপিডিয়া ভিউ
+            </a>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8, background: "#13131f", padding: "8px 16px", borderRadius: 12, border: "1px solid #2a2a3e" }}>
+              <span style={{ width: 10, height: 10, borderRadius: "50%", background: "#10b981", display: "inline-block", boxShadow: "0 0 8px #10b981" }} />
+              <span style={{ fontSize: 13, color: "#10b981", fontWeight: 600 }}>ভিপিএস অলটাইম লাইভ (২৪/৭)</span>
+            </div>
           </div>
         </div>
 
@@ -522,6 +546,77 @@ export default function ProductsPage() {
                   style={{ width: "100%", padding: "10px 14px", borderRadius: 10, background: "#181829", border: "1px solid #2e2e48", color: "#fff", fontSize: 13, resize: "vertical" }}
                 />
               </div>
+
+              {/* SECTION: 5 Named Specialists & Doctors */}
+              {selected.specialists && selected.specialists.length > 0 && (
+                <div style={{ background: "#141424", borderRadius: 14, padding: 18, border: "1px solid #232338" }}>
+                  <h4 style={{ margin: "0 0 12px", fontSize: 14, color: "#38bdf8", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                    🩺 বিশ্বখ্যাত ৫ ডাক্তার ও হাকিমদের উক্তি
+                  </h4>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {selected.specialists.map((sp, idx) => (
+                      <div key={idx} style={{ background: "#0c0c16", padding: 12, borderRadius: 10, borderLeft: "3px solid #38bdf8" }}>
+                        <div style={{ fontWeight: 700, color: "#93c5fd", fontSize: 13 }}>{sp.name} {sp.flag || ""}</div>
+                        <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 4 }}>{sp.title ? `${sp.title}, ` : ""}{sp.institute}</div>
+                        <div style={{ fontSize: 12, color: "#e2e8f0", fontStyle: "italic", lineHeight: 1.5 }}>"{sp.quote}"</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* SECTION: 4 Customer Objections & Scripts */}
+              {selected.objections && selected.objections.length > 0 && (
+                <div style={{ background: "#141424", borderRadius: 14, padding: 18, border: "1px solid #232338" }}>
+                  <h4 style={{ margin: "0 0 12px", fontSize: 14, color: "#fb7185", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                    🥊 কাস্টমারের ৪টি কঠিন আপত্তি ও উত্তর (Objection Destroyers)
+                  </h4>
+                  <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
+                    {selected.objections.map((obj, idx) => (
+                      <div key={idx} style={{ background: "#0c0c16", padding: 12, borderRadius: 10, borderLeft: "3px solid #fb7185" }}>
+                        <div style={{ fontWeight: 700, color: "#fda4af", fontSize: 13, marginBottom: 4 }}>❓ {obj.objection}</div>
+                        <div style={{ fontSize: 12, color: "#cbd5e1", lineHeight: 1.5 }}>💡 {obj.script}</div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* SECTION: Dietary Blueprint */}
+              {selected.dietary && (
+                <div style={{ background: "#141424", borderRadius: 14, padding: 18, border: "1px solid #232338" }}>
+                  <h4 style={{ margin: "0 0 8px", fontSize: 14, color: "#34d399", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                    🥗 পুষ্টি ও দ্রুত ফলাফল পাওয়ার খাদ্যাভ্যাস (Dietary Blueprint)
+                  </h4>
+                  <div style={{ fontSize: 12, color: "#cbd5e1", whiteSpace: "pre-line", lineHeight: 1.6, background: "#0c0c16", padding: 12, borderRadius: 10 }}>
+                    {selected.dietary}
+                  </div>
+                </div>
+              )}
+
+              {/* SECTION: Superiority Matrix */}
+              {selected.superiority && (
+                <div style={{ background: "#141424", borderRadius: 14, padding: 18, border: "1px solid #232338" }}>
+                  <h4 style={{ margin: "0 0 8px", fontSize: 14, color: "#fbbf24", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                    👑 বাজারের অন্যান্য ওষুধের সাথে শ্রেষ্ঠত্ব (Superiority Matrix)
+                  </h4>
+                  <div style={{ fontSize: 12, color: "#cbd5e1", whiteSpace: "pre-line", lineHeight: 1.6, background: "#0c0c16", padding: 12, borderRadius: 10 }}>
+                    {selected.superiority}
+                  </div>
+                </div>
+              )}
+
+              {/* SECTION: Age-Specific Solutions */}
+              {selected.ageSolutions && (
+                <div style={{ background: "#141424", borderRadius: 14, padding: 18, border: "1px solid #232338" }}>
+                  <h4 style={{ margin: "0 0 8px", fontSize: 14, color: "#c084fc", fontWeight: 700, display: "flex", alignItems: "center", gap: 8 }}>
+                    👥 বয়স ভিত্তিক সমাধান (Age-Specific Solutions)
+                  </h4>
+                  <div style={{ fontSize: 12, color: "#cbd5e1", whiteSpace: "pre-line", lineHeight: 1.6, background: "#0c0c16", padding: 12, borderRadius: 10 }}>
+                    {selected.ageSolutions}
+                  </div>
+                </div>
+              )}
 
               {/* Live Status Banner */}
               <div style={{

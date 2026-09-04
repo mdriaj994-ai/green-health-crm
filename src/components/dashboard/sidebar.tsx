@@ -10,6 +10,7 @@ import {
   LayoutDashboard,
   ChevronRight,
   ShoppingBag,
+  BookOpen,
 } from "lucide-react";
 
 const navItems = [
@@ -17,6 +18,7 @@ const navItems = [
   { href: "/dashboard/comments", label: "কমেন্টস", icon: MessageCircle },
   { href: "/dashboard/agents", label: "এজেন্টস", icon: Users },
   { href: "/dashboard/products", label: "মেডিসিন ড্যাশবোর্ড", icon: ShoppingBag },
+  { href: "/dashboard/encyclopedia", label: "মেগা এনসাইক্লোপিডিয়া", icon: BookOpen },
   { href: "/dashboard/settings", label: "সেটিংস", icon: Settings },
 ];
 
