@@ -22,6 +22,10 @@ RUN npm run build
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
+ENV AUTH_TRUST_HOST=true
+ENV NEXTAUTH_URL="https://greenhelth.duckdns.org"
+ENV NEXTAUTH_SECRET="greenhealth_secret_key_jwt_2026_super_secure"
+ENV AUTH_SECRET="greenhealth_secret_key_jwt_2026_super_secure"
 
 EXPOSE 3000
 

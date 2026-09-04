@@ -4,6 +4,8 @@ import bcrypt from "bcryptjs";
 import { prisma } from "@/lib/prisma";
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
+  trustHost: true,
+  secret: process.env.NEXTAUTH_SECRET || process.env.AUTH_SECRET || "greenhealth_secret_key_jwt_2026_super_secure",
   session: { strategy: "jwt" },
   pages: {
     signIn: "/login",
@@ -56,6 +58,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
         (session.user as any).role = token.role;
       }
       return session;
+    },
+    async redirect({ url, baseUrl }) {
+      if (url.startsWith("/")) return `${baseUrl}${url}`;
+      try {
+        const u = new URL(url);
+        if (u.origin === baseUrl || u.hostname === "greenhelth.duckdns.org") return url;
+      } catch {}
+      return `${baseUrl}/dashboard/products`;
     },
   },
 });
