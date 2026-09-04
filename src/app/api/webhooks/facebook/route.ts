@@ -28,6 +28,14 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Bad request" }, { status: 400 });
   }
 
+  // Log incoming webhook event to disk
+  try {
+    const fs = await import("fs");
+    const path = await import("path");
+    const logFile = path.join(process.cwd(), "data", "webhook_hits.log");
+    fs.appendFileSync(logFile, `[${new Date().toISOString()}] INCOMING: ${JSON.stringify(body)}\n`);
+  } catch {}
+
   // Respond 200 to Facebook IMMEDIATELY to prevent retry/duplicate webhook delivery
   setImmediate(async () => {
     try {
@@ -384,14 +392,24 @@ async function sendMessengerReply(pageId: string, recipientId: string, text: str
     message: { text },
     messaging_type: "RESPONSE",
   };
-  const res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(body),
-  });
-  if (!res.ok) {
-    const err = await res.json();
-    console.error("[MESSENGER_AUTO_REPLY_SEND_ERROR]", err);
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => null);
+    try {
+      const fs = await import("fs");
+      const path = await import("path");
+      const logFile = path.join(process.cwd(), "data", "webhook_hits.log");
+      fs.appendFileSync(logFile, `[${new Date().toISOString()}] FB_SEND_RESULT: ${res.status} | ${JSON.stringify(data)}\n`);
+    } catch {}
+    if (!res.ok) {
+      console.error("[MESSENGER_AUTO_REPLY_SEND_ERROR]", data);
+    }
+  } catch (err: any) {
+    console.error("[MESSENGER_FETCH_ERROR]", err);
   }
 }
 
