@@ -147,14 +147,25 @@ export function saveProductEdit(sl: string, payload: Partial<ProductEdit>): Merg
 }
 
 // Find best matching product by customer query
+function normalizeStr(s: string): string {
+  return (s || "")
+    .toLowerCase()
+    .replace(/['"’`\-_.,()\/\\+!?:;]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
+// Find best matching product by customer query
 export function findProductInDB(query: string): MergedProduct | null {
   const db = loadMergedDB();
-  const q = query.toLowerCase().replace(/['"’`]/g, "").trim();
-  if (!q) return null;
+  const normQ = normalizeStr(query);
+  const compactQ = normQ.replace(/\s+/g, "");
+  if (!normQ) return null;
 
   const aliases: Record<string, string[]> = {
     "dream touch": ["dream touch", "dreamtouch", "ড্রিম টাচ", "ড্রিমটাচ", "ড্রিম"],
     "men's burner": ["men's burner", "mens burner", "men burner", "মেনস বার্নার", "বার্নার"],
+    "men's black velvet": ["men's black velvet", "mens black velvet", "black velvet", "ব্ল্যাক ভেলভেট", "ভেলভেট"],
     "soul mate": ["soul mate", "soulmate", "সোল মেট", "সোলমেট", "সুল মেট"],
     "black ginseng": ["black ginseng", "ginseng", "ব্ল্যাক জিনসেং", "জিনসেং"],
     "egypt gawa": ["egypt gawa", "egypt", "gawa", "ইজিপ্ট", "গাওয়া", "গাওয়া"],
@@ -164,22 +175,46 @@ export function findProductInDB(query: string): MergedProduct | null {
     "titan gel": ["titan gel", "টাইটান জেল"],
     "viga": ["viga", "ভিগা"],
     "shark": ["shark", "শার্ক"],
+    "tiger king": ["tiger king", "tiger", "টাইগার কিং"],
     "rheumarex": ["rheumarex", "রিউমারেক্স"]
   };
 
   // 1. Alias match
   for (const [key, aliasList] of Object.entries(aliases)) {
-    if (aliasList.some(a => q.includes(a))) {
-      const found = db.find(p => p.name.toLowerCase().includes(key));
+    if (aliasList.some(a => normQ.includes(normalizeStr(a)) || compactQ.includes(normalizeStr(a).replace(/\s+/g, "")))) {
+      const found = db.find(p => normalizeStr(p.name).includes(key));
       if (found) return found;
     }
   }
 
-  // 2. Clean brand name match (without parentheses)
+  // 2. Clean brand name match (without parentheses & with compact space matching)
   for (const p of db) {
-    const cleanName = p.name.toLowerCase().replace(/\s*\([^)]*\)/g, "").trim();
-    if (cleanName && cleanName.length >= 3 && q.includes(cleanName)) {
+    const cleanName = p.name.replace(/\s*\([^)]*\)/g, "").trim();
+    const normClean = normalizeStr(cleanName);
+    const compactClean = normClean.replace(/\s+/g, "");
+    if (compactClean.length >= 3 && (compactQ.includes(compactClean) || normQ.includes(normClean))) {
       return p;
+    }
+  }
+
+  // 3. Raw name normalized
+  for (const p of db) {
+    const normRaw = normalizeStr(p.name);
+    const compactRaw = normRaw.replace(/\s+/g, "");
+    if (compactRaw.length >= 3 && (compactQ.includes(compactRaw) || normQ.includes(normRaw))) {
+      return p;
+    }
+  }
+
+  // 4. Multi-word token match
+  const stopWords = new Set(["koto", "dam", "ki", "ase", "akhon", "ta", "er", "apnader", "eta", "aita", "price"]);
+  const qWords = normQ.split(" ").filter(w => w.length >= 4 && !stopWords.has(w));
+  if (qWords.length >= 2) {
+    for (const p of db) {
+      const normRaw = normalizeStr(p.name);
+      if (qWords.every(w => normRaw.includes(w))) {
+        return p;
+      }
     }
   }
 

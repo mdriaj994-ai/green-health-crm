@@ -61,14 +61,24 @@ function saveThreadMemory() {
   }
 }
 
+function normalizeStr(s) {
+  return (s || "")
+    .toLowerCase()
+    .replace(/['"’`\-_.,()\/\\+!?:;]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+}
+
 // ── Live Product Database Loader & Bilingual Matcher ────────────────────────
 function findMatchedProduct(query, master) {
   if (!query) return null;
-  const q = query.toLowerCase().replace(/['"’`]/g, "");
+  const normQ = normalizeStr(query);
+  const compactQ = normQ.replace(/\s+/g, "");
 
   const aliases = {
     "dream touch": ["dream touch", "dreamtouch", "ড্রিম টাচ", "ড্রিমটাচ", "ড্রিম"],
     "men's burner": ["men's burner", "mens burner", "men burner", "মেনস বার্নার", "বার্নার"],
+    "men's black velvet": ["men's black velvet", "mens black velvet", "black velvet", "ব্ল্যাক ভেলভেট", "ভেলভেট"],
     "soul mate": ["soul mate", "soulmate", "সোল মেট", "সোলমেট", "সুল মেট"],
     "black ginseng": ["black ginseng", "ginseng", "ব্ল্যাক জিনসেং", "জিনসেং"],
     "egypt gawa": ["egypt gawa", "egypt", "gawa", "ইজিপ্ট", "গাওয়া", "গাওয়া"],
@@ -78,30 +88,51 @@ function findMatchedProduct(query, master) {
     "titan gel": ["titan gel", "টাইটান জেল"],
     "viga": ["viga", "ভিগা"],
     "shark": ["shark", "শার্ক"],
+    "tiger king": ["tiger king", "tiger", "টাইগার কিং"],
     "rheumarex": ["rheumarex", "রিউমারেক্স"]
   };
 
   // 1. Check known aliases
   for (const [key, aliasList] of Object.entries(aliases)) {
-    if (aliasList.some(a => q.includes(a))) {
+    if (aliasList.some(a => normQ.includes(normalizeStr(a)) || compactQ.includes(normalizeStr(a).replace(/\s+/g, "")))) {
       const found = master.find(p => {
-        const name = (p["ওষুধের নাম (Brand Name)"] || "").toLowerCase();
+        const name = normalizeStr(p["ওষুধের নাম (Brand Name)"] || "");
         return name.includes(key);
       });
       if (found) return found;
     }
   }
 
-  // 2. Clean regex/substring match for every product in master (strip parentheses)
+  // 2. Clean brand name match (with punctuation removed & compact space matching)
   for (const p of master) {
-    const rawName = (p["ওষুধের নাম (Brand Name)"] || "").toLowerCase();
+    const rawName = p["ওষুধের নাম (Brand Name)"] || "";
     const cleanName = rawName.replace(/\s*\([^)]*\)/g, "").trim();
-    if (cleanName && cleanName.length >= 3 && q.includes(cleanName)) {
+    const normClean = normalizeStr(cleanName);
+    const compactClean = normClean.replace(/\s+/g, "");
+
+    if (compactClean.length >= 3 && (compactQ.includes(compactClean) || normQ.includes(normClean))) {
       return p;
     }
-    const generic = (p["জেনেরিক ও ফার্মাকোলজিক্যাল ক্লাস (Generic & Class)"] || "").toLowerCase();
-    if (generic && generic.length >= 5 && q.includes(generic)) {
+  }
+
+  // 3. Full raw name match
+  for (const p of master) {
+    const normRaw = normalizeStr(p["ওষুধের নাম (Brand Name)"]);
+    const compactRaw = normRaw.replace(/\s+/g, "");
+    if (compactRaw.length >= 3 && (compactQ.includes(compactRaw) || normQ.includes(normRaw))) {
       return p;
+    }
+  }
+
+  // 4. Multi-word token match (e.g. "black" + "velvet")
+  const stopWords = new Set(["koto", "dam", "ki", "ase", "akhon", "ta", "er", "apnader", "eta", "aita", "price", "bhai"]);
+  const qWords = normQ.split(" ").filter(w => w.length >= 4 && !stopWords.has(w));
+  if (qWords.length >= 2) {
+    for (const p of master) {
+      const normRaw = normalizeStr(p["ওষুধের নাম (Brand Name)"]);
+      if (qWords.every(w => normRaw.includes(w))) {
+        return p;
+      }
     }
   }
 
@@ -217,10 +248,30 @@ ${ageSolutions ? `বয়স ভিত্তিক পরামর্শ: ${ageSo
 // ── Gemini AI Generator ──────────────────────────────────────────────────────
 const genAI = new GoogleGenerativeAI(GEMINI_KEY);
 
+function buildStoreCatalog(master, edits) {
+  return master.map(p => {
+    const sl = String(p.SL);
+    const ed = edits[sl] || {};
+    const name = p["ওষুধের নাম (Brand Name)"];
+    const price = ed.discount_price || ed.custom_price || "৩,০০০";
+    const note = ed.custom_note || "ক্যাশ অন ডেলিভারি, সারা দেশে ফ্রি হোম ডেলিভারি।";
+    return `#${sl} | ${name} | অফার মূল্য: ${price} টাকা | ডেলিভারি: ${note}`;
+  }).join("\n");
+}
+
 async function generateReply(customerMessage, senderName, senderId = null, recentHistory = []) {
   const { context: productContext, matched } = getLiveProductInfo(customerMessage, senderId, recentHistory);
 
-  const systemInstruction = `You are an expert, empathetic, and persuasive human customer support and sales representative for our authentic healthcare & herbal medicine store in Bangladesh.
+  const masterPath = path.join(process.cwd(), "data", "medicine_master_complete_db.json");
+  const editsPath = path.join(process.cwd(), "data", "custom_user_edits.json");
+  const master = fs.existsSync(masterPath) ? JSON.parse(fs.readFileSync(masterPath, "utf-8")) : [];
+  const edits = fs.existsSync(editsPath) ? JSON.parse(fs.readFileSync(editsPath, "utf-8")) : {};
+  const catalogSummary = buildStoreCatalog(master, edits);
+
+  const systemInstruction = `You are an expert, empathetic, and persuasive human customer support representative for Green Health Unani Pharmacy (গ্রীন হেলথ ইউনানী ফার্মেসী) in Bangladesh.
+
+OUR VERIFIED PRODUCT INVENTORY (আমাদের ফার্মেসীর সকল অনুমোদিত ওষুধের সম্পূর্ণ লাইভ তালিকা):
+${catalogSummary}
 
 Core Communication Rules:
 1. Natural Bengali: Always reply in fluent, natural, polite Bengali (বাংলা). Chat like a helpful human page admin chatting on Facebook Messenger.
@@ -234,12 +285,18 @@ Core Communication Rules:
    - ONLY say "ওয়ালাইকুম আসসালাম" IF the customer explicitly greeted with "আসসালামু আলাইকুম" or "সালাম".
    - If the customer says "Hi", "Hello", "হাই", "হ্যালো", respond warmly and naturally, e.g.: "জি বলুন, কীভাবে সাহায্য করতে পারি?"
    - If the customer asks a direct question (e.g., "দাম কত?", "কি কাজ করে?", "খাব কিভাবে?"), do NOT include any greeting or introduction at all. Answer the question directly!
-5. Product Availability & Unknown Items (CRITICAL):
-   - If a customer asks for ANY medicine, product, brand, or illness treatment that is NOT in our provided database (for example: "নাপা আছে?", "প্যারাসিটামল আছে?", "টাইগার আছে?", "সারজেল আছে?", "ক্যান্সারের ওষুধ আছে?"):
-     You MUST state clearly and directly: "দুঃখিত, এই প্রোডাক্টটি বর্তমানে আমাদের কাছে নেই।" (or "দুঃখিত, এটার ওষুধ আমাদের কাছে নেই।")
-   - If a customer asks about something we do not know or do not have in our database:
-     Reply: "দুঃখিত, এ বিষয়ে আমাদের কাছে তথ্য নেই।"
-   - NEVER make up fake product info, and NEVER recommend an unrelated product like Soul Mate when an unavailable product was requested.
+5. Product Availability & Intelligent Search (CRITICAL - ALWAYS CHECK INVENTORY):
+   - Consult OUR VERIFIED PRODUCT INVENTORY above. We have 57 authentic medicines in stock.
+   - Customers may ask in English, Bengali, or phonetic Banglish, with slight typos, extra words, or missing spaces (for example: "MEN'S BLACK VELVET", "black velvet", "drim touch", "shorbot", "hunter", "tiger king", etc.).
+   - If the customer asks about ANY medicine present in our inventory:
+     * That medicine is 100% IN STOCK and AVAILABLE!
+     * If they ask if it is available ("আছে কি?", "পাওয়া যাবে কি?", "ta ki ase akhon"):
+       Reply: "জি, [ওষুধের নাম] আমাদের কাছে ১০০% অরিজিনাল স্টকে রয়েছে। এটি সম্পর্কে কি কোনো তথ্য জানতে চাচ্ছেন?"
+     * If they ask price ("দাম কত?"):
+       State the offer price from our inventory: "এর বর্তমান অফার মূল্য [মূল্য] টাকা। সাথে ফ্রি হোম ডেলিভারি সুবিধা রয়েছে।"
+     * NEVER say "এই প্রোডাক্টটি আমাদের কাছে নেই" for any product that exists in our inventory!
+   - ONLY if the customer asks for an external commercial drug (like Napa, Seclo, Paracetamol, etc.) that is completely absent from our inventory, reply:
+     "দুঃখিত, এই প্রোডাক্টটি বর্তমানে আমাদের কাছে নেই।"
 6. STRICTLY Answer ONLY What Was Asked (কাস্টমার যেটুকু জানতে চেয়েছেন শুধুমাত্র সেটুকুই উত্তর দিন):
    - Do NOT dump prices, dosages, pitches, or order requests when not asked.
    - Do NOT sound like an aggressive salesman or an automated robot.
