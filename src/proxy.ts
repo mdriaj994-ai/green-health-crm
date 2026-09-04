@@ -5,15 +5,9 @@ export function proxy(req: NextRequest) {
   const isLoggedIn = !!token;
   const path = req.nextUrl.pathname;
 
-  const isAuthPage = path.startsWith("/login") || path.startsWith("/register");
-  const isDashboard = path.startsWith("/dashboard");
-
-  if (isDashboard && !isLoggedIn) {
-    return NextResponse.redirect(new URL("/login", req.url));
-  }
-
-  if (isAuthPage && isLoggedIn) {
-    return NextResponse.redirect(new URL("/dashboard", req.url));
+  // Always allow all dashboard pages, products, and APIs without login blocking
+  if (path.startsWith("/dashboard") || path.startsWith("/api")) {
+    return NextResponse.next();
   }
 
   return NextResponse.next();
