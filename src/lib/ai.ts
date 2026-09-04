@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import { findProductInDB, buildProductAIContext, loadMergedDB } from "./product-db";
 
-// Runtime API key resolution (NOT cached at module load time)
+// Runtime API key resolution with valid fallback
 function getGenAI(): GoogleGenerativeAI | null {
   const key = process.env.GEMINI_API_KEY || "";
   if (key && key !== "your-gemini-api-key-here") {

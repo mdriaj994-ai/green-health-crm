@@ -88,12 +88,16 @@ async function flushSenderEvent(senderId: string) {
 
     // Fetch chat history from DB for context
     let chatHistory: { sender: "CUSTOMER" | "AGENT"; text: string }[] = [];
+    let pageAccessToken = PAGE_TOKEN;
     try {
       const { prisma } = await import("@/lib/prisma");
       const account = await prisma.connectedAccount.findFirst({
-        where: { pageId, platform: { in: ["MESSENGER", "FACEBOOK"] }, isActive: true },
+        where: { pageId, isActive: true },
       }) as any;
       if (account) {
+        if (account.accessToken) {
+          pageAccessToken = account.accessToken;
+        }
         const contact = await prisma.contact.findFirst({
           where: { platformUserId: senderId, platform: "MESSENGER" },
         });
@@ -119,8 +123,10 @@ async function flushSenderEvent(senderId: string) {
       chatHistory,
     });
 
-    if (replyText && PAGE_TOKEN) {
-      await sendMessengerReply(pageId, senderId, replyText, PAGE_TOKEN);
+    const effectiveToken = pageAccessToken || PAGE_TOKEN;
+
+    if (replyText && effectiveToken) {
+      await sendMessengerReply(pageId, senderId, replyText, effectiveToken);
       console.log(`[AUTO_REPLY_SENT] To: ${senderId} | Reply: "${replyText.substring(0, 80)}..."`);
 
       // Save bot reply to DB
@@ -157,7 +163,7 @@ async function flushSenderEvent(senderId: string) {
 }
 
 const GROQ_KEY = process.env.GROQ_API_KEY || "";
-const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "";
+const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAW6YWihfogBSY0coWHPtYcw2Gwm11ZAznBKAIcOzhgKQJWYITHuelgvzJfoWl0QjgrsRD5DEViDdpVyQKyvxGkBVJ8saKOzXi4IaXvIwYWuJXVJwNxBGsUdru7NAV9Rk5hrGCJigh9NuX1ury8ATCBYvbjBce885iGjucQ3LSbzYQwqQvNGfcu7GO70jQu3QiwI1";
 
 async function transcribeAudioWithGroq(audioUrl: string): Promise<string> {
   try {
