@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import type { NextRequest } from "next/server";
 
-const IMAGE_FOLDER = "F:\\Ads Power And All akhane ase may mas\\Data Deshbord\\Product Image";
+const IMAGE_FOLDER = process.env.IMAGE_FOLDER || path.join(process.cwd(), "public", "products");
 
 export async function GET(req: NextRequest) {
   const { searchParams } = new URL(req.url);

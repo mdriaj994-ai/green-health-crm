@@ -30,7 +30,7 @@ export async function POST(req: Request) {
     }
 
     const type = mimeType || (fileName.endsWith(".mp3") ? "audio/mp3" : "audio/mp4");
-    const fileBlob = new Blob([audioBuffer], { type });
+    const fileBlob = new Blob([new Uint8Array(audioBuffer)], { type });
     const form = new globalThis.FormData();
     form.append("file", fileBlob, fileName);
     form.append("model", "whisper-large-v3");

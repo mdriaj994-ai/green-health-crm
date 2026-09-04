@@ -247,7 +247,7 @@ async function handleMessengerMessage(pageId: string, event: any) {
     const { redis }  = await import("@/lib/redis");
 
     if (msgId) {
-      await redis.set(`fb:msg:processed:${msgId}`, "1", "EX", 60, "NX").catch(() => null);
+      await (redis as any).set(`fb:msg:processed:${msgId}`, "1", "EX", 60, "NX").catch(() => null);
     }
 
     const account = await prisma.connectedAccount.findFirst({

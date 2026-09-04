@@ -3,7 +3,7 @@ import fs from "fs";
 import path from "path";
 import type { NextRequest } from "next/server";
 
-const DATA_DIR = "D:\\Ads Power And All akhane ase may mas\\Data Deshbord";
+const DATA_DIR = process.env.DATA_DIR || path.join(process.cwd(), "data");
 const DB_FILE = path.join(DATA_DIR, "medicine_master_complete_db.json");
 const EDITS_FILE = path.join(DATA_DIR, "custom_user_edits.json");
 const IMAGE_FOLDER = path.join(DATA_DIR, "Product Image");

@@ -4,7 +4,7 @@ import path from "path";
 import type { NextRequest } from "next/server";
 
 // ── Path to the Data Deshbord folder ─────────────────────────────────────────
-const DATA_DESHBORD_PATH = "D:\\Ads Power And All akhane ase may mas\\Data Deshbord";
+const DATA_DESHBORD_PATH = process.env.DATA_DIR || path.join(process.cwd(), "data");
 const DB_FILE = path.join(DATA_DESHBORD_PATH, "medicine_master_complete_db.json");
 const IMAGE_FOLDER = path.join(DATA_DESHBORD_PATH, "Product Image");
 

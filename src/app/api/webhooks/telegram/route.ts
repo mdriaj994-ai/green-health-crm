@@ -96,7 +96,7 @@ async function handleTelegramMessage(message: any) {
       select: { senderType: true, content: true },
     });
 
-    const chatHistory = recentMessages.reverse().map((m) => ({
+    const chatHistory = recentMessages.reverse().map((m: any) => ({
       sender: m.senderType as "CUSTOMER" | "AGENT",
       text: m.content,
     }));
