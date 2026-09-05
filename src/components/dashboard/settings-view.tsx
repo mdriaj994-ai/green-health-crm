@@ -92,16 +92,12 @@ export function SettingsView() {
     aiTone: string;
   }>>({});
   const [aiSaving, setAiSaving]   = useState<string | null>(null);
-  const [aiSaved, setAiSaved]     = useState<string | null>(null);
-
-  // Load real accounts from DB
-  useEffect(() => {
+  function reloadAccounts() {
     fetch("/api/accounts")
       .then((r) => r.json())
       .then((data) => {
-        if (data.accounts?.length > 0) {
+        if (data.accounts) {
           setAccounts(data.accounts);
-          // Initialize AI settings state from DB
           const init: typeof aiSettings = {};
           for (const acc of data.accounts) {
             init[acc.id] = {
@@ -111,31 +107,14 @@ export function SettingsView() {
             };
           }
           setAiSettings(init);
-        } else {
-          // Demo mode — init from demo data
-          const init: typeof aiSettings = {};
-          for (const acc of DEMO_ACCOUNTS) {
-            init[acc.id] = {
-              aiAutoReply: acc.aiAutoReply,
-              businessDetails: acc.businessDetails ?? "",
-              aiTone: acc.aiTone ?? "friendly",
-            };
-          }
-          setAiSettings(init);
         }
       })
-      .catch(() => {
-        // Demo mode
-        const init: typeof aiSettings = {};
-        for (const acc of DEMO_ACCOUNTS) {
-          init[acc.id] = {
-            aiAutoReply: acc.aiAutoReply,
-            businessDetails: acc.businessDetails ?? "",
-            aiTone: acc.aiTone ?? "friendly",
-          };
-        }
-        setAiSettings(init);
-      });
+      .catch((err) => console.error("Error reloading accounts:", err));
+  }
+
+  // Load real accounts from DB
+  useEffect(() => {
+    reloadAccounts();
   }, []);
 
   function updateAiSetting(accountId: string, field: string, value: any) {
@@ -182,10 +161,27 @@ export function SettingsView() {
         setConnected(true);
         setShowConnectForm(null);
         setForm({ pageName: "", pageId: "", accessToken: "" });
+        reloadAccounts();
         setTimeout(() => setConnected(false), 3000);
       }
     } finally {
       setConnecting(false);
+    }
+  }
+
+  async function deleteAccount(accountId: string) {
+    if (!confirm("আপনি কি নিশ্চিত যে এই পেজটি রিমুভ করতে চান? রিমুভ করলে বট এই পেজে আর কাজ করবে না।")) return;
+    try {
+      const res = await fetch("/api/accounts", {
+        method: "DELETE",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ accountId }),
+      });
+      if (res.ok) {
+        reloadAccounts();
+      }
+    } catch (err) {
+      console.error("Delete account error:", err);
     }
   }
 
@@ -246,7 +242,7 @@ export function SettingsView() {
                   <span className="acc-status">
                     <CheckCircle size={13} color="#22c55e" /> সক্রিয়
                   </span>
-                  <button className="acc-remove" onClick={() => setAccounts(a => a.filter(x => x.id !== acc.id))}>
+                  <button className="acc-remove" title="পেজটি রিমুভ করুন" onClick={() => deleteAccount(acc.id)}>
                     <Trash2 size={14} />
                   </button>
                 </div>

@@ -6,9 +6,42 @@ require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 const { GoogleGenerativeAI } = require("@google/generative-ai");
 const fs = require("fs");
 
+const Database = require("better-sqlite3");
+
 const PAGE_ID = process.env.FACEBOOK_PAGE_ID || "110644118793600";
 const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAW6YWihfogBSY0coWHPtYcw2Gwm11ZAznBKAIcOzhgKQJWYITHuelgvzJfoWl0QjgrsRD5DEViDdpVyQKyvxGkBVJ8saKOzXi4IaXvIwYWuJXVJwNxBGsUdru7NAV9Rk5hrGCJigh9NuX1ury8ATCBYvbjBce885iGjucQ3LSbzYQwqQvNGfcu7GO70jQu3QiwI1";
 const GEMINI_KEY = process.env.GEMINI_API_KEY || Buffer.from("QVEuQWI4Uk42Si0xTTlKMDlNNlJfS2tjZU9LNjVraVd2Z3NydGZUX2pQZm5JY1NtejB4eXc=", "base64").toString("utf-8");
+
+// Fetch all active connected Facebook pages dynamically from database
+function getActivePages() {
+  try {
+    const dbPath = path.join(process.cwd(), "prisma", "social_inbox.db");
+    if (fs.existsSync(dbPath)) {
+      const db = new Database(dbPath, { readonly: true });
+      const rows = db.prepare("SELECT * FROM ConnectedAccount WHERE platform = 'FACEBOOK' AND (isActive = 1 OR isActive = 'true')").all();
+      db.close();
+      if (rows && rows.length > 0) {
+        return rows.map(r => ({
+          id: r.id,
+          pageId: String(r.pageId),
+          pageName: r.pageName || "গ্রীন হেলথ ইউনানী ফার্মেসী",
+          accessToken: r.accessToken,
+          aiAutoReply: r.aiAutoReply !== 0
+        })).filter(p => p.pageId && p.accessToken);
+      }
+    }
+  } catch (e) {
+    console.warn("[FB_BOT] DB load pages error:", e.message);
+  }
+  // Fallback to .env configuration if DB is empty or inaccessible
+  return [{
+    id: "default-env",
+    pageId: PAGE_ID,
+    pageName: "গ্রীন হেলথ ইউনানী ফার্মেসী",
+    accessToken: PAGE_TOKEN,
+    aiAutoReply: true
+  }];
+}
 
 const PROCESSED_FILE = path.join(process.cwd(), "data", "processed_msg_ids.json");
 const THREAD_MEMORY_FILE = path.join(process.cwd(), "data", "thread_memory.json");
@@ -274,7 +307,7 @@ function detectLanguage(text) {
   return "Bengali";
 }
 
-async function generateReply(customerMessage, senderName, senderId = null, recentHistory = []) {
+async function generateReply(customerMessage, senderName, senderId = null, recentHistory = [], pageName = "গ্রীন হেলথ ইউনানী ফার্মেসী") {
   const { context: productContext, matched } = getLiveProductInfo(customerMessage, senderId, recentHistory);
 
   const masterPath = path.join(process.cwd(), "data", "medicine_master_complete_db.json");
@@ -286,7 +319,7 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
   const catalogSummary = buildStoreCatalog(master, edits);
   const detectedLang = detectLanguage(customerMessage);
 
-  const systemInstruction = `You are an expert, compassionate human Unani Doctor and senior consultant representing Green Health Unani Pharmacy (গ্রীন হেলথ ইউনানী ফার্মেসী) in Bangladesh.
+  const systemInstruction = `You are an expert, compassionate human Unani Doctor and senior consultant representing ${pageName} in Bangladesh.
 
 OUR VERIFIED PRODUCT INVENTORY (আমাদের ফার্মেসীর অনুমোদিত ওষুধের তালিকা):
 ${catalogSummary}
@@ -406,7 +439,10 @@ ${masterKB ? `\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\n${masterKB}\n---
         text = text.replace(/[*#]+/g, "").trim();
         // Strict safety: remove any accidental defensive apology or robotic excuses
         text = text.replace(/দুঃখিত[,]?\s*আপনাকে\s*ভুল\s*বোঝানোর[^\n।.!?]+[।.!?]?/gi, "").trim();
-        text = text.replace(/আমি\s*গ্রীন\s*হেলথ\s*ইউনানী\s*ফার্মেসীর\s*কাস্টমার\s*সাপোর্ট[^\n।.!?]+[।.!?]?/gi, "").trim();
+        try {
+          const escapedName = pageName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+          text = text.replace(new RegExp(`আমি\\s*(${escapedName}|গ্রীন\\s*হেলথ\\s*ইউনানী\\s*ফার্মেসীর?)\\s*কাস্টমার\\s*সাপোর্ট[^\\n।.!?]+[।.!?]?`, "gi"), "").trim();
+        } catch {}
 
         // If ongoing conversation, strip any accidental mid-chat greeting slipped by LLM
         if (recentHistory && recentHistory.length > 0) {
@@ -444,8 +480,8 @@ ${masterKB ? `\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\n${masterKB}\n---
 }
 
 // ── Send Message via Facebook Graph API ──────────────────────────────────────
-async function sendFacebookMessage(recipientId, text) {
-  const url = `https://graph.facebook.com/v19.0/me/messages?access_token=${PAGE_TOKEN}`;
+async function sendFacebookMessage(recipientId, text, pageAccessToken = PAGE_TOKEN) {
+  const url = `https://graph.facebook.com/v19.0/me/messages?access_token=${pageAccessToken}`;
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -459,15 +495,15 @@ async function sendFacebookMessage(recipientId, text) {
 }
 
 // ── Fetch Recent Conversations from Facebook ─────────────────────────────────
-async function fetchConversations() {
-  const url = `https://graph.facebook.com/v19.0/${PAGE_ID}/conversations?fields=messages.limit(15){message,from,created_time,id}&access_token=${PAGE_TOKEN}`;
+async function fetchConversations(pageId = PAGE_ID, pageAccessToken = PAGE_TOKEN) {
+  const url = `https://graph.facebook.com/v19.0/${pageId}/conversations?fields=messages.limit(15){message,from,created_time,id}&access_token=${pageAccessToken}`;
   const res = await fetch(url, { signal: AbortSignal.timeout(4500) });
   if (!res.ok) return [];
   const data = await res.json();
   return data.data || [];
 }
 
-// ── Main Polling Loop ────────────────────────────────────────────────────────
+// ── Main Multi-Page Polling Loop ─────────────────────────────────────────────
 let isPolling = false;
 
 async function pollOnce() {
@@ -475,38 +511,47 @@ async function pollOnce() {
   isPolling = true;
 
   try {
-    const convs = await fetchConversations();
-    for (const conv of convs) {
-      const msgs = conv.messages?.data || [];
-      if (msgs.length === 0) continue;
+    const activePages = getActivePages();
+    for (const page of activePages) {
+      if (!page.aiAutoReply) continue;
+      try {
+        const convs = await fetchConversations(page.pageId, page.accessToken);
+        for (const conv of convs) {
+          const msgs = conv.messages?.data || [];
+          if (msgs.length === 0) continue;
 
-      const lastMsg = msgs[0];
-      const isFromCustomer = lastMsg.from?.id && lastMsg.from.id !== PAGE_ID;
+          const lastMsg = msgs[0];
+          const isFromCustomer = lastMsg.from?.id && String(lastMsg.from.id) !== String(page.pageId);
 
-      if (isFromCustomer && lastMsg.id && !processedIds.has(lastMsg.id)) {
-        processedIds.add(lastMsg.id); // Mark in memory to prevent duplicate in next tick
-        const customerName = lastMsg.from?.name || "Customer";
-        const senderId = lastMsg.from.id;
-        const messageText = (lastMsg.message || "").trim();
+          if (isFromCustomer && lastMsg.id && !processedIds.has(lastMsg.id)) {
+            processedIds.add(lastMsg.id); // Mark in memory to prevent duplicate in next tick
+            const customerName = lastMsg.from?.name || "Customer";
+            const senderId = lastMsg.from.id;
+            const messageText = (lastMsg.message || "").trim();
 
-        console.log(`[FB_BOT] 🔔 NEW MESSAGE from ${customerName} (${senderId}): "${messageText}"`);
+            console.log(`[FB_BOT] 🔔 [${page.pageName}] NEW MESSAGE from ${customerName} (${senderId}): "${messageText}"`);
 
-        // Format recent messages for multi-turn dialogue context (oldest first, up to 10 turns)
-        const previousMsgs = msgs.slice(1, 11).reverse();
-        const recentHistory = previousMsgs.map(m => {
-          const isBot = m.from?.id === PAGE_ID;
-          const author = isBot ? "গ্রীন হেলথ ইউনানী ফার্মেসী" : (m.from?.name || "কাস্টমার");
-          return `${author}: "${(m.message || '').trim()}"`;
-        }).filter(line => line.length > 5);
+            // Format recent messages for multi-turn dialogue context (oldest first, up to 10 turns)
+            const previousMsgs = msgs.slice(1, 11).reverse();
+            const recentHistory = previousMsgs.map(m => {
+              const isBot = String(m.from?.id) === String(page.pageId);
+              const author = isBot ? page.pageName : (m.from?.name || "কাস্টমার");
+              return `${author}: "${(m.message || '').trim()}"`;
+            }).filter(line => line.length > 5);
 
-        // Generate AI reply with thread memory and context
-        const replyText = await generateReply(messageText, customerName, senderId, recentHistory);
-        console.log(`[FB_BOT] 🤖 BOT REPLY: "${replyText.slice(0, 70)}..."`);
+            // Generate AI reply with thread memory and page-specific identity
+            const replyText = await generateReply(messageText, customerName, senderId, recentHistory, page.pageName);
+            console.log(`[FB_BOT] 🤖 [${page.pageName}] REPLY: "${replyText.slice(0, 70)}..."`);
 
-        // Send reply to Messenger
-        const sendResult = await sendFacebookMessage(senderId, replyText);
-        console.log(`[FB_BOT] 🚀 SENT [${sendResult.status}]:`, sendResult.data?.message_id || sendResult.data);
-        saveProcessedId(lastMsg.id); // Persist to file once successfully attempted
+            // Send reply to Messenger using this page's access token
+            const sendResult = await sendFacebookMessage(senderId, replyText, page.accessToken);
+            console.log(`[FB_BOT] 🚀 [${page.pageName}] SENT [${sendResult.status}]:`, sendResult.data?.message_id || sendResult.data);
+            saveProcessedId(lastMsg.id); // Persist to file once successfully attempted
+          }
+        }
+      } catch (pageErr) {
+        // Log individual page poll error without breaking others
+        // console.warn(`[FB_BOT] Error polling ${page.pageName}:`, pageErr.message);
       }
     }
   } catch (err) {
@@ -519,8 +564,7 @@ async function pollOnce() {
 // ── Start Engine ─────────────────────────────────────────────────────────────
 async function startBot() {
   console.log("=================================================");
-  console.log("  GREEN HEALTH BOT - REAL-TIME MESSENGER ENGINE  ");
-  console.log("  Page ID:", PAGE_ID);
+  console.log("  GREEN HEALTH BOT - MULTI-PAGE MESSENGER ENGINE ");
   console.log("=================================================");
 
   // Load existing conversation thread memory
@@ -528,24 +572,31 @@ async function startBot() {
 
   // Initialize: preload old messages so we only reply to new or unreplied recent messages
   try {
-    const initConvs = await fetchConversations();
+    const activePages = getActivePages();
     const now = Date.now();
-    for (const conv of initConvs) {
-      const msgs = conv.messages?.data || [];
-      for (let i = 0; i < msgs.length; i++) {
-        const m = msgs[i];
-        const isLatest = (i === 0);
-        const isFromCustomer = m.from?.id && m.from.id !== PAGE_ID;
-        const isRecent = (now - new Date(m.created_time).getTime()) < 24 * 60 * 60 * 1000;
+    console.log(`[FB_BOT] Initializing across ${activePages.length} active page(s):`);
+    for (const page of activePages) {
+      console.log(`  - Page: "${page.pageName}" (ID: ${page.pageId})`);
+      try {
+        const initConvs = await fetchConversations(page.pageId, page.accessToken);
+        for (const conv of initConvs) {
+          const msgs = conv.messages?.data || [];
+          for (let i = 0; i < msgs.length; i++) {
+            const m = msgs[i];
+            const isLatest = (i === 0);
+            const isFromCustomer = m.from?.id && String(m.from.id) !== String(page.pageId);
+            const isRecent = (now - new Date(m.created_time).getTime()) < 24 * 60 * 60 * 1000;
 
-        if (isLatest && isFromCustomer && isRecent && !processedIds.has(m.id)) {
-          console.log(`[FB_BOT] Found pending unreplied message from ${m.from?.name || "Customer"}: "${m.message}". Processing immediately.`);
-        } else {
-          if (m.id) processedIds.add(m.id);
+            if (isLatest && isFromCustomer && isRecent && !processedIds.has(m.id)) {
+              console.log(`[FB_BOT] [${page.pageName}] Found pending unreplied message from ${m.from?.name || "Customer"}: "${m.message}". Processing on first tick.`);
+            } else {
+              if (m.id) processedIds.add(m.id);
+            }
+          }
         }
-      }
+      } catch (e) {}
     }
-    console.log(`[FB_BOT] Preloaded ${processedIds.size} message IDs. Starting loop...`);
+    console.log(`[FB_BOT] Preloaded ${processedIds.size} message IDs across all pages. Starting real-time loop...`);
   } catch (e) {
     console.warn("[FB_BOT] Init warning:", e.message);
   }

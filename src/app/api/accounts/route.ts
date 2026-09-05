@@ -3,12 +3,9 @@ import { prisma } from "@/lib/prisma";
 
 // ── GET: List connected pages ────────────────────────────────────
 export async function GET(req: Request) {
-  const { searchParams } = new URL(req.url);
-  const userId = searchParams.get("userId");
-
   try {
     const accounts = await prisma.connectedAccount.findMany({
-      where: userId ? { userId } : {},
+      where: { isActive: true },
       select: {
         id: true, platform: true, pageId: true,
         pageName: true, avatar: true, isActive: true, createdAt: true,
@@ -46,10 +43,16 @@ export async function POST(req: Request) {
 
     const userId = user.id;
 
-    const account = await prisma.connectedAccount.upsert({
-      where: { platform_pageId_userId: { platform, pageId, userId } },
-      create: { platform, pageId, pageName, accessToken, userId, avatar, isActive: true },
-      update: { accessToken, isActive: true, pageName, avatar },
+    const account = await prisma.connectedAccount.create({
+      data: {
+        platform: platform || "FACEBOOK",
+        pageId: String(pageId).trim(),
+        pageName: (pageName || "Facebook Page").trim(),
+        accessToken: String(accessToken).trim(),
+        userId,
+        avatar: avatar || null,
+        isActive: true,
+      },
     });
 
     return NextResponse.json({ account }, { status: 201 });
@@ -88,9 +91,8 @@ export async function PATCH(req: Request) {
 export async function DELETE(req: Request) {
   try {
     const { accountId } = await req.json();
-    await prisma.connectedAccount.update({
+    await prisma.connectedAccount.delete({
       where: { id: accountId },
-      data: { isActive: false },
     });
     return NextResponse.json({ ok: true });
   } catch (error) {
