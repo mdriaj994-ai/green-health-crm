@@ -4,15 +4,44 @@ import { prisma } from "@/lib/prisma";
 // ── GET: List connected pages ────────────────────────────────────
 export async function GET(req: Request) {
   try {
-    const accounts = await prisma.connectedAccount.findMany({
-      where: { isActive: true },
-      select: {
-        id: true, platform: true, pageId: true,
-        pageName: true, avatar: true, isActive: true, createdAt: true,
-      },
-    });
+    let accounts = await prisma.connectedAccount.findMany();
+
+    // Auto-seed default Green Health Unani Pharma page if no accounts exist
+    if (!accounts || accounts.length === 0) {
+      const pageId = process.env.FACEBOOK_PAGE_ID || "110644118793600";
+      const accessToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAW6YWihfogBSY0coWHPtYcw2Gwm11ZAznBKAIcOzhgKQJWYITHuelgvzJfoWl0QjgrsRD5DEViDdpVyQKyvxGkBVJ8saKOzXi4IaXvIwYWuJXVJwNxBGsUdru7NAV9Rk5hrGCJigh9NuX1ury8ATCBYvbjBce885iGjucQ3LSbzYQwqQvNGfcu7GO70jQu3QiwI1";
+
+      let user = await prisma.user.findFirst();
+      if (!user) {
+        user = await prisma.user.create({
+          data: {
+            name: "Admin User",
+            email: "admin@socialinbox.com",
+            password: "demo",
+            role: "SUPER_ADMIN",
+          },
+        });
+      }
+
+      await prisma.connectedAccount.create({
+        data: {
+          platform: "FACEBOOK",
+          pageId,
+          pageName: "Green Health Unani Pharma",
+          accessToken,
+          isActive: true,
+          aiAutoReply: true,
+          aiTone: "friendly",
+          userId: user.id,
+        },
+      });
+
+      accounts = await prisma.connectedAccount.findMany();
+    }
+
     return NextResponse.json({ accounts });
   } catch (error) {
+    console.error("[GET_ACCOUNTS_ERROR]", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

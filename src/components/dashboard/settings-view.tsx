@@ -18,16 +18,16 @@ type Account = {
   aiTone: string | null;
 };
 
-const DEMO_ACCOUNTS: Account[] = [
+const DEFAULT_ACCOUNTS: Account[] = [
   {
-    id: "a1", platform: "FACEBOOK", pageName: "My Fashion Store",
-    pageId: "123456789", isActive: true,
-    aiAutoReply: true, businessDetails: null, aiTone: "friendly",
-  },
-  {
-    id: "a2", platform: "TELEGRAM", pageName: "@MyShopBot",
-    pageId: "987654321", isActive: true,
-    aiAutoReply: false, businessDetails: null, aiTone: "professional",
+    id: "862a0088-8b13-4b7b-85dd-219140b41abd",
+    platform: "FACEBOOK",
+    pageName: "Green Health Unani Pharma",
+    pageId: "110644118793600",
+    isActive: true,
+    aiAutoReply: true,
+    businessDetails: null,
+    aiTone: "friendly",
   },
 ];
 
@@ -78,7 +78,7 @@ const AI_TONES = [
 ];
 
 export function SettingsView() {
-  const [accounts, setAccounts]           = useState<Account[]>(DEMO_ACCOUNTS);
+  const [accounts, setAccounts]           = useState<Account[]>(DEFAULT_ACCOUNTS);
   const [activeSection, setActiveSection] = useState<string>("platforms");
   const [showConnectForm, setShowConnectForm] = useState<string | null>(null);
   const [form, setForm]                   = useState({ pageName: "", pageId: "", accessToken: "" });
@@ -90,13 +90,19 @@ export function SettingsView() {
     aiAutoReply: boolean;
     businessDetails: string;
     aiTone: string;
-  }>>({});
+  }>>({
+    "862a0088-8b13-4b7b-85dd-219140b41abd": {
+      aiAutoReply: true,
+      businessDetails: "",
+      aiTone: "friendly",
+    },
+  });
   const [aiSaving, setAiSaving]   = useState<string | null>(null);
   function reloadAccounts() {
     fetch("/api/accounts")
       .then((r) => r.json())
       .then((data) => {
-        if (data.accounts) {
+        if (data.accounts && data.accounts.length > 0) {
           setAccounts(data.accounts);
           const init: typeof aiSettings = {};
           for (const acc of data.accounts) {
@@ -107,9 +113,14 @@ export function SettingsView() {
             };
           }
           setAiSettings(init);
+        } else {
+          setAccounts(DEFAULT_ACCOUNTS);
         }
       })
-      .catch((err) => console.error("Error reloading accounts:", err));
+      .catch((err) => {
+        console.error("Error reloading accounts:", err);
+        setAccounts(DEFAULT_ACCOUNTS);
+      });
   }
 
   // Load real accounts from DB
