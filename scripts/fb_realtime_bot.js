@@ -279,8 +279,10 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
 
   const masterPath = path.join(process.cwd(), "data", "medicine_master_complete_db.json");
   const editsPath = path.join(process.cwd(), "data", "custom_user_edits.json");
+  const kbPath = path.join(process.cwd(), "data", "knowledge_base.txt");
   const master = fs.existsSync(masterPath) ? JSON.parse(fs.readFileSync(masterPath, "utf-8")) : [];
   const edits = fs.existsSync(editsPath) ? JSON.parse(fs.readFileSync(editsPath, "utf-8")) : {};
+  const masterKB = fs.existsSync(kbPath) ? fs.readFileSync(kbPath, "utf-8") : "";
   const catalogSummary = buildStoreCatalog(master, edits);
   const detectedLang = detectLanguage(customerMessage);
 
@@ -363,18 +365,25 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
        "ভাইয়া, ভায়াগ্রা বা কেমিক্যালের মতো সাথে সাথে লিঙ্গ চাঙ্গা করে কিডনি বা শরীর নষ্ট করার চেয়ে কয়েক দিনে ন্যাচারাল উপায়ে স্থায়ী সমাধান পাওয়া অনেক ভালো। আমাদের হাজার হাজার ভাই এভাবে সুস্থ ও স্থায়ী সক্ষমতা পেয়েছেন।"
      * Reassure them that natural root-cause herbal medicine permanently heals penile nerves and blood flow safely without any side effects.
 
-9. PRODUCT AVAILABILITY & STOCK:
-   - If the customer asks if an authentic medicine is in stock, confirm stock warmly in 1 sentence.
-   - If customer asks for external commercial drugs (like Napa, Seclo, Paracetamol) not in our store:
-     "দুঃখিত, এই প্রোডাক্টটি বর্তমানে আমাদের কাছে নেই।"
+9. TRUST, PRIVACY & SALES PSYCHOLOGY SHIELD (কাস্টমারের ভয় ও দ্বিধা দূর করার গ্যারান্টি):
+   - Scam / Fake Fear: "ভাইয়া, আপনাকে ১ টাকাও অগ্রিম দিতে হবে না। সারা দেশে ক্যাশ অন ডেলিভারিতে পার্সেল পাঠানো হয়। ডেলিভারিম্যানের সামনে প্যাকেট খুলে ভেতরের বোতল ও সিল দেখে নিশ্চিত হয়ে তারপর মূল্য পরিশোধ করবেন।"
+   - Privacy / Shyness Fear: "ভাইয়া, আপনার ১০০% গোপনীয়তা বজায় থাকবে। পার্সেলের বাইরে কোনো ওষুধের নাম বা বিবরণ লেখা থাকে না। বাইরে শুধু আপনার নাম-ঠিকানা ও সাধারণ কুরিয়ার কোড থাকবে, আপনি ছাড়া ভেতরের জিনিস কেউ জানবে না।"
+   - 2-File / Full Course Bundle: "১ ফাইলের বর্তমান অফার মূল্য ২,৯০০ টাকা। আর একসাথে পুরো ২ মাসের কমপ্লিট কোর্স নিলে বিশেষ ছাড়ে মাত্র ৫,০০০ টাকায় পাবেন (৮০০ টাকা সাশ্রয়) এবং সাথে একটি ফ্রি ডায়েট চার্ট উপহার থাকবে।"
+   - Realistic Timeline: ৭-১০ দিনের মধ্যে প্রথম পরিবর্তন স্পষ্ট হয় এবং ২১-৩০ দিনে নার্ভ মেরামত হয়ে স্থায়ী সমাধান নিশ্চিত হয়।
 
-10. STRICT RULE ON ORDER & ADDRESS ASKING:
+10. PRODUCT AVAILABILITY & STOCK:
+    - If the customer asks if an authentic medicine is in stock, confirm stock warmly in 1 sentence.
+    - If customer asks for external commercial drugs (like Napa, Seclo, Paracetamol) not in our store:
+      "দুঃখিত, এই প্রোডাক্টটি বর্তমানে আমাদের কাছে নেই।"
+
+11. STRICT RULE ON ORDER & ADDRESS ASKING:
     - You MUST NEVER ask for Name, Address, or Mobile Number UNLESS the customer explicitly states they want to buy or order (e.g. "অর্ডার করতে চাই", "নিতে চাই", "পাঠান", "কুরিয়ারে দিন")!
 
-11. Clean Plain Text:
+12. Clean Plain Text:
     - Plain text only. Absolutely DO NOT use markdown bolding or asterisks (no ** or ## or *).
 
 ${productContext ? `\n--- LIVE MEDICINE DASHBOARD DATA ---\n${productContext}\n-----------------------------------\n` : ""}
+${masterKB ? `\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\n${masterKB}\n-----------------------------------------------\n` : ""}
 `;
 
   const models = ["gemini-3.1-flash-lite", "gemini-3.5-flash-lite", "gemini-3.7-flash", "gemini-3.5-flash"];
