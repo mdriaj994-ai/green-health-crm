@@ -186,6 +186,21 @@ async function flushSenderEvent(senderId: string) {
       await sendSenderAction(senderId, "typing_on", effectiveToken);
     }
 
+    // ── Picture Request Detection: Send authentic medicine photo if asked ──
+    let picProduct: any = null;
+    try {
+      const { isPictureRequest, findProductForImage } = await import("@/lib/product-db");
+      if (isPictureRequest(text)) {
+        picProduct = findProductForImage(text, chatHistory);
+        if (picProduct?.imageFile && effectiveToken) {
+          console.log(`[AUTO_REPLY_PIC] Customer requested picture. Sending "${picProduct.name}" (${picProduct.imageFile}) to ${senderId}`);
+          await sendMessengerImage(senderId, picProduct.imageFile, effectiveToken);
+        }
+      }
+    } catch (picErr: any) {
+      console.warn("[AUTO_REPLY_PIC_WARN]", picErr.message);
+    }
+
     const replyText = await generateAutoReply(text || "ছবি পাঠালাম", {
       imageUrl: imageUrl || null,
       chatHistory,
@@ -224,6 +239,7 @@ async function flushSenderEvent(senderId: string) {
               data: {
                 conversationId: convId,
                 content: replyText,
+                mediaUrl: picProduct?.imageFile ? `/api/products/image?file=${encodeURIComponent(picProduct.imageFile)}` : null,
                 senderType: "AGENT",
                 platformMsgId: "auto_" + Date.now(),
               },
@@ -496,6 +512,94 @@ async function sendMessengerReply(pageId: string, recipientId: string, text: str
   } catch (err: any) {
     console.error("[MESSENGER_FETCH_ERROR]", err);
   }
+}
+
+async function sendMessengerImage(recipientId: string, imageFileOrPath: string, accessToken: string): Promise<boolean> {
+  const url = `https://graph.facebook.com/v19.0/me/messages?access_token=${accessToken}`;
+  const filename = path.basename(imageFileOrPath);
+
+  const candidateDirs = [
+    path.join(process.cwd(), "data", "Product Image"),
+    path.join(process.cwd(), "public", "products"),
+    path.join(process.cwd(), "public", "Product Image"),
+  ];
+
+  let localPath: string | null = null;
+  if (fs.existsSync(imageFileOrPath)) {
+    localPath = imageFileOrPath;
+  } else {
+    for (const dir of candidateDirs) {
+      const p = path.join(dir, filename);
+      if (fs.existsSync(p)) {
+        localPath = p;
+        break;
+      }
+    }
+  }
+
+  // 1. Send via multipart/form-data directly from VPS disk
+  if (localPath) {
+    try {
+      const fileBuffer = fs.readFileSync(localPath);
+      const ext = path.extname(localPath).slice(1).toLowerCase() || "jpeg";
+      const mimeType = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+
+      const formData = new FormData();
+      formData.append("recipient", JSON.stringify({ id: recipientId }));
+      formData.append("message", JSON.stringify({
+        attachment: {
+          type: "image",
+          payload: { is_reusable: true }
+        }
+      }));
+      formData.append("filedata", new Blob([fileBuffer], { type: mimeType }), filename);
+
+      const res = await fetch(url, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok) {
+        console.log(`[FB_IMAGE_FILE_OK] Sent ${filename} to ${recipientId}`);
+        return true;
+      } else {
+        console.warn(`[FB_IMAGE_FILE_WARN] Status ${res.status}:`, data);
+      }
+    } catch (fileErr: any) {
+      console.warn(`[FB_IMAGE_FILE_ERR]`, fileErr.message);
+    }
+  }
+
+  // 2. Fallback: Send via public URL
+  try {
+    const publicUrl = `https://greenhelth.duckdns.org/api/products/image?file=${encodeURIComponent(filename)}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient: { id: recipientId },
+        message: {
+          attachment: {
+            type: "image",
+            payload: {
+              url: publicUrl,
+              is_reusable: true
+            }
+          }
+        },
+        messaging_type: "RESPONSE"
+      })
+    });
+    const data = await res.json().catch(() => null);
+    if (res.ok) {
+      console.log(`[FB_IMAGE_URL_OK] Sent via URL ${publicUrl} to ${recipientId}`);
+      return true;
+    }
+  } catch (urlErr: any) {
+    console.warn(`[FB_IMAGE_URL_ERR]`, urlErr.message);
+  }
+
+  return false;
 }
 
 async function handleFacebookComment(pageId: string, value: any) {

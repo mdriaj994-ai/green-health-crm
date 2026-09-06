@@ -126,6 +126,12 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
     - Entire reply MUST be between 2 to 3 short sentences (maximum 35 to 45 words)!
     - NEVER write multiple large paragraphs. Keep it short, focused, and conversational.
 
+13. PRODUCT PICTURE SENDING (CRITICAL):
+    - When customer asks for a photo/picture of the medicine (যেমন: "ছবি দেন", "pic pathan", "পিকচার দেখান", "দেখতে কেমন"):
+      Our server automatically attaches and sends the original product picture to their Messenger screen!
+      In your text reply, simply acknowledge sending the photo warmly in 1-2 short sentences:
+      "জি ভাইয়া, এই যে আমাদের অরিজিনাল প্রোডাক্টের ছবিটি উপরে পাঠিয়ে দিলাম। এটি ১০০% প্রাকৃতিক উপাদানে তৈরি। আপনি কি এর ব্যবহারবিধি বা দাম জানতে চাচ্ছেন?"
+
 ${liveProductContext ? `\n--- LIVE DASHBOARD DATA FOR THIS INQUIRY ---\n${liveProductContext}\n-------------------------------------------\n` : ""}
 
 Knowledge Base:
@@ -219,7 +225,16 @@ function generateFallbackReply(
       return `${name}${dosage} নিয়ম মেনে সেবন করলে সবচেয়ে ভালো ফলাফল পাবেন। অর্ডার করতে নাম ও ঠিকানা পাঠাতে পারেন।`;
     }
 
+    if (lower.includes("ছবি") || lower.includes("chobi") || lower.includes("pic") || lower.includes("photo") || lower.includes("পিক") || lower.includes("dekhte kemon") || lower.includes("দেখতে কেমন")) {
+      return `জি ভাইয়া, এই যে আমাদের অরিজিনাল ${name}-এর ছবিটি উপরে পাঠিয়ে দিয়েছি। এটি ১০০% প্রাকৃতিক উপাদান দিয়ে প্রস্তুত। আপনি কি এর বিস্তারিত পরামর্শ জানতে চাচ্ছেন?`;
+    }
+
     return `আমাদের ${name} ${matchedProduct.custom_pitch || "প্রাকৃতিক ও ভেষজ ফর্মুলায় প্রস্তুত অত্যন্ত কার্যকরী ওষুধ"}।${price ? ` মূল্য: ${price} টাকা${note}।` : ""}${dosage} অর্ডার করতে চাইলে আপনার নাম, সম্পূর্ণ ঠিকানা ও মোবাইল নম্বর পাঠান।`;
+  }
+
+  // Picture Request
+  if (lower.includes("ছবি") || lower.includes("chobi") || lower.includes("pic") || lower.includes("photo") || lower.includes("পিক") || lower.includes("dekhte kemon") || lower.includes("দেখতে কেমন")) {
+    return "জি ভাইয়া, এই যে আমাদের অরিজিনাল প্রোডাক্টের ছবিটি উপরে পাঠিয়ে দিলাম। আপনি কি নির্দিষ্ট কোনো ওষুধের ছবি বা কোনো স্বাস্থ্য সমস্যার পরামর্শ জানতে চাচ্ছেন?";
   }
 
   // Greetings

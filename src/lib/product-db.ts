@@ -299,3 +299,61 @@ ${objText ? "কাস্টমারের সম্ভাব্য আপত�
 ${product.dietary}
 `.trim();
 }
+
+// Check if a customer query is asking for a photo/picture/appearance of the medicine
+export function isPictureRequest(text: string): boolean {
+  if (!text) return false;
+  const q = text.toLowerCase();
+  return (
+    q.includes("ছবি") ||
+    q.includes("পিক") ||
+    q.includes("পিকচার") ||
+    q.includes("ফটো") ||
+    q.includes("pic") ||
+    q.includes("photo") ||
+    q.includes("picture") ||
+    q.includes("image") ||
+    q.includes("dekhte kemon") ||
+    q.includes("দেখতে কেমন") ||
+    q.includes("samne theke") ||
+    q.includes("সামনে থেকে")
+  );
+}
+
+// Locate matching product with image for a query, falling back to chat history or flagship formula
+export function findProductForImage(
+  text: string,
+  chatHistory?: { sender: "CUSTOMER" | "AGENT"; text: string }[]
+): MergedProduct | null {
+  // 1. Direct match on current message
+  const directMatch = findProductInDB(text);
+  if (directMatch && directMatch.imageFile) {
+    return directMatch;
+  }
+
+  // 2. Scan recent conversation history backwards (most recent messages first)
+  if (chatHistory && chatHistory.length > 0) {
+    for (let i = chatHistory.length - 1; i >= 0; i--) {
+      const msg = chatHistory[i];
+      if (!msg.text) continue;
+      const histMatch = findProductInDB(msg.text);
+      if (histMatch && histMatch.imageFile) {
+        return histMatch;
+      }
+    }
+  }
+
+  // 3. Fallback to flagship course formula (Soul Mate / Dream Touch / Black Ginseng)
+  const db = loadMergedDB();
+  const flagship = db.find(p =>
+    p.name.includes("সোল মেট") ||
+    p.name.includes("Soul") ||
+    p.name.includes("ড্রিম") ||
+    p.name.includes("Dream") ||
+    p.name.includes("জিনসেং") ||
+    p.name.includes("Ginseng")
+  );
+
+  return flagship || db[0] || null;
+}
+

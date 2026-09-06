@@ -541,6 +541,111 @@ async function sendFacebookMessage(recipientId, text, pageAccessToken = PAGE_TOK
   return { status: res.status, data: await res.json() };
 }
 
+function isPictureRequest(text) {
+  if (!text) return false;
+  const q = text.toLowerCase();
+  return (
+    q.includes("ছবি") ||
+    q.includes("পিক") ||
+    q.includes("পিকচার") ||
+    q.includes("ফটো") ||
+    q.includes("pic") ||
+    q.includes("photo") ||
+    q.includes("picture") ||
+    q.includes("image") ||
+    q.includes("dekhte kemon") ||
+    q.includes("দেখতে কেমন") ||
+    q.includes("samne theke") ||
+    q.includes("সামনে থেকে")
+  );
+}
+
+async function sendFacebookImage(recipientId, imageFileOrPath, pageAccessToken = PAGE_TOKEN) {
+  const url = `https://graph.facebook.com/v19.0/me/messages?access_token=${pageAccessToken}`;
+  const filename = path.basename(imageFileOrPath);
+
+  const candidateDirs = [
+    path.join(process.cwd(), "data", "Product Image"),
+    path.join(process.cwd(), "public", "products"),
+    path.join(process.cwd(), "public", "Product Image"),
+  ];
+
+  let localPath = null;
+  if (fs.existsSync(imageFileOrPath)) {
+    localPath = imageFileOrPath;
+  } else {
+    for (const dir of candidateDirs) {
+      const p = path.join(dir, filename);
+      if (fs.existsSync(p)) {
+        localPath = p;
+        break;
+      }
+    }
+  }
+
+  // 1. Upload directly from disk via FormData
+  if (localPath) {
+    try {
+      const fileBuffer = fs.readFileSync(localPath);
+      const ext = path.extname(localPath).slice(1).toLowerCase() || "jpeg";
+      const mimeType = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+
+      const formData = new FormData();
+      formData.append("recipient", JSON.stringify({ id: recipientId }));
+      formData.append("message", JSON.stringify({
+        attachment: {
+          type: "image",
+          payload: { is_reusable: true }
+        }
+      }));
+      formData.append("filedata", new Blob([fileBuffer], { type: mimeType }), filename);
+
+      const res = await fetch(url, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok) {
+        console.log(`[FB_BOT_IMG_FILE_OK] Sent ${filename} to ${recipientId}`);
+        return true;
+      } else {
+        console.warn(`[FB_BOT_IMG_FILE_WARN] Status ${res.status}:`, data);
+      }
+    } catch (fileErr) {
+      console.warn(`[FB_BOT_IMG_FILE_ERR]`, fileErr.message);
+    }
+  }
+
+  // 2. Fallback: URL send
+  try {
+    const publicUrl = `https://greenhelth.duckdns.org/api/products/image?file=${encodeURIComponent(filename)}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient: { id: recipientId },
+        message: {
+          attachment: {
+            type: "image",
+            payload: {
+              url: publicUrl,
+              is_reusable: true
+            }
+          }
+        },
+        messaging_type: "RESPONSE"
+      })
+    });
+    const data = await res.json().catch(() => null);
+    if (res.ok) {
+      console.log(`[FB_BOT_IMG_URL_OK] Sent via URL ${publicUrl} to ${recipientId}`);
+      return true;
+    }
+  } catch (urlErr) {}
+
+  return false;
+}
+
 // ── Fetch Recent Conversations from Facebook ─────────────────────────────────
 async function fetchConversations(pageId = PAGE_ID, pageAccessToken = PAGE_TOKEN) {
   const url = `https://graph.facebook.com/v19.0/${pageId}/conversations?fields=messages.limit(15){message,from,created_time,id}&access_token=${pageAccessToken}`;
@@ -598,6 +703,20 @@ async function pollOnce() {
               const author = isBot ? page.pageName : (m.from?.name || "কাস্টমার");
               return `${author}: "${(m.message || '').trim()}"`;
             }).filter(line => line.length > 5);
+
+            // Check if customer asked for a picture of medicine
+            if (isPictureRequest(messageText)) {
+              try {
+                const { matched } = getLiveProductInfo(messageText, senderId, recentHistory);
+                const imgFile = matched && (matched["ছবি পাথ (Image Path)"] || matched["ফাইলের নাম (File Name)"]);
+                if (imgFile) {
+                  console.log(`[FB_BOT] Customer asked for picture. Sending "${matched["ওষুধের নাম (Brand Name)"]}" image: ${imgFile}`);
+                  await sendFacebookImage(senderId, imgFile, page.accessToken);
+                }
+              } catch (imgErr) {
+                console.warn("[FB_BOT_IMG_ERR]", imgErr.message);
+              }
+            }
 
             // Generate AI reply with thread memory and page-specific identity
             const replyText = await generateReply(messageText, customerName, senderId, recentHistory, page.pageName);
