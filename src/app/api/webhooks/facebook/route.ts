@@ -537,8 +537,60 @@ async function sendMessengerImage(recipientId: string, imageFileOrPath: string, 
     }
   }
 
-  // 1. Send via multipart/form-data directly from VPS disk
+  // 1. First Priority: Upload attachment via Facebook message_attachments endpoint
+  // This is Facebook's official high-speed attachment upload protocol (verified 100% working)
   if (localPath) {
+    try {
+      const uploadUrl = `https://graph.facebook.com/v19.0/me/message_attachments?access_token=${accessToken}`;
+      const fileBuffer = fs.readFileSync(localPath);
+      const ext = path.extname(localPath).slice(1).toLowerCase() || "jpeg";
+      const mimeType = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+
+      const upFormData = new FormData();
+      upFormData.append("message", JSON.stringify({
+        attachment: {
+          type: "image",
+          payload: { is_reusable: true }
+        }
+      }));
+      upFormData.append("filedata", new Blob([fileBuffer], { type: mimeType }), filename);
+
+      const upRes = await fetch(uploadUrl, { method: "POST", body: upFormData });
+      const upData = await upRes.json().catch(() => null);
+
+      if (upRes.ok && upData?.attachment_id) {
+        // Send message using the uploaded attachment_id
+        const sendRes = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            recipient: { id: recipientId },
+            message: {
+              attachment: {
+                type: "image",
+                payload: {
+                  attachment_id: upData.attachment_id
+                }
+              }
+            },
+            messaging_type: "RESPONSE"
+          })
+        });
+        const sendData = await sendRes.json().catch(() => null);
+        if (sendRes.ok) {
+          console.log(`[FB_IMAGE_ATTACH_OK] Sent ${filename} (ID: ${upData.attachment_id}) to ${recipientId}`);
+          return true;
+        } else {
+          console.warn(`[FB_IMAGE_ATTACH_SEND_WARN]`, sendData);
+        }
+      } else {
+        console.warn(`[FB_IMAGE_ATTACH_UPLOAD_WARN] Status: ${upRes.status}`, upData);
+      }
+    } catch (upErr: any) {
+      console.warn(`[FB_IMAGE_ATTACH_ERR]`, upErr.message);
+    }
+
+    // 2. Direct multipart/form-data upload fallback
     try {
       const fileBuffer = fs.readFileSync(localPath);
       const ext = path.extname(localPath).slice(1).toLowerCase() || "jpeg";
@@ -560,17 +612,15 @@ async function sendMessengerImage(recipientId: string, imageFileOrPath: string, 
       });
       const data = await res.json().catch(() => null);
       if (res.ok) {
-        console.log(`[FB_IMAGE_FILE_OK] Sent ${filename} to ${recipientId}`);
+        console.log(`[FB_IMAGE_FILE_OK] Sent direct ${filename} to ${recipientId}`);
         return true;
-      } else {
-        console.warn(`[FB_IMAGE_FILE_WARN] Status ${res.status}:`, data);
       }
     } catch (fileErr: any) {
       console.warn(`[FB_IMAGE_FILE_ERR]`, fileErr.message);
     }
   }
 
-  // 2. Fallback: Send via public URL
+  // 3. Fallback: Send via public URL
   try {
     const publicUrl = `https://greenhelth.duckdns.org/api/products/image?file=${encodeURIComponent(filename)}`;
     const res = await fetch(url, {

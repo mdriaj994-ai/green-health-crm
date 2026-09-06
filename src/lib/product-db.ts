@@ -305,18 +305,9 @@ export function isPictureRequest(text: string): boolean {
   if (!text) return false;
   const q = text.toLowerCase();
   return (
-    q.includes("ছবি") ||
-    q.includes("পিক") ||
-    q.includes("পিকচার") ||
-    q.includes("ফটো") ||
-    q.includes("pic") ||
-    q.includes("photo") ||
-    q.includes("picture") ||
-    q.includes("image") ||
-    q.includes("dekhte kemon") ||
-    q.includes("দেখতে কেমন") ||
-    q.includes("samne theke") ||
-    q.includes("সামনে থেকে")
+    /chobi|cobi|pic|pik|photo|foto|picture|image|img/i.test(q) ||
+    /ছবি|পিক|পিকচার|ফটো|ইমেজ/i.test(q) ||
+    /dekhte kemon|দেখতে কেমন|samne theke|সামনে থেকে|bastebe kemon|বাস্তবে কেমন/i.test(q)
   );
 }
 
