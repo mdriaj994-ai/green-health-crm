@@ -17,6 +17,8 @@ function getGenAI(): GoogleGenerativeAI | null {
 export interface AIContextOptions {
   chatHistory?: { sender: "CUSTOMER" | "AGENT"; text: string }[];
   businessDetails?: string;
+  businessName?: string;
+  tone?: string;
   imageUrl?: string | null;
   platform?: string;
 }

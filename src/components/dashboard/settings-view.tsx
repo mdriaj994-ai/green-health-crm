@@ -98,6 +98,7 @@ export function SettingsView() {
     },
   });
   const [aiSaving, setAiSaving]   = useState<string | null>(null);
+  const [aiSaved, setAiSaved]     = useState<string | null>(null);
   function reloadAccounts() {
     fetch("/api/accounts")
       .then((r) => r.json())

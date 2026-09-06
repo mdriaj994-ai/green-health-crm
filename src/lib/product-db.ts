@@ -229,7 +229,7 @@ export function findProductInDB(query: string): MergedProduct | null {
     const customNote = item.custom_note.toLowerCase();
 
     let score = 0;
-    const words = q.split(/\s+/).filter(Boolean);
+    const words = normQ.split(/\s+/).filter(Boolean);
     for (const word of words) {
       if (word.length < 2) continue;
       if (name.includes(word)) score += 15;
