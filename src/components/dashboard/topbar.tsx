@@ -14,8 +14,8 @@ export function TopBar({ user }: { user: any }) {
         alignItems: "center",
         padding: "0 24px",
         gap: 14,
-        background: "#080911",
-        borderBottom: "1px solid rgba(255, 255, 255, 0.06)",
+        background: "#090806",
+        borderBottom: "1px solid rgba(245, 158, 11, 0.14)",
         boxSizing: "border-box"
       }}
     >
@@ -26,15 +26,15 @@ export function TopBar({ user }: { user: any }) {
           display: "flex",
           alignItems: "center",
           gap: 10,
-          background: "rgba(255, 255, 255, 0.03)",
-          border: "1px solid rgba(255, 255, 255, 0.08)",
+          background: "rgba(245, 158, 11, 0.03)",
+          border: "1px solid rgba(245, 158, 11, 0.16)",
           borderRadius: 12,
           padding: "0 14px",
           maxWidth: 420,
           transition: "all 0.2s"
         }}
       >
-        <Search size={15} color="#64748b" style={{ flexShrink: 0 }} />
+        <Search size={15} color="#a38c5b" style={{ flexShrink: 0 }} />
         <input
           type="text"
           placeholder="কথোপকথন বা কাস্টমার খুঁজুন..."
@@ -44,7 +44,7 @@ export function TopBar({ user }: { user: any }) {
             border: "none",
             outline: "none",
             fontSize: 13.5,
-            color: "#f1f5f9",
+            color: "#fef9ed",
             width: "100%",
             padding: "9px 0",
             fontFamily: "inherit"
@@ -60,15 +60,15 @@ export function TopBar({ user }: { user: any }) {
             gap: 7,
             padding: "6px 14px",
             borderRadius: 20,
-            background: "rgba(16, 185, 129, 0.08)",
-            border: "1px solid rgba(16, 185, 129, 0.25)",
-            color: "#10b981",
+            background: "linear-gradient(135deg, rgba(245, 158, 11, 0.15), rgba(180, 83, 9, 0.08))",
+            border: "1px solid rgba(245, 158, 11, 0.35)",
+            color: "#fbbf24",
             fontSize: 12,
             fontWeight: 700
           }}
         >
-          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#10b981", boxShadow: "0 0 8px #10b981" }} />
-          <span>এআই ক্লোজার লাইভ</span>
+          <span style={{ width: 7, height: 7, borderRadius: "50%", background: "#fbbf24", boxShadow: "0 0 8px #fbbf24" }} />
+          <span>এআই ক্লোজার গোল্ডেন লাইভ</span>
         </div>
 
         <button
@@ -78,9 +78,9 @@ export function TopBar({ user }: { user: any }) {
             width: 38,
             height: 38,
             borderRadius: 10,
-            border: "1px solid rgba(255, 255, 255, 0.08)",
-            background: "rgba(255, 255, 255, 0.03)",
-            color: "#94a3b8",
+            border: "1px solid rgba(245, 158, 11, 0.16)",
+            background: "rgba(245, 158, 11, 0.04)",
+            color: "#cfb989",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -94,17 +94,17 @@ export function TopBar({ user }: { user: any }) {
               position: "absolute",
               top: -3,
               right: -3,
-              background: "#7c3aed",
-              color: "#ffffff",
+              background: "linear-gradient(135deg, #f59e0b, #b45309)",
+              color: "#000000",
               fontSize: 9,
-              fontWeight: 800,
+              fontWeight: 900,
               width: 16,
               height: 16,
               borderRadius: "50%",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
-              border: "2px solid #080911"
+              border: "2px solid #090806"
             }}
           >
             ৩
@@ -119,9 +119,9 @@ export function TopBar({ user }: { user: any }) {
             width: 38,
             height: 38,
             borderRadius: 10,
-            border: "1px solid rgba(255, 255, 255, 0.08)",
-            background: "rgba(255, 255, 255, 0.03)",
-            color: "#94a3b8",
+            border: "1px solid rgba(245, 158, 11, 0.16)",
+            background: "rgba(245, 158, 11, 0.04)",
+            color: "#cfb989",
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
