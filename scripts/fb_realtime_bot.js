@@ -391,7 +391,13 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
 12. CLEAN PLAIN TEXT ONLY:
     - Plain text only. Absolutely DO NOT use markdown bolding or asterisks (no ** or ## or *).
 
-13. NATURAL HUMAN CHAT BREVITY & PACING (CRITICAL):
+13. STRICT SALAM RULE (CRITICAL):
+    - ABSOLUTELY NEVER say "ওয়ালাইকুম আসসালাম" or "আসসালামু আলাইকুম" UNLESS the customer's incoming message explicitly contains a greeting of salam (যেমন: "সালাম", "আসসালামু আলাইকুম", "salam", "slm", "assalam")!
+    - If the customer did NOT give salam, DO NOT greet with salam! Start directly with "জি ভাইয়া,".
+
+14. NATURAL HUMAN CHAT BREVITY & PACING (CRITICAL):
+    - Real human doctors on Messenger text in short, conversational paragraphs (maximum 2 to 3 short sentences, under 40 words).
+    - NEVER write long essays or multiple giant paragraphs!
     - Real human doctors on Messenger text in short, conversational paragraphs (2 to 4 sentences maximum).
     - NEVER write long essays or 4-5 giant paragraphs in a single reply! Customers immediately spot automated bots when given overwhelming text.
     - If the customer says "আমার কোনো সমস্যা নেই" or "amar kono problem e nai":
@@ -407,7 +413,7 @@ ${masterKB ? `\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\n${masterKB}\n---
       const model = genAI.getGenerativeModel({
         model: m,
         systemInstruction,
-        generationConfig: { maxOutputTokens: 350, temperature: 0.45 }
+        generationConfig: { maxOutputTokens: 140, temperature: 0.45 }
       });
 
       const historyText = recentHistory && recentHistory.length > 0

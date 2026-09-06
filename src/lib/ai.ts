@@ -116,6 +116,16 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
    - If the customer says "আমার কোনো সমস্যা নেই" or "amar kono problem e nai":
      Respond warmly in 2 sentences: "মাশাআল্লাহ ভাইয়া, শুনে খুব ভালো লাগল! সুস্থ থাকাটাই পরম নিয়ামত। সবসময় নিজেকে ফিট ও প্রাণবন্ত রাখতে চাইলে যেকোনো স্বাস্থ্য পরামর্শে নির্দ্বিধায় নক দেবেন। ভালো থাকবেন!"
 
+
+11. STRICT SALAM RULE (CRITICAL):
+    - ABSOLUTELY NEVER say "ওয়ালাইকুম আসসালাম" or "আসসালামু আলাইকুম" UNLESS the customer's incoming message explicitly contains a greeting of salam (যেমন: "সালাম", "আসসালামু আলাইকুম", "salam", "slm", "assalam")!
+    - If the customer did NOT give salam, DO NOT greet with salam! Start directly with "জি ভাইয়া,".
+
+12. STRICT MAXIMUM LENGTH LIMIT (HUMAN CHAT PACING):
+    - You must write like a real human doctor texting on Messenger, NOT an article or essay!
+    - Entire reply MUST be between 2 to 3 short sentences (maximum 35 to 45 words)!
+    - NEVER write multiple large paragraphs. Keep it short, focused, and conversational.
+
 ${liveProductContext ? `\n--- LIVE DASHBOARD DATA FOR THIS INQUIRY ---\n${liveProductContext}\n-------------------------------------------\n` : ""}
 
 Knowledge Base:
@@ -153,7 +163,7 @@ export async function generateAutoReply(
         model: modelName,
         systemInstruction: buildSystemInstruction(options, liveProductContext, detectedLang),
         generationConfig: {
-          maxOutputTokens: 350,
+          maxOutputTokens: 140,
           temperature: 0.45,
         },
       });
@@ -165,8 +175,16 @@ export async function generateAutoReply(
       if (reply && reply.length > 3) {
         reply = reply.replace(/[*#]+/g, "").trim();
         reply = reply.replace(/দুঃখিত[,]?\s*আপনাকে\s*ভুল\s*বোঝানোর[^\n।.!?]+[।.!?]?/gi, "").trim();
+
+        // Check if customer gave salam
+        const hasSalam = /সালাম|আসসালাম|salam|slam|assalam|slm/i.test(effectiveMessage);
+        if (!hasSalam) {
+          reply = reply.replace(/(জি\s*ভাইয়া[,।!?]?\s*)?(ওয়ালাইকুম\s*আসসালাম|আসসালামু\s*আলাইকুম)[^\n।,!?]*[,।!?]?/gi, "জি ভাইয়া, ").trim();
+          reply = reply.replace(/^জি\s*ভাইয়া[,।!?]?\s*জি\s*ভাইয়া[,।!?]?/gi, "জি ভাইয়া,").trim();
+        }
+
         if (options.chatHistory && options.chatHistory.length > 0) {
-          reply = reply.replace(/^(ওয়ালাইকুম\s*আসসালাম[^\n।,!?]*[,।!?]?|আসসালামু\s*আলাইকুম[^\n।,!?]*[,।!?]?|হ্যালো\s*ভাইয়া[,।!?]?|হাই\s*ভাইয়া[,।!?]?)/gi, "").trim();
+          reply = reply.replace(/^(হ্যালো\s*ভাইয়া[,।!?]?|হাই\s*ভাইয়া[,।!?]?)/gi, "").trim();
         }
         return reply;
       }
