@@ -1,4 +1,4 @@
-FROM node:20-slim
+FROM node:22-slim
 WORKDIR /app
 
 # Install required build and runtime dependencies (OpenSSL for Prisma, build tools for native addons)
@@ -9,7 +9,7 @@ COPY package*.json ./
 COPY prisma ./prisma/
 
 # Install all dependencies including build-time tools
-RUN npm ci
+RUN npm ci --engine-strict=false
 
 # Copy application source code
 COPY . .
