@@ -5,7 +5,6 @@ import {
   Search,
   Sparkles,
   Package,
-  TrendingUp,
   ShieldCheck,
   Zap,
   Tag,
@@ -22,11 +21,10 @@ import {
   DollarSign,
   Layers,
   ArrowUpDown,
-  Filter,
   Check,
   RefreshCw,
-  Eye,
-  Info
+  Info,
+  Edit3
 } from "lucide-react";
 
 interface Product {
@@ -223,169 +221,178 @@ export default function ProductsPage() {
   const offerCount = products.filter(p => !!p.discount_price).length;
 
   return (
-    <div className="min-h-full bg-[#07070d] text-slate-100 font-sans pb-24 selection:bg-purple-600 selection:text-white relative overflow-x-hidden">
-      {/* Dynamic Ambient Background Glows */}
-      <div className="fixed top-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-600/10 rounded-full blur-[140px] pointer-events-none -z-10" />
-      <div className="fixed bottom-[-10%] right-[-10%] w-[600px] h-[600px] bg-emerald-600/10 rounded-full blur-[160px] pointer-events-none -z-10" />
-      <div className="fixed top-[40%] left-[50%] -translate-x-1/2 w-[800px] h-[350px] bg-indigo-600/5 rounded-full blur-[180px] pointer-events-none -z-10" />
-
-      {/* Hero Header */}
-      <header className="border-b border-white/[0.08] bg-[#0c0c17]/80 backdrop-blur-xl sticky top-0 z-30 transition-all">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-5">
-          <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-            {/* Title & Badge */}
-            <div className="space-y-1.5">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-purple-600 via-indigo-600 to-emerald-400 p-0.5 shadow-lg shadow-purple-500/20 flex items-center justify-center">
-                  <div className="w-full h-full bg-[#0c0c17] rounded-[10px] flex items-center justify-center">
-                    <Sparkles className="w-5 h-5 text-purple-400 animate-pulse" />
-                  </div>
-                </div>
-                <div>
-                  <h1 className="text-2xl sm:text-3xl font-extrabold tracking-tight bg-gradient-to-r from-white via-slate-100 to-purple-300 bg-clip-text text-transparent">
-                    মেডিসিন মাস্টার কন্ট্রোল ড্যাশবোর্ড
-                  </h1>
-                  <p className="text-xs sm:text-sm text-slate-400 flex items-center gap-2">
-                    <span>ভিপিএস ক্লাউড স্টোরেজ লাইভ সংযুক্ত</span>
-                    <span className="inline-block w-1.5 h-1.5 rounded-full bg-emerald-500 animate-ping" />
-                    <span className="text-emerald-400 font-medium">রিয়েল-টাইম অটো-সেভ সক্রিয়</span>
-                  </p>
-                </div>
-              </div>
+    <div style={{ height: "100%", overflowY: "auto", background: "#0a0b12", color: "#f1f5f9", fontFamily: "var(--font-inter, Inter, system-ui, sans-serif)", position: "relative" }}>
+      
+      {/* ── TOP HEADER BANNER ── */}
+      <div style={{ background: "linear-gradient(180deg, #111422 0%, #0d0f1a 100%)", borderBottom: "1px solid #1e2238", padding: "26px 32px 20px" }}>
+        
+        {/* Title Row */}
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
+          <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 44, height: 44, borderRadius: 14, background: "linear-gradient(135deg, #7c3aed, #2563eb)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 20px rgba(124,58,237,0.3)" }}>
+              <Sparkles style={{ width: 22, height: 22, color: "#fff" }} />
             </div>
-
-            {/* Quick Actions & Live Indicator */}
-            <div className="flex items-center gap-3 flex-wrap">
-              <a
-                href="/dashboard/encyclopedia"
-                target="_blank"
-                rel="noreferrer"
-                className="group relative inline-flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs sm:text-sm font-semibold text-white bg-gradient-to-r from-purple-600 via-indigo-600 to-blue-600 shadow-md shadow-purple-600/25 hover:shadow-lg hover:shadow-purple-600/40 hover:scale-[1.02] active:scale-[0.98] transition-all duration-200 border border-white/20 overflow-hidden"
-              >
-                <div className="absolute inset-0 bg-white/20 translate-x-[-100%] group-hover:translate-x-[100%] transition-transform duration-700" />
-                <Award className="w-4 h-4 text-purple-200" />
-                <span>মেগা এনসাইক্লোপিডিয়া ভিউ</span>
-                <ExternalLink className="w-3.5 h-3.5 text-purple-200 opacity-70 group-hover:opacity-100 transition-opacity" />
-              </a>
-
-              <div className="inline-flex items-center gap-2.5 px-3.5 py-2 rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 text-xs font-semibold shadow-inner">
-                <span className="relative flex h-2.5 w-2.5">
-                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                  <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
+            <div>
+              <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, letterSpacing: "-0.5px", background: "linear-gradient(90deg, #ffffff 0%, #cbd5e1 50%, #c084fc 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
+                মেডিসিন মাস্টার লাইভ ড্যাশবোর্ড
+              </h1>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4 }}>
+                <span style={{ fontSize: 13, color: "#94a3b8" }}>
+                  ভিপিএস ক্লাউড স্টোরেজ থেকে লাইভ সংযুক্ত — মোট {totalCount} টি ওষুধ
                 </span>
-                <span>ভিপিএস লাইভ (২৪/৭)</span>
+                <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 20, background: "rgba(16, 185, 129, 0.12)", color: "#10b981", fontSize: 11, fontWeight: 700 }}>
+                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981", display: "inline-block" }} />
+                  অটো-সেভ সক্রিয়
+                </span>
               </div>
             </div>
           </div>
 
-          {/* Metric KPI HUD Cards */}
-          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3.5 mt-6 pt-5 border-t border-white/[0.06]">
-            {/* KPI 1 */}
-            <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.07] hover:border-purple-500/30 transition-all flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-lg bg-purple-500/15 border border-purple-500/30 flex items-center justify-center text-purple-400">
-                <Package className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-xs font-medium text-slate-400">মোট অনুমোদিত ওষুধ</div>
-                <div className="text-lg sm:text-xl font-bold text-white tracking-tight">{totalCount} টি ফর্মুলা</div>
-              </div>
-            </div>
+          {/* Action Badges */}
+          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+            <a
+              href="/dashboard/encyclopedia"
+              target="_blank"
+              rel="noreferrer"
+              style={{
+                display: "inline-flex", alignItems: "center", gap: 8,
+                padding: "9px 18px", borderRadius: 12,
+                background: "linear-gradient(135deg, #7c3aed, #4f46e5)",
+                color: "#fff", textDecoration: "none", fontSize: 13, fontWeight: 700,
+                border: "1px solid rgba(255,255,255,0.2)",
+                boxShadow: "0 4px 16px rgba(124,58,237,0.35)",
+                cursor: "pointer"
+              }}
+            >
+              <Award style={{ width: 16, height: 16 }} />
+              <span>মেগা এনসাইক্লোপিডিয়া ভিউ</span>
+              <ExternalLink style={{ width: 14, height: 14, opacity: 0.8 }} />
+            </a>
 
-            {/* KPI 2 */}
-            <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.07] hover:border-emerald-500/30 transition-all flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-lg bg-emerald-500/15 border border-emerald-500/30 flex items-center justify-center text-emerald-400">
-                <ShieldCheck className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-xs font-medium text-slate-400">স্টক রেডি</div>
-                <div className="text-lg sm:text-xl font-bold text-emerald-400 tracking-tight">{inStockCount} টি অ্যাক্টিভ</div>
-              </div>
-            </div>
-
-            {/* KPI 3 */}
-            <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.07] hover:border-blue-500/30 transition-all flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-lg bg-blue-500/15 border border-blue-500/30 flex items-center justify-center text-blue-400">
-                <Tag className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-xs font-medium text-slate-400">অফার ও ডিসকাউন্ট</div>
-                <div className="text-lg sm:text-xl font-bold text-blue-400 tracking-tight">{offerCount} টি স্পেশাল ডিল</div>
-              </div>
-            </div>
-
-            {/* KPI 4 */}
-            <div className="p-3.5 rounded-xl bg-white/[0.03] border border-white/[0.07] hover:border-amber-500/30 transition-all flex items-center gap-3.5">
-              <div className="w-10 h-10 rounded-lg bg-amber-500/15 border border-amber-500/30 flex items-center justify-center text-amber-400">
-                <Zap className="w-5 h-5" />
-              </div>
-              <div>
-                <div className="text-xs font-medium text-slate-400">এআই ক্লোজিং রেডি</div>
-                <div className="text-lg sm:text-xl font-bold text-amber-400 tracking-tight">৩,০০০৳ মাস্টার কোর্স</div>
-              </div>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 12, background: "#131624", border: "1px solid #23283e", color: "#10b981", fontSize: 13, fontWeight: 700 }}>
+              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#10b981", display: "inline-block", boxShadow: "0 0 10px #10b981" }} />
+              <span>ভিপিএস লাইভ (২৪/৭)</span>
             </div>
           </div>
         </div>
-      </header>
 
-      {/* Filter & Search Bar Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-8 pb-4">
-        <div className="flex flex-col md:flex-row items-stretch md:items-center justify-between gap-4">
-          {/* Modern Search Bar */}
-          <form onSubmit={handleSearch} className="relative flex-1 group">
-            <div className="absolute inset-y-0 left-0 pl-4 flex items-center pointer-events-none text-slate-400 group-focus-within:text-purple-400 transition-colors">
-              <Search className="w-5 h-5" />
+        {/* ── 4 KPI METRIC CARDS ── */}
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14, marginTop: 22, paddingTop: 18, borderTop: "1px solid #1a1e30" }}>
+          
+          {/* Card 1 */}
+          <div style={{ background: "#131624", border: "1px solid #20253a", borderRadius: 14, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 42, height: 42, borderRadius: 10, background: "rgba(124, 58, 237, 0.15)", border: "1px solid rgba(124, 58, 237, 0.3)", display: "flex", alignItems: "center", justifyContent: "center", color: "#a855f7" }}>
+              <Package style={{ width: 20, height: 20 }} />
             </div>
-            <input
-              type="text"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-              placeholder="ওষুধ খুঁজুন... (যেমন: Soul Mate, Dream Touch, Men's Burner, লিভার, বাত, দ্রুত বীর্যপাত)"
-              className="w-full pl-11 pr-24 py-3.5 rounded-2xl bg-white/[0.04] border border-white/[0.09] text-white placeholder-slate-500 text-sm focus:outline-none focus:border-purple-500 focus:ring-4 focus:ring-purple-500/15 shadow-inner transition-all"
-            />
-            <div className="absolute inset-y-1.5 right-1.5 flex items-center gap-1.5">
+            <div>
+              <div style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600 }}>মোট ওষুধ তালিকা</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginTop: 2 }}>{totalCount} টি ফর্মুলা</div>
+            </div>
+          </div>
+
+          {/* Card 2 */}
+          <div style={{ background: "#131624", border: "1px solid #20253a", borderRadius: 14, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 42, height: 42, borderRadius: 10, background: "rgba(16, 185, 129, 0.15)", border: "1px solid rgba(16, 185, 129, 0.3)", display: "flex", alignItems: "center", justifyContent: "center", color: "#10b981" }}>
+              <ShieldCheck style={{ width: 20, height: 20 }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600 }}>স্টক সক্রিয়</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#10b981", marginTop: 2 }}>{inStockCount} টি প্রস্তুত</div>
+            </div>
+          </div>
+
+          {/* Card 3 */}
+          <div style={{ background: "#131624", border: "1px solid #20253a", borderRadius: 14, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 42, height: 42, borderRadius: 10, background: "rgba(59, 130, 246, 0.15)", border: "1px solid rgba(59, 130, 246, 0.3)", display: "flex", alignItems: "center", justifyContent: "center", color: "#60a5fa" }}>
+              <Tag style={{ width: 20, height: 20 }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600 }}>অফার ও ডিসকাউন্ট</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#60a5fa", marginTop: 2 }}>{offerCount} টি স্পেশাল ডিল</div>
+            </div>
+          </div>
+
+          {/* Card 4 */}
+          <div style={{ background: "#131624", border: "1px solid #20253a", borderRadius: 14, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}>
+            <div style={{ width: 42, height: 42, borderRadius: 10, background: "rgba(245, 158, 11, 0.15)", border: "1px solid rgba(245, 158, 11, 0.3)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fbbf24" }}>
+              <Zap style={{ width: 20, height: 20 }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600 }}>এআই ক্লোজিং রেডি</div>
+              <div style={{ fontSize: 18, fontWeight: 800, color: "#fbbf24", marginTop: 2 }}>৩,০০০৳ মাস্টার কোর্স</div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* ── SEARCH BAR & SORTING ── */}
+        <div style={{ marginTop: 20, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+          
+          {/* Search Form */}
+          <form onSubmit={handleSearch} style={{ flex: 1, minWidth: 280, display: "flex", gap: 8 }}>
+            <div style={{ position: "relative", flex: 1 }}>
+              <Search style={{ position: "absolute", left: 14, top: 14, width: 18, height: 18, color: "#64748b" }} />
+              <input
+                type="text"
+                value={search}
+                onChange={(e) => setSearch(e.target.value)}
+                placeholder="ওষুধের নাম বা সমস্যা খুঁজুন... (যেমন: Soul Mate, Dream Touch, Men's Burner, লিভার, বাত, ব্যথা)"
+                style={{
+                  width: "100%", height: 46, borderRadius: 12,
+                  background: "#141724", border: "1px solid #252b42",
+                  padding: "0 40px 0 42px", color: "#fff", fontSize: 14,
+                  outline: "none", boxSizing: "border-box"
+                }}
+              />
               {search && (
                 <button
                   type="button"
                   onClick={() => { setSearch(""); setTimeout(fetchProducts, 50); }}
-                  className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-white/10 transition-colors"
+                  style={{ position: "absolute", right: 12, top: 13, background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer" }}
                 >
-                  <X className="w-4 h-4" />
+                  <X style={{ width: 18, height: 18 }} />
                 </button>
               )}
-              <button
-                type="submit"
-                className="px-4 py-2 rounded-xl bg-gradient-to-r from-purple-600 to-indigo-600 hover:from-purple-500 hover:to-indigo-500 text-white font-semibold text-xs transition-all shadow-md shadow-purple-600/20"
-              >
-                সার্চ
-              </button>
             </div>
+
+            <button
+              type="submit"
+              style={{
+                height: 46, padding: "0 22px", borderRadius: 12,
+                background: "linear-gradient(135deg, #7c3aed, #4f46e5)",
+                color: "#fff", border: "none", fontWeight: 700, fontSize: 14,
+                cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6,
+                boxShadow: "0 4px 12px rgba(124,58,237,0.25)"
+              }}
+            >
+              <span>খুঁজুন</span>
+            </button>
           </form>
 
           {/* Sort Dropdown */}
-          <div className="flex items-center gap-2 self-end md:self-auto">
-            <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl bg-white/[0.04] border border-white/[0.08] text-xs font-medium text-slate-300">
-              <ArrowUpDown className="w-3.5 h-3.5 text-purple-400" />
-              <span>সাজান:</span>
-              <select
-                value={sortBy}
-                onChange={(e) => setSortBy(e.target.value as any)}
-                className="bg-transparent text-white font-semibold outline-none cursor-pointer"
-              >
-                <option value="sl" className="bg-[#13131f] text-white">সিরিয়াল (১-৫৭)</option>
-                <option value="price_low" className="bg-[#13131f] text-white">মূল্য: কম থেকে বেশি</option>
-                <option value="price_high" className="bg-[#13131f] text-white">মূল্য: বেশি থেকে কম</option>
-              </select>
-            </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, height: 46, padding: "0 14px", borderRadius: 12, background: "#141724", border: "1px solid #252b42", color: "#cbd5e1", fontSize: 13, fontWeight: 600 }}>
+            <ArrowUpDown style={{ width: 16, height: 16, color: "#a855f7" }} />
+            <span>সাজান:</span>
+            <select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value as any)}
+              style={{ background: "transparent", color: "#fff", fontWeight: 700, border: "none", outline: "none", cursor: "pointer", fontSize: 13 }}
+            >
+              <option value="sl" style={{ background: "#141724" }}>সিরিয়াল (১-৫৭)</option>
+              <option value="price_low" style={{ background: "#141724" }}>মূল্য: কম থেকে বেশি</option>
+              <option value="price_high" style={{ background: "#141724" }}>মূল্য: বেশি থেকে কম</option>
+            </select>
           </div>
+
         </div>
 
-        {/* Category Filter Pills */}
-        <div className="flex items-center gap-2 overflow-x-auto py-4 scrollbar-none">
+        {/* ── FILTER PILLS ROW ── */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, overflowX: "auto", paddingBottom: 4 }}>
           {[
             { id: "all", label: "সবগুলো ওষুধ", icon: Layers, count: totalCount },
             { id: "in_stock", label: "ইন স্টক", icon: CheckCircle2, count: inStockCount },
             { id: "discounted", label: "স্পেশাল অফার", icon: Flame, count: offerCount },
-            { id: "mens", label: "পুরুষ শক্তি ও স্থায়ী সক্ষমতা", icon: Sparkles },
+            { id: "mens", label: "পুরুষ স্বাস্থ্য ও শক্তি", icon: Sparkles },
             { id: "pain", label: "বাত ও জয়েন্ট ব্যথা", icon: HeartPulse },
             { id: "gastric", label: "গ্যাস ও লিভার কেয়ার", icon: ShieldCheck },
           ].map((tab) => {
@@ -395,16 +402,21 @@ export default function ProductsPage() {
               <button
                 key={tab.id}
                 onClick={() => setActiveFilter(tab.id as FilterCategory)}
-                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-semibold whitespace-nowrap transition-all duration-200 border ${
-                  isActive
-                    ? "bg-purple-600/20 text-purple-300 border-purple-500/50 shadow-lg shadow-purple-500/10 scale-[1.02]"
-                    : "bg-white/[0.03] text-slate-400 border-white/[0.06] hover:bg-white/[0.06] hover:text-slate-200 hover:border-white/[0.12]"
-                }`}
+                style={{
+                  display: "inline-flex", alignItems: "center", gap: 7,
+                  padding: "8px 16px", borderRadius: 10,
+                  fontSize: 12, fontWeight: 700, cursor: "pointer",
+                  whiteSpace: "nowrap", transition: "all 0.2s",
+                  background: isActive ? "#7c3aed" : "#141724",
+                  color: isActive ? "#fff" : "#94a3b8",
+                  border: isActive ? "1px solid #8b5cf6" : "1px solid #252b42",
+                  boxShadow: isActive ? "0 4px 14px rgba(124,58,237,0.3)" : "none"
+                }}
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? "text-purple-400" : "text-slate-400"}`} />
+                <Icon style={{ width: 14, height: 14 }} />
                 <span>{tab.label}</span>
                 {tab.count !== undefined && (
-                  <span className={`ml-1 text-[11px] px-1.5 py-0.5 rounded-full ${isActive ? "bg-purple-500/30 text-purple-200" : "bg-white/[0.06] text-slate-400"}`}>
+                  <span style={{ fontSize: 11, padding: "1px 6px", borderRadius: 10, background: isActive ? "rgba(255,255,255,0.25)" : "#202538", color: isActive ? "#fff" : "#cbd5e1" }}>
                     {tab.count}
                   </span>
                 )}
@@ -412,37 +424,35 @@ export default function ProductsPage() {
             );
           })}
         </div>
-      </section>
 
-      {/* Main Grid View */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-2">
+      </div>
+
+      {/* ── PRODUCT CARDS GRID ── */}
+      <div style={{ padding: "28px 32px 60px", maxWidth: 1600, margin: "0 auto" }}>
         {loading ? (
-          <div className="flex flex-col items-center justify-center py-32 text-center space-y-4">
-            <div className="w-14 h-14 rounded-2xl bg-purple-600/20 border border-purple-500/40 flex items-center justify-center text-purple-400 animate-spin">
-              <RefreshCw className="w-7 h-7" />
+          <div style={{ textAlign: "center", padding: "80px 20px" }}>
+            <div style={{ width: 50, height: 50, borderRadius: 16, background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.3)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", color: "#a855f7" }}>
+              <RefreshCw style={{ width: 24, height: 24 }} />
             </div>
-            <p className="text-base font-semibold text-slate-300">ভিপিএস থেকে মেডিসিন ডেটা লোড হচ্ছে...</p>
-            <p className="text-xs text-slate-500 max-w-sm">লাইভ ডাটাবেজ থেকে ওষুধের রিয়েল-টাইম প্রাইসিং ও স্টক তথ্য আনা হচ্ছে</p>
+            <p style={{ fontSize: 16, fontWeight: 700, color: "#f8fafc" }}>মেডিসিন ডেটা লোড হচ্ছে...</p>
+            <p style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>ভিপিএস ক্লাউড স্টোরেজ থেকে রিয়েল-টাইম তথ্য আনা হচ্ছে</p>
           </div>
         ) : filteredProducts.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 text-center rounded-3xl bg-white/[0.02] border border-white/[0.06] p-8">
-            <div className="w-16 h-16 rounded-2xl bg-slate-800/60 flex items-center justify-center text-slate-400 mb-4">
-              <Search className="w-8 h-8" />
-            </div>
-            <h3 className="text-lg font-bold text-white mb-1">কোনো ওষুধ পাওয়া যায়নি</h3>
-            <p className="text-sm text-slate-400 max-w-md mb-6">আপনার সার্চ ফিল্টারের সাথে মিলে এমন কোনো প্রোডাক্ট পাওয়া যায়নি। বানান চেক করুন অথবা ফিল্টার ক্লিয়ার করুন।</p>
+          <div style={{ textAlign: "center", padding: "60px 20px", background: "#111422", borderRadius: 16, border: "1px solid #1e2235", maxWidth: 500, margin: "40px auto" }}>
+            <Search style={{ width: 36, height: 36, color: "#64748b", margin: "0 auto 12px" }} />
+            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>কোনো ওষুধ পাওয়া যায়নি</h3>
+            <p style={{ fontSize: 13, color: "#94a3b8", marginTop: 6 }}>অন্য কোনো নাম লিখে সার্চ করুন অথবা ফিল্টার পরিবর্তন করুন।</p>
             <button
               onClick={() => { setSearch(""); setActiveFilter("all"); fetchProducts(); }}
-              className="px-5 py-2.5 rounded-xl bg-purple-600 hover:bg-purple-500 text-white text-xs font-semibold transition-all"
+              style={{ marginTop: 16, padding: "8px 18px", borderRadius: 10, background: "#7c3aed", color: "#fff", border: "none", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
             >
               সব ওষুধ দেখুন
             </button>
           </div>
         ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 20 }}>
             {filteredProducts.map((product) => {
               const currentPrice = product.discount_price || product.custom_price;
-              const hasDiscount = !!product.discount_price && !!product.custom_price;
               const isOutOfStock = product.stock_status === "out_of_stock";
               const isLimited = product.stock_status === "limited";
 
@@ -450,218 +460,220 @@ export default function ProductsPage() {
                 <div
                   key={product.sl}
                   onClick={() => setSelected(product)}
-                  className="group relative flex flex-col justify-between rounded-2xl bg-gradient-to-b from-[#121221] to-[#0c0c16] border border-white/[0.08] hover:border-purple-500/50 shadow-md hover:shadow-2xl hover:shadow-purple-600/15 hover:-translate-y-1.5 transition-all duration-300 cursor-pointer overflow-hidden backdrop-blur-md"
+                  style={{
+                    background: "#131624",
+                    borderRadius: 16,
+                    border: "1px solid #20253a",
+                    overflow: "hidden",
+                    display: "flex",
+                    flexDirection: "column",
+                    justifyContent: "space-between",
+                    cursor: "pointer",
+                    transition: "transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease"
+                  }}
+                  onMouseEnter={(e) => {
+                    const el = e.currentTarget;
+                    el.style.borderColor = "#7c3aed";
+                    el.style.transform = "translateY(-4px)";
+                    el.style.boxShadow = "0 14px 30px rgba(124, 58, 237, 0.2)";
+                  }}
+                  onMouseLeave={(e) => {
+                    const el = e.currentTarget;
+                    el.style.borderColor = "#20253a";
+                    el.style.transform = "translateY(0)";
+                    el.style.boxShadow = "none";
+                  }}
                 >
-                  {/* Card Header Media */}
-                  <div className="relative aspect-[4/3] w-full bg-[#080811] overflow-hidden">
+                  {/* Product Media */}
+                  <div style={{ height: 180, width: "100%", position: "relative", background: "#0a0c14", overflow: "hidden" }}>
                     {product.imageUrl && !imageErrors.has(product.imageFile) ? (
                       <img
                         src={product.imageUrl}
                         alt={product.name}
-                        className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 ease-out"
+                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
                         onError={() => {
                           setImageErrors(prev => new Set(prev).add(product.imageFile));
                         }}
                       />
                     ) : (
-                      <div className="w-full h-full flex flex-col items-center justify-center bg-gradient-to-tr from-slate-900 to-indigo-950/40 text-purple-400/60">
-                        <Stethoscope className="w-16 h-16 stroke-[1.2]" />
-                        <span className="text-[11px] text-slate-500 mt-2 font-mono">ল্যাব ফর্মুলা #{product.sl}</span>
+                      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#64748b" }}>
+                        <Stethoscope style={{ width: 44, height: 44, opacity: 0.5 }} />
+                        <span style={{ fontSize: 11, marginTop: 6, color: "#64748b" }}>ফর্মুলা #{product.sl}</span>
                       </div>
                     )}
 
-                    {/* Gradient Overlay */}
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#121221] via-transparent to-black/40 pointer-events-none" />
-
-                    {/* Top Badges */}
-                    <div className="absolute top-3 inset-x-3 flex items-center justify-between gap-2 pointer-events-none">
-                      {/* SL Pill */}
-                      <span className="px-2.5 py-1 rounded-lg text-[11px] font-extrabold tracking-wider bg-purple-600/90 text-white backdrop-blur-md border border-white/20 shadow-md">
-                        SL #{product.sl}
-                      </span>
-
-                      {/* Stock Status Badge */}
-                      <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[10px] font-bold backdrop-blur-md border shadow-md ${
-                        isOutOfStock
-                          ? "bg-rose-500/85 text-white border-rose-400/30"
-                          : isLimited
-                          ? "bg-amber-500/85 text-white border-amber-400/30"
-                          : "bg-emerald-500/85 text-white border-emerald-400/30"
-                      }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${isOutOfStock ? "bg-white" : "bg-white animate-pulse"}`} />
-                        {isOutOfStock ? "স্টক শেষ" : isLimited ? "সীমিত স্টক" : "ইন স্টক"}
-                      </span>
+                    {/* Top SL Badge */}
+                    <div style={{ position: "absolute", top: 10, left: 10, background: "rgba(124, 58, 237, 0.95)", color: "#fff", fontSize: 11, fontWeight: 800, padding: "3px 9px", borderRadius: 7, zIndex: 2, boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}>
+                      SL #{product.sl}
                     </div>
 
-                    {/* Live AI Controlled Indicator */}
-                    <div className="absolute bottom-2 left-3 right-3 flex items-center justify-between text-[11px] text-slate-300 pointer-events-none">
-                      <span className="px-2 py-0.5 rounded-md bg-black/60 backdrop-blur-md border border-white/10 text-slate-300 text-[10px]">
-                        {product.dosageForm ? product.dosageForm.slice(0, 18) + "..." : "ইউনানী ফর্মুলেশন"}
-                      </span>
+                    {/* Top Stock Badge */}
+                    <div style={{
+                      position: "absolute", top: 10, right: 10,
+                      background: isOutOfStock ? "rgba(239, 68, 68, 0.9)" : isLimited ? "rgba(245, 158, 11, 0.9)" : "rgba(16, 185, 129, 0.9)",
+                      color: "#fff", fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 7, zIndex: 2,
+                      display: "flex", alignItems: "center", gap: 5, boxShadow: "0 2px 8px rgba(0,0,0,0.5)"
+                    }}>
+                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff", display: "inline-block" }} />
+                      <span>{isOutOfStock ? "স্টক শেষ" : isLimited ? "সীমিত স্টক" : "ইন স্টক"}</span>
                     </div>
                   </div>
 
-                  {/* Card Content Body */}
-                  <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
+                  {/* Product Info Body */}
+                  <div style={{ padding: "16px", flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 12 }}>
                     <div>
-                      <h3 className="font-bold text-base text-white group-hover:text-purple-300 transition-colors leading-snug line-clamp-1">
+                      <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#fff", lineHeight: 1.35 }}>
                         {product.name}
                       </h3>
-                      <p className="text-xs text-slate-400 line-clamp-1 mt-0.5">
+                      <p style={{ margin: "4px 0 0", fontSize: 12, color: "#94a3b8" }}>
                         {product.generic || product.manufacturer || "গ্রীন হেলথ ল্যাবরেটরিজ"}
                       </p>
 
                       {/* Pricing Tag Display */}
-                      <div className="mt-3.5 flex items-baseline gap-2">
+                      <div style={{ marginTop: 10, display: "flex", alignItems: "baseline", gap: 8 }}>
                         {product.discount_price ? (
                           <>
-                            <span className="text-xl font-black bg-gradient-to-r from-emerald-400 to-teal-300 bg-clip-text text-transparent">
+                            <span style={{ fontSize: 20, fontWeight: 800, color: "#10b981" }}>
                               ৳{product.discount_price}
                             </span>
                             {product.custom_price && (
-                              <span className="text-xs text-slate-500 line-through">
+                              <span style={{ fontSize: 13, textDecoration: "line-through", color: "#64748b" }}>
                                 ৳{product.custom_price}
                               </span>
                             )}
-                            <span className="ml-auto text-[10px] font-bold px-2 py-0.5 rounded-full bg-emerald-500/15 text-emerald-400 border border-emerald-500/30">
-                              অফার মূল্য
+                            <span style={{ fontSize: 10, fontWeight: 700, color: "#10b981", background: "rgba(16,185,129,0.12)", padding: "2px 7px", borderRadius: 6, marginLeft: "auto" }}>
+                              অফার
                             </span>
                           </>
                         ) : product.custom_price ? (
-                          <span className="text-xl font-black text-emerald-400">
+                          <span style={{ fontSize: 20, fontWeight: 800, color: "#10b981" }}>
                             ৳{product.custom_price}
                           </span>
                         ) : (
-                          <span className="text-xs text-purple-400 italic font-medium flex items-center gap-1">
-                            <Info className="w-3.5 h-3.5" />
-                            মূল্য সেট করতে ক্লিক করুন
+                          <span style={{ fontSize: 12, color: "#a855f7", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
+                            <Info style={{ width: 14, height: 14 }} /> মূল্য নির্ধারণ করুন
                           </span>
                         )}
                       </div>
 
-                      {/* Special Offer / Custom Note Badge */}
+                      {/* Custom Offer Note Tag */}
                       {product.custom_note && (
-                        <div className="mt-2.5 px-2.5 py-1.5 rounded-lg bg-purple-950/40 border border-purple-500/20 text-[11px] text-purple-300 flex items-center gap-1.5 line-clamp-1">
-                          <Flame className="w-3 h-3 text-purple-400 shrink-0" />
-                          <span className="truncate">{product.custom_note}</span>
+                        <div style={{ marginTop: 8, padding: "5px 9px", borderRadius: 8, background: "rgba(124, 58, 237, 0.1)", border: "1px solid rgba(124, 58, 237, 0.25)", color: "#c084fc", fontSize: 11, display: "flex", alignItems: "center", gap: 6 }}>
+                          <Flame style={{ width: 13, height: 13, color: "#c084fc", flexShrink: 0 }} />
+                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{product.custom_note}</span>
                         </div>
                       )}
                     </div>
 
                     {/* Action Button */}
-                    <div className="pt-2">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setSelected(product); }}
-                        className="w-full py-2.5 px-3 rounded-xl text-xs font-bold text-white bg-gradient-to-r from-purple-600/90 to-indigo-600/90 hover:from-purple-500 hover:to-indigo-500 flex items-center justify-center gap-2 border border-white/10 shadow-md shadow-purple-600/10 group-hover:shadow-purple-600/25 transition-all"
-                      >
-                        <span>এডিট ও লাইভ কন্ট্রোল</span>
-                        <ChevronRight className="w-3.5 h-3.5 group-hover:translate-x-1 transition-transform" />
-                      </button>
-                    </div>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setSelected(product); }}
+                      style={{
+                        width: "100%", padding: "10px", borderRadius: 10,
+                        border: "none", background: "linear-gradient(135deg, #7c3aed, #4f46e5)",
+                        color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer",
+                        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
+                        boxShadow: "0 4px 12px rgba(124,58,237,0.2)"
+                      }}
+                    >
+                      <Edit3 style={{ width: 14, height: 14 }} />
+                      <span>লাইভ এডিট ও তথ্য</span>
+                    </button>
                   </div>
                 </div>
               );
             })}
           </div>
         )}
-      </main>
+      </div>
 
-      {/* Ultra-Modern Medical Console Modal */}
+      {/* ── MODAL CONSOLE ── */}
       {selected && (
         <div
           onClick={closeModal}
-          className="fixed inset-0 z-50 bg-black/80 backdrop-blur-xl flex items-center justify-center p-3 sm:p-5 overflow-y-auto animate-in fade-in duration-200"
+          style={{
+            position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)",
+            backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center",
+            zIndex: 1000, padding: 16
+          }}
         >
           <div
             onClick={(e) => e.stopPropagation()}
-            className="w-full max-w-4xl max-h-[92vh] bg-[#0f0f1c] border border-white/[0.12] rounded-3xl shadow-2xl shadow-purple-950/60 flex flex-col overflow-hidden relative animate-in zoom-in-95 duration-200"
+            style={{
+              width: "100%", maxWidth: 840, maxHeight: "90vh",
+              background: "#121522", borderRadius: 20, border: "1px solid #282d45",
+              boxShadow: "0 25px 60px rgba(0,0,0,0.8)", display: "flex", flexDirection: "column",
+              overflow: "hidden"
+            }}
           >
             {/* Modal Header */}
-            <div className="px-6 py-4.5 border-b border-white/[0.08] bg-white/[0.02] flex items-center justify-between gap-4">
-              <div className="flex items-center gap-3.5 min-w-0">
+            <div style={{ padding: "18px 24px", borderBottom: "1px solid #20253a", background: "#151828", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
                 {selected.imageUrl && !imageErrors.has(selected.imageFile) ? (
                   <img
                     src={selected.imageUrl}
                     alt={selected.name}
-                    className="w-12 h-12 rounded-xl object-cover border border-white/15 shrink-0"
+                    style={{ width: 48, height: 48, borderRadius: 10, objectFit: "cover", border: "1px solid #2b324d" }}
                   />
                 ) : (
-                  <div className="w-12 h-12 rounded-xl bg-purple-600/20 border border-purple-500/30 flex items-center justify-center text-purple-400 shrink-0">
-                    <Stethoscope className="w-6 h-6" />
+                  <div style={{ width: 48, height: 48, borderRadius: 10, background: "#1c2035", display: "flex", alignItems: "center", justifyContent: "center", color: "#a855f7" }}>
+                    <Stethoscope style={{ width: 24, height: 24 }} />
                   </div>
                 )}
-                <div className="min-w-0">
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-lg sm:text-xl font-black text-white truncate">
-                      {selected.name}
-                    </h2>
-                    <span className="px-2 py-0.5 rounded-md bg-purple-600/30 border border-purple-500/40 text-purple-300 text-xs font-mono font-bold shrink-0">
-                      SL #{selected.sl}
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#fff" }}>{selected.name}</h2>
+                    <span style={{ fontSize: 12, fontWeight: 700, padding: "2px 7px", borderRadius: 6, background: "#7c3aed", color: "#fff" }}>
+                      #{selected.sl}
                     </span>
                   </div>
-                  <p className="text-xs text-slate-400 truncate mt-0.5">
-                    যেকোনো বক্সে টাইপ করলে ২ সেকেন্ডের মধ্যে স্বয়ংক্রিয়ভাবে ভিপিএসে সংরক্ষিত হবে
+                  <p style={{ margin: "2px 0 0", fontSize: 12, color: "#94a3b8" }}>
+                    বক্সে যা লিখবেন তা ২ সেকেন্ডের মধ্যে স্বয়ংক্রিয়ভাবে ভিপিএসে সংরক্ষিত হবে
                   </p>
                 </div>
               </div>
 
               {/* Status Pill & Close */}
-              <div className="flex items-center gap-3 shrink-0">
+              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 {/* Auto-Save Live Badge */}
-                <div className={`px-3 py-1.5 rounded-xl text-xs font-bold flex items-center gap-1.5 border transition-all ${
-                  saveStatus === "typing"
-                    ? "bg-amber-500/15 text-amber-300 border-amber-500/40 shadow-sm"
-                    : saveStatus === "saving"
-                    ? "bg-blue-500/15 text-blue-300 border-blue-500/40 animate-pulse"
-                    : saveStatus === "saved"
-                    ? "bg-emerald-500/15 text-emerald-300 border-emerald-500/40"
-                    : saveStatus === "error"
-                    ? "bg-rose-500/15 text-rose-300 border-rose-500/40"
-                    : "bg-white/[0.04] text-slate-300 border-white/[0.08]"
-                }`}>
-                  {saveStatus === "typing" && (
-                    <>
-                      <Clock className="w-3.5 h-3.5 animate-spin" />
-                      <span>টাইপ করছেন...</span>
-                    </>
-                  )}
-                  {saveStatus === "saving" && (
-                    <>
-                      <RefreshCw className="w-3.5 h-3.5 animate-spin" />
-                      <span>ভিপিএসে সেভ হচ্ছে...</span>
-                    </>
-                  )}
-                  {saveStatus === "saved" && (
-                    <>
-                      <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>সংরক্ষিত ({lastSavedTime || "এখন"})</span>
-                    </>
-                  )}
-                  {saveStatus === "idle" && (
-                    <>
-                      <Check className="w-3.5 h-3.5 text-emerald-400" />
-                      <span>ভিপিএসে সক্রিয়</span>
-                    </>
-                  )}
-                  {saveStatus === "error" && (
-                    <>
-                      <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
-                      <span>সেভ ব্যর্থ! পুনরায় চেষ্টা করুন</span>
-                    </>
-                  )}
+                <div style={{
+                  padding: "6px 12px", borderRadius: 10, fontSize: 12, fontWeight: 700,
+                  display: "flex", alignItems: "center", gap: 6,
+                  background:
+                    saveStatus === "typing" ? "rgba(245, 158, 11, 0.15)" :
+                    saveStatus === "saving" ? "rgba(59, 130, 246, 0.15)" :
+                    saveStatus === "saved" ? "rgba(16, 185, 129, 0.15)" :
+                    saveStatus === "error" ? "rgba(239, 68, 68, 0.15)" : "rgba(34, 197, 94, 0.1)",
+                  color:
+                    saveStatus === "typing" ? "#fbbf24" :
+                    saveStatus === "saving" ? "#60a5fa" :
+                    saveStatus === "saved" ? "#10b981" :
+                    saveStatus === "error" ? "#f87171" : "#10b981",
+                  border: `1px solid ${
+                    saveStatus === "typing" ? "#f59e0b" :
+                    saveStatus === "saving" ? "#3b82f6" :
+                    saveStatus === "saved" ? "#10b981" :
+                    saveStatus === "error" ? "#ef4444" : "rgba(34, 197, 94, 0.3)"
+                  }`
+                }}>
+                  {saveStatus === "typing" && <span>⏳ টাইপ করছেন...</span>}
+                  {saveStatus === "saving" && <span>🔄 সেভ হচ্ছে...</span>}
+                  {saveStatus === "saved" && <span>✓ সংরক্ষিত ({lastSavedTime || "এখন"})</span>}
+                  {saveStatus === "idle" && <span>✓ ভিপিএসে সক্রিয়</span>}
+                  {saveStatus === "error" && <span>✕ সেভ এরর</span>}
                 </div>
 
                 <button
                   onClick={closeModal}
-                  className="w-9 h-9 rounded-xl bg-white/[0.06] hover:bg-white/[0.12] border border-white/[0.1] text-slate-400 hover:text-white flex items-center justify-center transition-all"
+                  style={{ width: 34, height: 34, borderRadius: 10, background: "#1e2235", border: "1px solid #282d45", color: "#94a3b8", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
                 >
-                  <X className="w-4 h-4" />
+                  <X style={{ width: 18, height: 18 }} />
                 </button>
               </div>
             </div>
 
-            {/* Modal Navigation Tabs */}
-            <div className="flex items-center gap-2 px-6 pt-3 border-b border-white/[0.06] bg-white/[0.01] overflow-x-auto scrollbar-none">
+            {/* Modal Tabs Bar */}
+            <div style={{ display: "flex", gap: 8, padding: "10px 24px", background: "#0e101a", borderBottom: "1px solid #1e2235", overflowX: "auto" }}>
               {[
                 { id: "pricing", label: "মূল্য ও স্টক পলিসি", icon: DollarSign },
                 { id: "pitch", label: "হাকিমি সেলস পিচ ও অফার", icon: Flame },
@@ -674,89 +686,85 @@ export default function ProductsPage() {
                   <button
                     key={tab.id}
                     onClick={() => setModalTab(tab.id as ModalTab)}
-                    className={`flex items-center gap-2 px-4 py-2.5 border-b-2 text-xs font-bold transition-all whitespace-nowrap ${
-                      isActive
-                        ? "border-purple-500 text-purple-400 bg-purple-500/10 rounded-t-xl"
-                        : "border-transparent text-slate-400 hover:text-slate-200 hover:border-white/20"
-                    }`}
+                    style={{
+                      display: "inline-flex", alignItems: "center", gap: 7,
+                      padding: "8px 14px", borderRadius: 8, border: "none",
+                      fontSize: 12, fontWeight: 700, cursor: "pointer",
+                      whiteSpace: "nowrap",
+                      background: isActive ? "rgba(124, 58, 237, 0.2)" : "transparent",
+                      color: isActive ? "#c084fc" : "#94a3b8",
+                      borderBottom: isActive ? "2px solid #a855f7" : "2px solid transparent"
+                    }}
                   >
-                    <Icon className="w-3.5 h-3.5" />
+                    <Icon style={{ width: 14, height: 14 }} />
                     <span>{tab.label}</span>
                   </button>
                 );
               })}
             </div>
 
-            {/* Modal Content Body */}
-            <div className="p-6 overflow-y-auto space-y-6 max-h-[calc(92vh-180px)]">
+            {/* Modal Body */}
+            <div style={{ padding: "24px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 20 }}>
+              
               {/* TAB 1: Pricing & Stock */}
               {modalTab === "pricing" && (
-                <div className="space-y-5 animate-in fade-in duration-150">
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4 p-5 rounded-2xl bg-white/[0.02] border border-white/[0.08]">
+                <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16, background: "#151828", padding: 18, borderRadius: 14, border: "1px solid #23283e" }}>
+                    
                     {/* Regular Price */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-2">
+                      <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#cbd5e1", marginBottom: 6 }}>
                         💰 রেগুলার মূল্য (টাকা)
                       </label>
-                      <div className="relative">
-                        <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-slate-400 font-bold text-sm pointer-events-none">
-                          ৳
-                        </span>
-                        <input
-                          type="text"
-                          value={selected.custom_price || ""}
-                          onChange={(e) => handleFieldChange("custom_price", e.target.value)}
-                          placeholder="যেমন: ৩,৫০০"
-                          className="w-full pl-8 pr-4 py-2.5 rounded-xl bg-black/40 border border-white/[0.12] text-white text-sm focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 font-semibold transition-all"
-                        />
-                      </div>
-                      <span className="text-[11px] text-slate-500 mt-1 block">কাস্টমারকে পূর্বে প্রদর্শিত কাটা মূল্য</span>
+                      <input
+                        type="text"
+                        value={selected.custom_price || ""}
+                        onChange={(e) => handleFieldChange("custom_price", e.target.value)}
+                        placeholder="যেমন: ৩,৫০০"
+                        style={{ width: "100%", height: 42, padding: "0 12px", borderRadius: 8, background: "#0c0e17", border: "1px solid #282d45", color: "#fff", fontSize: 14, outline: "none", boxSizing: "border-box" }}
+                      />
+                      <span style={{ fontSize: 11, color: "#64748b", marginTop: 4, display: "block" }}>কাস্টমারকে পূর্বে প্রদর্শিত কাটা মূল্য</span>
                     </div>
 
                     {/* Offer Price */}
                     <div>
-                      <label className="block text-xs font-bold text-emerald-400 mb-2 flex items-center gap-1.5">
-                        <Flame className="w-3.5 h-3.5 text-emerald-400" />
-                        <span>🏷️ অফার/ডিসকাউন্ট মূল্য (টাকা)</span>
+                      <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#10b981", marginBottom: 6 }}>
+                        🏷️ অফার/ডিসকাউন্ট মূল্য (টাকা)
                       </label>
-                      <div className="relative">
-                        <span className="absolute inset-y-0 left-0 pl-3.5 flex items-center text-emerald-400 font-bold text-sm pointer-events-none">
-                          ৳
-                        </span>
-                        <input
-                          type="text"
-                          value={selected.discount_price || ""}
-                          onChange={(e) => handleFieldChange("discount_price", e.target.value)}
-                          placeholder="যেমন: ৩,০০০"
-                          className="w-full pl-8 pr-4 py-2.5 rounded-xl bg-black/40 border border-emerald-500/50 text-emerald-400 font-bold text-sm focus:outline-none focus:border-emerald-400 focus:ring-2 focus:ring-emerald-500/20 transition-all"
-                        />
-                      </div>
-                      <span className="text-[11px] text-emerald-500/80 mt-1 block">এআই কাস্টমারকে এই অফার মূল্যে ক্লোজ করবে</span>
+                      <input
+                        type="text"
+                        value={selected.discount_price || ""}
+                        onChange={(e) => handleFieldChange("discount_price", e.target.value)}
+                        placeholder="যেমন: ৩,০০০"
+                        style={{ width: "100%", height: 42, padding: "0 12px", borderRadius: 8, background: "#0c0e17", border: "1px solid #10b981", color: "#10b981", fontWeight: 800, fontSize: 14, outline: "none", boxSizing: "border-box" }}
+                      />
+                      <span style={{ fontSize: 11, color: "#10b981", marginTop: 4, display: "block" }}>এআই কাস্টমারকে এই অফার মূল্যে ক্লোজ করবে</span>
                     </div>
 
                     {/* Stock Status */}
                     <div>
-                      <label className="block text-xs font-bold text-slate-300 mb-2">
+                      <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#cbd5e1", marginBottom: 6 }}>
                         📦 স্টক স্ট্যাটাস
                       </label>
                       <select
                         value={selected.stock_status || "in_stock"}
                         onChange={(e) => handleFieldChange("stock_status", e.target.value)}
-                        className="w-full px-3.5 py-2.5 rounded-xl bg-black/40 border border-white/[0.12] text-white text-sm focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 font-medium cursor-pointer transition-all"
+                        style={{ width: "100%", height: 42, padding: "0 12px", borderRadius: 8, background: "#0c0e17", border: "1px solid #282d45", color: "#fff", fontSize: 14, outline: "none", boxSizing: "border-box", cursor: "pointer" }}
                       >
-                        <option value="in_stock" className="bg-[#13131f] text-emerald-400">পর্যাপ্ত স্টক আছে (In Stock)</option>
-                        <option value="limited" className="bg-[#13131f] text-amber-400">সীমিত স্টক (Limited Stock)</option>
-                        <option value="out_of_stock" className="bg-[#13131f] text-rose-400">স্টক শেষ (Out of Stock)</option>
+                        <option value="in_stock" style={{ background: "#141724", color: "#10b981" }}>পর্যাপ্ত স্টক আছে (In Stock)</option>
+                        <option value="limited" style={{ background: "#141724", color: "#fbbf24" }}>সীমিত স্টক (Limited Stock)</option>
+                        <option value="out_of_stock" style={{ background: "#141724", color: "#f87171" }}>স্টক শেষ (Out of Stock)</option>
                       </select>
-                      <span className="text-[11px] text-slate-500 mt-1 block">স্টক শেষ হলে এআই সরাসরি কাস্টমারকে জানাবে</span>
+                      <span style={{ fontSize: 11, color: "#64748b", marginTop: 4, display: "block" }}>স্টক শেষ হলে এআই সরাসরি কাস্টমারকে জানাবে</span>
                     </div>
+
                   </div>
 
-                  {/* Pricing Psychology Tip Box */}
-                  <div className="p-4 rounded-2xl bg-gradient-to-r from-purple-900/20 to-indigo-900/20 border border-purple-500/20 flex items-start gap-3">
-                    <Sparkles className="w-5 h-5 text-purple-400 shrink-0 mt-0.5" />
-                    <div className="text-xs text-purple-200 leading-relaxed">
-                      <strong className="text-white block mb-0.5">হাই-টিকেট ক্লোজিং স্ট্র্যাটেজি:</strong>
+                  {/* Strategy Box */}
+                  <div style={{ padding: "14px 18px", borderRadius: 12, background: "rgba(124, 58, 237, 0.1)", border: "1px solid rgba(124, 58, 237, 0.25)", display: "flex", gap: 12 }}>
+                    <Sparkles style={{ width: 20, height: 20, color: "#a855f7", flexShrink: 0, marginTop: 2 }} />
+                    <div style={{ fontSize: 12, color: "#d8b4fe", lineHeight: 1.6 }}>
+                      <strong style={{ color: "#fff", display: "block", marginBottom: 2 }}>হাই-টিকেট ক্লোজিং স্ট্র্যাটেজি:</strong>
                       মূল সমস্যাগুলোর স্থায়ী সমাধানের জন্য আমাদের ৩,০০০ টাকার প্রিমিয়াম প্যাকেজটিকে মূল ফোকাস রাখুন। ডিসকাউন্ট প্রাইসে ৩,০০০ টাকা দিলে জেমিনি ফ্ল্যাশ কাস্টমারকে সর্বোচ্চ কনভিন্সিং উপায়ে অর্ডার ক্লোজ করতে পারে।
                     </div>
                   </div>
@@ -765,40 +773,35 @@ export default function ProductsPage() {
 
               {/* TAB 2: Pitch & Offers */}
               {modalTab === "pitch" && (
-                <div className="space-y-5 animate-in fade-in duration-150">
-                  {/* Special Offer Banner */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
                   <div>
-                    <label className="block text-xs font-bold text-purple-300 mb-2 flex items-center gap-2">
-                      <Tag className="w-4 h-4 text-purple-400" />
-                      <span>🎁 বিশেষ অফার / শর্তাবলী (এআই কাস্টমারকে এই অফার বলবে)</span>
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#c084fc", marginBottom: 6 }}>
+                      🎁 বিশেষ অফার / শর্তাবলী (এআই কাস্টমারকে এই অফার বলবে)
                     </label>
                     <input
                       type="text"
                       value={selected.custom_note || ""}
                       onChange={(e) => handleFieldChange("custom_note", e.target.value)}
                       placeholder="যেমন: ২ ফাইল নিলে ফ্রি হোম ডেলিভারি! ফ্রেশ ল্যাব ব্যাচ বুকিংয়ে বিশেষ সুবিধা।"
-                      className="w-full px-4 py-3 rounded-xl bg-black/40 border border-white/[0.12] text-white text-sm focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all font-medium"
+                      style={{ width: "100%", height: 44, padding: "0 14px", borderRadius: 10, background: "#151828", border: "1px solid #282d45", color: "#fff", fontSize: 13, outline: "none", boxSizing: "border-box" }}
                     />
                   </div>
 
-                  {/* Master Hakim's Sales Pitch */}
                   <div>
-                    <label className="block text-xs font-bold text-blue-300 mb-2 flex items-center gap-2">
-                      <Award className="w-4 h-4 text-blue-400" />
-                      <span>🦁 সিনিয়র হাকিমের আলটিমেট ফর্মুলেশন পিচ ও শ্রেষ্ঠত্ব</span>
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#60a5fa", marginBottom: 6 }}>
+                      🦁 সিনিয়র হাকিমের আলটিমেট ফর্মুলেশন পিচ ও শ্রেষ্ঠত্ব
                     </label>
                     <textarea
                       rows={4}
                       value={selected.custom_pitch || ""}
                       onChange={(e) => handleFieldChange("custom_pitch", e.target.value)}
-                      placeholder="যেমন: আসল হিমালয়ান শিলাজিৎ, অশ্বগন্ধা ও প্রাকৃতিক ভেষজ উপাদানে প্রস্তুত যা পেনাইল নার্ভ সচল করে এবং স্থায়ী শক্তি ফিরিয়ে আনে।"
-                      className="w-full p-4 rounded-xl bg-black/40 border border-white/[0.12] text-white text-sm focus:outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-500/20 transition-all leading-relaxed"
+                      placeholder="যেমন: খাঁটি হিমালয়ান শিলাজিৎ, অশ্বগন্ধা ও প্রাকৃতিক ভেষজ উপাদানে প্রস্তুত যা পেনাইল নার্ভ সচল করে এবং স্থায়ী শক্তি ফিরিয়ে আনে।"
+                      style={{ width: "100%", padding: "12px 14px", borderRadius: 10, background: "#151828", border: "1px solid #282d45", color: "#fff", fontSize: 13, outline: "none", boxSizing: "border-box", resize: "vertical" }}
                     />
                   </div>
 
-                  {/* Extra Instructions */}
                   <div>
-                    <label className="block text-xs font-bold text-slate-300 mb-2">
+                    <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#94a3b8", marginBottom: 6 }}>
                       📝 অতিরিক্ত তথ্য ও বিশেষ নির্দেশনা (Custom Details)
                     </label>
                     <textarea
@@ -806,7 +809,7 @@ export default function ProductsPage() {
                       value={selected.custom_details || ""}
                       onChange={(e) => handleFieldChange("custom_details", e.target.value)}
                       placeholder="ডেলিভারি বা প্যাকেজিং সংক্রান্ত কোনো বিশেষ নোট..."
-                      className="w-full p-3.5 rounded-xl bg-black/40 border border-white/[0.12] text-white text-sm focus:outline-none focus:border-purple-500 focus:ring-2 focus:ring-purple-500/20 transition-all"
+                      style={{ width: "100%", padding: "10px 14px", borderRadius: 10, background: "#151828", border: "1px solid #282d45", color: "#fff", fontSize: 13, outline: "none", boxSizing: "border-box", resize: "vertical" }}
                     />
                   </div>
                 </div>
@@ -814,47 +817,42 @@ export default function ProductsPage() {
 
               {/* TAB 3: Clinical & Solutions */}
               {modalTab === "clinical" && (
-                <div className="space-y-5 animate-in fade-in duration-150">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    {/* Dosage Instructions */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
                     <div>
-                      <label className="block text-xs font-bold text-cyan-300 mb-2 flex items-center gap-2">
-                        <Clock className="w-4 h-4 text-cyan-400" />
-                        <span>💊 সেবনবিধি ও ডোজ ফর্ম (Dosage / How to Take)</span>
+                      <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#38bdf8", marginBottom: 6 }}>
+                        💊 সেবনবিধি ও ডোজ ফর্ম (Dosage / How to Take)
                       </label>
                       <textarea
                         rows={4}
                         value={selected.dosageForm || ""}
                         onChange={(e) => handleFieldChange("dosageForm", e.target.value)}
                         placeholder="যেমন: প্রতিদিন রাতে খাবারের পর কুসুম গরম দুধ বা পানিসহ ১টি করে ক্যাপসুল সেব্য।"
-                        className="w-full p-3.5 rounded-xl bg-black/40 border border-white/[0.12] text-white text-sm focus:outline-none focus:border-cyan-500 focus:ring-2 focus:ring-cyan-500/20 transition-all leading-relaxed"
+                        style={{ width: "100%", padding: "12px 14px", borderRadius: 10, background: "#151828", border: "1px solid #282d45", color: "#fff", fontSize: 13, outline: "none", boxSizing: "border-box", resize: "vertical" }}
                       />
                     </div>
 
-                    {/* Patient Pain Points */}
                     <div>
-                      <label className="block text-xs font-bold text-rose-300 mb-2 flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 text-rose-400" />
-                        <span>⚠️ রোগীর শারীরিক সমস্যা ও স্থায়ী সমাধান (Pain Points)</span>
+                      <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#f87171", marginBottom: 6 }}>
+                        ⚠️ রোগীর শারীরিক সমস্যা ও স্থায়ী সমাধান (Pain Points)
                       </label>
                       <textarea
                         rows={4}
                         value={selected.painPoints || ""}
                         onChange={(e) => handleFieldChange("painPoints", e.target.value)}
                         placeholder="দ্রুত বীর্যপাত, লিঙ্গ শিথিলতা, শুক্রাণু পাতলা হওয়া বা স্নায়বিক দুর্বলতার লক্ষণ ও সমাধান..."
-                        className="w-full p-3.5 rounded-xl bg-black/40 border border-white/[0.12] text-white text-sm focus:outline-none focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20 transition-all leading-relaxed"
+                        style={{ width: "100%", padding: "12px 14px", borderRadius: 10, background: "#151828", border: "1px solid #282d45", color: "#fff", fontSize: 13, outline: "none", boxSizing: "border-box", resize: "vertical" }}
                       />
                     </div>
                   </div>
 
-                  {/* Dietary Blueprint */}
                   {selected.dietary && (
-                    <div className="p-4 rounded-2xl bg-emerald-950/20 border border-emerald-500/20">
-                      <div className="text-xs font-bold text-emerald-400 mb-2 flex items-center gap-2">
-                        <ShieldCheck className="w-4 h-4" />
+                    <div style={{ padding: "14px 18px", borderRadius: 12, background: "rgba(16, 185, 129, 0.1)", border: "1px solid rgba(16, 185, 129, 0.25)" }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#10b981", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
+                        <ShieldCheck style={{ width: 16, height: 16 }} />
                         <span>🥗 পুষ্টি ও দ্রুত কার্যকারিতা ডায়েট চার্ট</span>
                       </div>
-                      <div className="text-xs text-emerald-200/90 whitespace-pre-line leading-relaxed font-mono">
+                      <div style={{ fontSize: 12, color: "#a7f3d0", whiteSpace: "pre-line", lineHeight: 1.6 }}>
                         {selected.dietary}
                       </div>
                     </div>
@@ -864,40 +862,38 @@ export default function ProductsPage() {
 
               {/* TAB 4: Specialists & Objections */}
               {modalTab === "specialists" && (
-                <div className="space-y-6 animate-in fade-in duration-150">
-                  {/* Named Doctors */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
                   {selected.specialists && selected.specialists.length > 0 ? (
-                    <div className="space-y-3">
-                      <h4 className="text-xs font-bold text-sky-400 flex items-center gap-2">
-                        <Stethoscope className="w-4 h-4" />
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#38bdf8", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                        <Stethoscope style={{ width: 16, height: 16 }} />
                         <span>বিশ্বখ্যাত ৫ জন বিশেষজ্ঞ ডাক্তার ও গবেষকদের উক্তি</span>
-                      </h4>
-                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      </div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12 }}>
                         {selected.specialists.map((sp, idx) => (
-                          <div key={idx} className="p-3.5 rounded-xl bg-black/40 border border-white/[0.08] hover:border-sky-500/30 transition-all">
-                            <div className="font-bold text-sky-300 text-xs">{sp.name} {sp.flag || ""}</div>
-                            <div className="text-[11px] text-slate-400 mb-2">{sp.title ? `${sp.title}, ` : ""}{sp.institute}</div>
-                            <div className="text-xs text-slate-200 italic leading-relaxed">"{sp.quote}"</div>
+                          <div key={idx} style={{ padding: "12px 14px", borderRadius: 10, background: "#151828", border: "1px solid #282d45" }}>
+                            <div style={{ fontWeight: 700, color: "#93c5fd", fontSize: 13 }}>{sp.name} {sp.flag || ""}</div>
+                            <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 4 }}>{sp.title ? `${sp.title}, ` : ""}{sp.institute}</div>
+                            <div style={{ fontSize: 12, color: "#e2e8f0", fontStyle: "italic", lineHeight: 1.5 }}>"{sp.quote}"</div>
                           </div>
                         ))}
                       </div>
                     </div>
                   ) : (
-                    <p className="text-xs text-slate-500">এই ফর্মুলার জন্য কোনো বিশেষজ্ঞ কোটেশন যুক্ত করা নেই।</p>
+                    <p style={{ fontSize: 13, color: "#64748b" }}>এই ওষুধের জন্য কোনো বিশেষজ্ঞ কোটেশন নেই।</p>
                   )}
 
-                  {/* Objection Destroyers */}
                   {selected.objections && selected.objections.length > 0 && (
-                    <div className="space-y-3 pt-2">
-                      <h4 className="text-xs font-bold text-rose-400 flex items-center gap-2">
-                        <Flame className="w-4 h-4" />
+                    <div style={{ marginTop: 8 }}>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: "#fb7185", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
+                        <Flame style={{ width: 16, height: 16 }} />
                         <span>কাস্টমারের ৪টি মূল আপত্তি খণ্ডন ও উত্তর (Objection Destroyers)</span>
-                      </h4>
-                      <div className="space-y-2.5">
+                      </div>
+                      <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
                         {selected.objections.map((obj, idx) => (
-                          <div key={idx} className="p-3.5 rounded-xl bg-black/40 border border-rose-500/20">
-                            <div className="font-bold text-rose-300 text-xs mb-1">❓ {obj.objection}</div>
-                            <div className="text-xs text-slate-300 leading-relaxed">💡 {obj.script}</div>
+                          <div key={idx} style={{ padding: "12px 14px", borderRadius: 10, background: "#151828", border: "1px solid rgba(251, 113, 133, 0.25)" }}>
+                            <div style={{ fontWeight: 700, color: "#fda4af", fontSize: 13, marginBottom: 4 }}>❓ {obj.objection}</div>
+                            <div style={{ fontSize: 12, color: "#e2e8f0", lineHeight: 1.5 }}>💡 {obj.script}</div>
                           </div>
                         ))}
                       </div>
@@ -905,21 +901,24 @@ export default function ProductsPage() {
                   )}
                 </div>
               )}
+
             </div>
 
             {/* Modal Footer */}
-            <div className="px-6 py-4 border-t border-white/[0.08] bg-white/[0.02] flex items-center justify-between text-xs text-slate-400">
+            <div style={{ padding: "14px 24px", borderTop: "1px solid #20253a", background: "#151828", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, color: "#94a3b8" }}>
               <span>💡 টাইপ শেষ করার সাথে সাথেই কোনো বাটন না চেপেই তথ্যগুলো ভিপিএসে সংরক্ষিত হবে।</span>
               <button
                 onClick={closeModal}
-                className="px-5 py-2 rounded-xl bg-purple-600 hover:bg-purple-500 text-white font-bold text-xs transition-all shadow-md shadow-purple-600/20"
+                style={{ padding: "8px 20px", borderRadius: 10, background: "#7c3aed", color: "#fff", border: "none", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
               >
                 সম্পন্ন করুন
               </button>
             </div>
+
           </div>
         </div>
       )}
+
     </div>
   );
 }
