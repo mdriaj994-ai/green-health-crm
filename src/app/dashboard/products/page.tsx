@@ -1,30 +1,11 @@
-"use client";
+﻿"use client";
 
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import {
-  Search,
-  Sparkles,
-  Package,
-  ShieldCheck,
-  Zap,
-  Tag,
-  Clock,
-  CheckCircle2,
-  AlertCircle,
-  X,
-  ExternalLink,
-  ChevronRight,
-  Flame,
-  Award,
-  Stethoscope,
-  HeartPulse,
-  DollarSign,
-  Layers,
-  ArrowUpDown,
-  Check,
-  RefreshCw,
-  Info,
-  Edit3
+  Search, Sparkles, Package, ShieldCheck, Zap, Tag,
+  CheckCircle2, X, ExternalLink,
+  Flame, Award, Stethoscope, HeartPulse, DollarSign, Layers,
+  ArrowUpDown, Check, Info, Edit3
 } from "lucide-react";
 
 interface Product {
@@ -57,6 +38,88 @@ type SaveStatus = "idle" | "typing" | "saving" | "saved" | "error";
 type FilterCategory = "all" | "in_stock" | "discounted" | "mens" | "pain" | "gastric";
 type ModalTab = "pricing" | "pitch" | "clinical" | "specialists";
 
+const CSS = `
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800;900&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+.pharm{font-family:'Inter',system-ui,sans-serif;background:#04050d;color:#e2e8f0;min-height:100%;overflow-x:hidden;position:relative}
+.pharm::before{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(124,58,237,.04) 1px,transparent 1px),linear-gradient(90deg,rgba(124,58,237,.04) 1px,transparent 1px);background-size:48px 48px;pointer-events:none;z-index:0}
+.orb{position:fixed;border-radius:50%;filter:blur(90px);pointer-events:none;z-index:0;animation:orbF 14s ease-in-out infinite}
+.o1{width:600px;height:600px;background:rgba(124,58,237,.12);top:-200px;left:-200px}
+.o2{width:500px;height:500px;background:rgba(16,185,129,.08);bottom:-150px;right:-150px;animation-delay:-7s}
+.o3{width:400px;height:400px;background:rgba(59,130,246,.08);top:40%;left:40%;animation-delay:-3.5s}
+@keyframes orbF{0%,100%{transform:translate(0,0) scale(1)}33%{transform:translate(40px,-30px) scale(1.05)}66%{transform:translate(-20px,40px) scale(.95)}}
+::-webkit-scrollbar{width:5px;height:5px}
+::-webkit-scrollbar-track{background:#0a0b15}
+::-webkit-scrollbar-thumb{background:#2d3160;border-radius:99px}
+::-webkit-scrollbar-thumb:hover{background:#7c3aed}
+.pcard{background:linear-gradient(145deg,#131624,#0e1020);border:1px solid #1e2240;border-radius:20px;overflow:hidden;cursor:pointer;transition:transform .35s cubic-bezier(.22,1,.36,1),box-shadow .35s ease,border-color .3s;position:relative;will-change:transform}
+.pcard::after{content:'';position:absolute;inset:0;border-radius:20px;background:linear-gradient(135deg,rgba(124,58,237,.07),transparent 60%);opacity:0;transition:opacity .4s;pointer-events:none}
+.pcard:hover{transform:translateY(-8px) scale(1.015);box-shadow:0 24px 60px rgba(124,58,237,.28),0 0 0 1px rgba(124,58,237,.4);border-color:rgba(124,58,237,.7)}
+.pcard:hover::after{opacity:1}
+.pcard:active{transform:translateY(-4px) scale(1.01)}
+.pcard:hover .cmedia img{transform:scale(1.08)}
+.kpi{background:linear-gradient(145deg,#131825,#0d1018);border:1px solid #1e2438;border-radius:18px;padding:18px 22px;display:flex;align-items:center;gap:16px;position:relative;overflow:hidden;transition:transform .3s;cursor:default}
+.kpi::before{content:'';position:absolute;inset:0;background:linear-gradient(135deg,rgba(255,255,255,.03),transparent);pointer-events:none}
+.kpi:hover{transform:translateY(-4px)}
+.fpill{display:inline-flex;align-items:center;gap:7px;padding:9px 18px;border-radius:50px;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .25s cubic-bezier(.22,1,.36,1);border:1px solid #1e2438;background:rgba(255,255,255,.03);color:#94a3b8;font-family:inherit}
+.fpill:hover{background:rgba(124,58,237,.15);color:#c084fc;border-color:rgba(124,58,237,.4);transform:translateY(-2px)}
+.fpill.on{background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border-color:#8b5cf6;box-shadow:0 6px 20px rgba(124,58,237,.4);transform:translateY(-2px)}
+.fpill:active{transform:scale(.96)}
+.btnp{display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:11px 24px;border-radius:12px;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;border:none;font-weight:700;font-size:13px;cursor:pointer;transition:all .25s;white-space:nowrap;box-shadow:0 4px 16px rgba(124,58,237,.3);font-family:inherit}
+.btnp:hover{transform:translateY(-2px);box-shadow:0 8px 24px rgba(124,58,237,.45)}
+.btnp:active{transform:scale(.97)}
+.sinput{width:100%;height:50px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid #1e2438;padding:0 44px 0 48px;color:#fff;font-size:14px;outline:none;transition:all .3s;font-family:inherit;backdrop-filter:blur(10px)}
+.sinput::placeholder{color:#475569}
+.sinput:focus{border-color:#7c3aed;box-shadow:0 0 0 3px rgba(124,58,237,.15),0 0 30px rgba(124,58,237,.1);background:rgba(124,58,237,.06)}
+.finput,.fsel,.ftxt{width:100%;border-radius:12px;background:rgba(255,255,255,.03);border:1px solid #1e2440;color:#f1f5f9;font-size:13px;font-family:inherit;outline:none;transition:all .3s}
+.finput,.fsel{height:46px;padding:0 14px}
+.ftxt{padding:12px 14px;resize:vertical}
+.finput:focus,.fsel:focus,.ftxt:focus{border-color:#7c3aed;box-shadow:0 0 0 3px rgba(124,58,237,.12);background:rgba(124,58,237,.05)}
+.finput::placeholder,.ftxt::placeholder{color:#374151}
+.fsel{cursor:pointer}
+option{background:#131624}
+.mtab{display:inline-flex;align-items:center;gap:7px;padding:10px 16px;border-radius:10px;border:none;font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap;transition:all .25s;font-family:inherit;background:transparent;color:#64748b}
+.mtab:hover{background:rgba(255,255,255,.05);color:#cbd5e1}
+.mtab.on{background:rgba(124,58,237,.2);color:#c084fc;box-shadow:inset 0 -2px 0 #a855f7}
+@keyframes pDot{0%,100%{box-shadow:0 0 0 0 rgba(16,185,129,.6)}50%{box-shadow:0 0 0 6px rgba(16,185,129,0)}}
+.pdot{animation:pDot 2s infinite}
+@keyframes shim{0%{background-position:-500px 0}100%{background-position:500px 0}}
+.shim{background:linear-gradient(90deg,#131624 25%,#1e2238 50%,#131624 75%);background-size:1000px 100%;animation:shim 1.6s infinite;border-radius:12px}
+@keyframes sUp{from{opacity:0;transform:translateY(30px)}to{opacity:1;transform:translateY(0)}}
+.sup{animation:sUp .5s cubic-bezier(.22,1,.36,1) both}
+@keyframes fScale{from{opacity:0;transform:scale(.94)}to{opacity:1;transform:scale(1)}}
+.fsc{animation:fScale .35s cubic-bezier(.22,1,.36,1) both}
+.pcard:nth-child(1){animation-delay:.05s}.pcard:nth-child(2){animation-delay:.10s}.pcard:nth-child(3){animation-delay:.15s}.pcard:nth-child(4){animation-delay:.20s}.pcard:nth-child(5){animation-delay:.25s}.pcard:nth-child(6){animation-delay:.30s}.pcard:nth-child(7){animation-delay:.35s}.pcard:nth-child(8){animation-delay:.40s}
+.cmedia{position:relative;height:190px;overflow:hidden;background:#080910}
+.cmedia img{width:100%;height:100%;object-fit:cover;transition:transform .5s cubic-bezier(.22,1,.36,1)}
+.cmov{position:absolute;inset:0;background:linear-gradient(to top,rgba(10,12,24,.85) 0%,transparent 50%);pointer-events:none}
+.pneon{color:#10b981;text-shadow:0 0 20px rgba(16,185,129,.5)}
+.ssel{background:transparent;color:#fff;border:none;outline:none;cursor:pointer;font-size:13px;font-weight:700;font-family:inherit}
+.spcard{background:rgba(255,255,255,.02);border:1px solid #1a2040;border-radius:14px;padding:16px;transition:all .25s}
+.spcard:hover{background:rgba(124,58,237,.07);border-color:rgba(124,58,237,.3);transform:translateY(-2px)}
+.obcard{background:rgba(251,113,133,.04);border:1px solid rgba(251,113,133,.18);border-radius:12px;padding:14px;transition:all .25s}
+.obcard:hover{background:rgba(251,113,133,.08)}
+.lp{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#a855f7}
+.lg{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#10b981}
+.lb{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#60a5fa}
+.lr{font-size:11px;font-weight:800;letter-spacing:.08em;text-transform:uppercase;color:#f87171}
+.hdr{position:sticky;top:0;z-index:100;background:rgba(4,5,13,.92);backdrop-filter:blur(24px);border-bottom:1px solid rgba(255,255,255,.05)}
+.svt{background:rgba(245,158,11,.12);color:#fbbf24;border:1px solid rgba(245,158,11,.3)}
+.svs{background:rgba(59,130,246,.12);color:#60a5fa;border:1px solid rgba(59,130,246,.3)}
+.svd{background:rgba(16,185,129,.12);color:#10b981;border:1px solid rgba(16,185,129,.3)}
+.svi{background:rgba(16,185,129,.08);color:#10b981;border:1px solid rgba(16,185,129,.2)}
+.sve{background:rgba(239,68,68,.12);color:#f87171;border:1px solid rgba(239,68,68,.3)}
+.sg{background:rgba(16,185,129,.18);color:#10b981;border:1px solid rgba(16,185,129,.4)}
+.sa{background:rgba(245,158,11,.18);color:#fbbf24;border:1px solid rgba(245,158,11,.4)}
+.sr{background:rgba(239,68,68,.18);color:#f87171;border:1px solid rgba(239,68,68,.4)}
+.divd{border:none;border-top:1px solid rgba(255,255,255,.05);margin:0}
+.ibox{background:rgba(124,58,237,.08);border:1px solid rgba(124,58,237,.2);border-radius:12px;padding:14px 16px}
+.cbtn{width:100%;padding:11px;border-radius:12px;border:none;background:linear-gradient(135deg,#7c3aed,#4f46e5);color:#fff;font-size:13px;font-weight:700;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:6px;transition:all .25s;font-family:inherit;box-shadow:0 4px 14px rgba(124,58,237,.25)}
+.cbtn:hover{transform:translateY(-2px);box-shadow:0 8px 22px rgba(124,58,237,.45);filter:brightness(1.1)}
+.cbtn:active{transform:scale(.97)}
+.mbk{position:fixed;inset:0;background:rgba(0,0,0,.88);backdrop-filter:blur(10px);z-index:9000;display:flex;align-items:center;justify-content:center;padding:16px}
+.msh{width:100%;max-width:900px;max-height:92vh;background:#0d0f1c;border:1px solid rgba(124,58,237,.25);border-radius:24px;box-shadow:0 40px 100px rgba(0,0,0,.9),0 0 0 1px rgba(124,58,237,.1);display:flex;flex-direction:column;overflow:hidden}
+`;
 export default function ProductsPage() {
   const [products, setProducts] = useState<Product[]>([]);
   const [search, setSearch] = useState("");
@@ -66,519 +129,246 @@ export default function ProductsPage() {
   const [activeFilter, setActiveFilter] = useState<FilterCategory>("all");
   const [modalTab, setModalTab] = useState<ModalTab>("pricing");
   const [sortBy, setSortBy] = useState<"sl" | "price_low" | "price_high">("sl");
-
-  // Auto-save state
   const [saveStatus, setSaveStatus] = useState<SaveStatus>("idle");
   const [lastSavedTime, setLastSavedTime] = useState<string>("");
   const debounceTimerRef = useRef<NodeJS.Timeout | null>(null);
   const pendingProductRef = useRef<Product | null>(null);
+  const stylesInjected = useRef(false);
 
   useEffect(() => {
+    if (!stylesInjected.current) {
+      const tag = document.createElement("style");
+      tag.innerHTML = CSS;
+      document.head.appendChild(tag);
+      stylesInjected.current = true;
+    }
     fetchProducts();
   }, []);
 
   async function fetchProducts() {
     setLoading(true);
     try {
-      const res = await fetch(
-        `/api/products${search ? `?search=${encodeURIComponent(search)}` : ""}`
-      );
+      const res = await fetch(`/api/products${search ? `?search=${encodeURIComponent(search)}` : ""}`);
       const data = await res.json();
       setProducts(data.products || []);
-    } catch {
-      console.error("Failed to load products");
-    } finally {
-      setLoading(false);
-    }
+    } catch { console.error("Failed"); }
+    finally { setLoading(false); }
   }
 
-  function handleSearch(e: React.FormEvent) {
-    e.preventDefault();
-    fetchProducts();
-  }
+  function handleSearch(e: React.FormEvent) { e.preventDefault(); fetchProducts(); }
 
-  // Auto-Save Function to send updates to VPS
-  const executeAutoSave = useCallback(async (productToSave: Product) => {
+  const executeAutoSave = useCallback(async (p: Product) => {
     setSaveStatus("saving");
     try {
       const res = await fetch("/api/products", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          sl: productToSave.sl,
-          custom_price: productToSave.custom_price,
-          discount_price: productToSave.discount_price,
-          custom_note: productToSave.custom_note,
-          custom_pitch: productToSave.custom_pitch,
-          custom_details: productToSave.custom_details,
-          stock_status: productToSave.stock_status,
-          stock_count: productToSave.stock_count,
-          dosageForm: productToSave.dosageForm,
-          painPoints: productToSave.painPoints,
-        }),
+        body: JSON.stringify({ sl: p.sl, custom_price: p.custom_price, discount_price: p.discount_price, custom_note: p.custom_note, custom_pitch: p.custom_pitch, custom_details: p.custom_details, stock_status: p.stock_status, stock_count: p.stock_count, dosageForm: p.dosageForm, painPoints: p.painPoints }),
       });
-
-      if (!res.ok) throw new Error("Save failed");
-
+      if (!res.ok) throw new Error("fail");
       const now = new Date().toLocaleTimeString("bn-BD", { hour: "2-digit", minute: "2-digit", second: "2-digit" });
       setLastSavedTime(now);
       setSaveStatus("saved");
-
-      // Update in master list
-      setProducts((prev) =>
-        prev.map((p) => (p.sl === productToSave.sl ? { ...p, ...productToSave, last_updated: now } : p))
-      );
-
-      // Return to idle after 3s
-      setTimeout(() => {
-        setSaveStatus((curr) => (curr === "saved" ? "idle" : curr));
-      }, 3000);
-    } catch (err) {
-      console.error("[AUTO_SAVE_ERROR]", err);
-      setSaveStatus("error");
-    }
+      setProducts(prev => prev.map(x => x.sl === p.sl ? { ...x, ...p, last_updated: now } : x));
+      setTimeout(() => setSaveStatus(c => c === "saved" ? "idle" : c), 3000);
+    } catch { setSaveStatus("error"); }
   }, []);
 
-  // Field change handler with 2-second debouncing
   function handleFieldChange(field: keyof Product, value: any) {
     if (!selected) return;
-
     const updated = { ...selected, [field]: value };
     setSelected(updated);
     pendingProductRef.current = updated;
     setSaveStatus("typing");
-
-    if (debounceTimerRef.current) {
-      clearTimeout(debounceTimerRef.current);
-    }
-
-    debounceTimerRef.current = setTimeout(() => {
-      if (pendingProductRef.current) {
-        executeAutoSave(pendingProductRef.current);
-      }
-    }, 1800);
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    debounceTimerRef.current = setTimeout(() => { if (pendingProductRef.current) executeAutoSave(pendingProductRef.current); }, 2000);
   }
 
   function closeModal() {
-    if (debounceTimerRef.current && pendingProductRef.current) {
-      clearTimeout(debounceTimerRef.current);
-      executeAutoSave(pendingProductRef.current);
-    }
-    setSelected(null);
-    setSaveStatus("idle");
-    setModalTab("pricing");
+    if (debounceTimerRef.current) clearTimeout(debounceTimerRef.current);
+    if (pendingProductRef.current && saveStatus === "typing") executeAutoSave(pendingProductRef.current);
+    setSelected(null); setSaveStatus("idle"); pendingProductRef.current = null;
   }
 
-  // Filter & Sort Products
-  const filteredProducts = useMemo(() => {
-    let result = [...products];
-
-    // Filter by category
-    if (activeFilter === "in_stock") {
-      result = result.filter(p => p.stock_status !== "out_of_stock");
-    } else if (activeFilter === "discounted") {
-      result = result.filter(p => !!p.discount_price);
-    } else if (activeFilter === "mens") {
-      result = result.filter(p => {
-        const text = `${p.name} ${p.generic} ${p.painPoints}`.toLowerCase();
-        return text.includes("strong") || text.includes("burner") || text.includes("touch") || text.includes("velvet") || text.includes("শক্তি") || text.includes("বীর্য") || text.includes("যৌন");
-      });
-    } else if (activeFilter === "pain") {
-      result = result.filter(p => {
-        const text = `${p.name} ${p.generic} ${p.painPoints}`.toLowerCase();
-        return text.includes("বাত") || text.includes("ব্যথা") || text.includes("rheum") || text.includes("mobic");
-      });
-    } else if (activeFilter === "gastric") {
-      result = result.filter(p => {
-        const text = `${p.name} ${p.generic} ${p.painPoints}`.toLowerCase();
-        return text.includes("গ্যাস") || text.includes("লিভার") || text.includes("পেট") || text.includes("pepto") || text.includes("zymo");
-      });
-    }
-
-    // Sort
-    if (sortBy === "price_low") {
-      result.sort((a, b) => {
-        const pA = parseFloat((a.discount_price || a.custom_price || "0").replace(/[^0-9.]/g, "")) || 0;
-        const pB = parseFloat((b.discount_price || b.custom_price || "0").replace(/[^0-9.]/g, "")) || 0;
-        return pA - pB;
-      });
-    } else if (sortBy === "price_high") {
-      result.sort((a, b) => {
-        const pA = parseFloat((a.discount_price || a.custom_price || "0").replace(/[^0-9.]/g, "")) || 0;
-        const pB = parseFloat((b.discount_price || b.custom_price || "0").replace(/[^0-9.]/g, "")) || 0;
-        return pB - pA;
-      });
-    } else {
-      result.sort((a, b) => parseInt(a.sl || "0") - parseInt(b.sl || "0"));
-    }
-
-    return result;
+  const filtered = useMemo(() => {
+    let r = [...products];
+    if (activeFilter === "in_stock") r = r.filter(p => p.stock_status !== "out_of_stock");
+    else if (activeFilter === "discounted") r = r.filter(p => !!p.discount_price);
+    else if (activeFilter === "mens") r = r.filter(p => /à¦ªà§à¦°à§à¦·|à¦¶à¦•à§à¦¤à¦¿|à¦¯à§Œà¦¨|à¦¬à§€à¦°à§à¦¯|à¦²à¦¿à¦™à§à¦—|men|male|sexual|sperm|burner|touch|gawa|hunter|soul|mate/i.test(p.name + " " + p.generic + " " + p.painPoints));
+    else if (activeFilter === "pain") r = r.filter(p => /à¦¬à¦¾à¦¤|à¦¬à§à¦¯à¦¥à¦¾|à¦œà¦¯à¦¼à§‡à¦¨à§à¦Ÿ|arthritis|pain|joint|muscle/i.test(p.name + " " + p.generic + " " + p.painPoints));
+    else if (activeFilter === "gastric") r = r.filter(p => /à¦—à§à¦¯à¦¾à¦¸|à¦²à¦¿à¦­à¦¾à¦°|à¦¹à¦œà¦®|gastric|liver|digest/i.test(p.name + " " + p.generic + " " + p.painPoints));
+    if (sortBy === "price_low") r.sort((a, b) => (parseFloat((a.discount_price || a.custom_price || "0").replace(/[^0-9.]/g, "")) || 0) - (parseFloat((b.discount_price || b.custom_price || "0").replace(/[^0-9.]/g, "")) || 0));
+    else if (sortBy === "price_high") r.sort((a, b) => (parseFloat((b.discount_price || b.custom_price || "0").replace(/[^0-9.]/g, "")) || 0) - (parseFloat((a.discount_price || a.custom_price || "0").replace(/[^0-9.]/g, "")) || 0));
+    else r.sort((a, b) => parseInt(a.sl || "0") - parseInt(b.sl || "0"));
+    return r;
   }, [products, activeFilter, sortBy]);
 
-  // Statistics
-  const totalCount = products.length;
-  const inStockCount = products.filter(p => p.stock_status !== "out_of_stock").length;
-  const offerCount = products.filter(p => !!p.discount_price).length;
+  const total = products.length;
+  const inStock = products.filter(p => p.stock_status !== "out_of_stock").length;
+  const offers = products.filter(p => !!p.discount_price).length;
+  const svCls = saveStatus === "typing" ? "svt" : saveStatus === "saving" ? "svs" : saveStatus === "saved" ? "svd" : saveStatus === "error" ? "sve" : "svi";
+  const svLbl = saveStatus === "typing" ? "â³ à¦Ÿà¦¾à¦‡à¦ª à¦¹à¦šà§à¦›à§‡..." : saveStatus === "saving" ? "âŸ³ à¦¸à§‡à¦­ à¦¹à¦šà§à¦›à§‡..." : saveStatus === "saved" ? `âœ“ à¦¸à¦‚à¦°à¦•à§à¦·à¦¿à¦¤ (${lastSavedTime})` : saveStatus === "error" ? "âœ• à¦à¦°à¦°" : "âœ“ à¦­à¦¿à¦ªà¦¿à¦à¦¸ à¦¸à¦šà¦²";
 
   return (
-    <div style={{ height: "100%", overflowY: "auto", background: "#0a0b12", color: "#f1f5f9", fontFamily: "var(--font-inter, Inter, system-ui, sans-serif)", position: "relative" }}>
-      
-      {/* ── TOP HEADER BANNER ── */}
-      <div style={{ background: "linear-gradient(180deg, #111422 0%, #0d0f1a 100%)", borderBottom: "1px solid #1e2238", padding: "26px 32px 20px" }}>
-        
-        {/* Title Row */}
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", flexWrap: "wrap", gap: 16 }}>
+    <div className="pharm">
+      <div className="orb o1" /><div className="orb o2" /><div className="orb o3" />
+
+      <div className="hdr" style={{ padding: "0 32px" }}>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", padding: "18px 0 14px", gap: 16, flexWrap: "wrap" }}>
           <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 44, height: 44, borderRadius: 14, background: "linear-gradient(135deg, #7c3aed, #2563eb)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 6px 20px rgba(124,58,237,0.3)" }}>
+            <div style={{ width: 46, height: 46, borderRadius: 14, background: "linear-gradient(135deg,#7c3aed,#2563eb)", display: "flex", alignItems: "center", justifyContent: "center", boxShadow: "0 0 24px rgba(124,58,237,.5)" }}>
               <Sparkles style={{ width: 22, height: 22, color: "#fff" }} />
             </div>
             <div>
-              <h1 style={{ margin: 0, fontSize: 24, fontWeight: 800, letterSpacing: "-0.5px", background: "linear-gradient(90deg, #ffffff 0%, #cbd5e1 50%, #c084fc 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent" }}>
-                মেডিসিন মাস্টার লাইভ ড্যাশবোর্ড
-              </h1>
-              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 4 }}>
-                <span style={{ fontSize: 13, color: "#94a3b8" }}>
-                  ভিপিএস ক্লাউড স্টোরেজ থেকে লাইভ সংযুক্ত — মোট {totalCount} টি ওষুধ
-                </span>
-                <span style={{ display: "inline-flex", alignItems: "center", gap: 5, padding: "2px 8px", borderRadius: 20, background: "rgba(16, 185, 129, 0.12)", color: "#10b981", fontSize: 11, fontWeight: 700 }}>
-                  <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#10b981", display: "inline-block" }} />
-                  অটো-সেভ সক্রিয়
-                </span>
+              <div style={{ fontSize: 22, fontWeight: 900, letterSpacing: "-0.5px", background: "linear-gradient(90deg,#fff 0%,#c4b5fd 50%,#818cf8 100%)", WebkitBackgroundClip: "text", WebkitTextFillColor: "transparent", lineHeight: 1.2 }}>
+                à¦®à§‡à¦¡à¦¿à¦¸à¦¿à¦¨ à¦®à¦¾à¦¸à§à¦Ÿà¦¾à¦° à¦•à¦¨à§à¦Ÿà§à¦°à§‹à¦² à¦¡à§à¦¯à¦¾à¦¶à¦¬à§‹à¦°à§à¦¡
+              </div>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 3 }}>
+                <span style={{ fontSize: 12, color: "#64748b" }}>à¦°à¦¿à¦¯à¦¼à§‡à¦²-à¦Ÿà¦¾à¦‡à¦® à¦…à¦Ÿà§‹-à¦¸à§‡à¦­</span>
+                <span style={{ width: 4, height: 4, borderRadius: "50%", background: "#334155", display: "inline-block" }} />
+                <span style={{ fontSize: 12, color: "#64748b" }}>à¦®à§‹à¦Ÿ <strong style={{ color: "#a855f7" }}>{total}</strong> à¦Ÿà¦¿ à¦«à¦°à§à¦®à§à¦²à¦¾</span>
               </div>
             </div>
           </div>
-
-          {/* Action Badges */}
-          <div style={{ display: "flex", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
-            <a
-              href="/dashboard/encyclopedia"
-              target="_blank"
-              rel="noreferrer"
-              style={{
-                display: "inline-flex", alignItems: "center", gap: 8,
-                padding: "9px 18px", borderRadius: 12,
-                background: "linear-gradient(135deg, #7c3aed, #4f46e5)",
-                color: "#fff", textDecoration: "none", fontSize: 13, fontWeight: 700,
-                border: "1px solid rgba(255,255,255,0.2)",
-                boxShadow: "0 4px 16px rgba(124,58,237,0.35)",
-                cursor: "pointer"
-              }}
-            >
-              <Award style={{ width: 16, height: 16 }} />
-              <span>মেগা এনসাইক্লোপিডিয়া ভিউ</span>
-              <ExternalLink style={{ width: 14, height: 14, opacity: 0.8 }} />
+          <div style={{ display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
+            <a href="/dashboard/encyclopedia" target="_blank" rel="noreferrer" className="btnp" style={{ textDecoration: "none", fontSize: 12 }}>
+              <Award style={{ width: 15, height: 15 }} />à¦®à§‡à¦—à¦¾ à¦à¦¨à¦¸à¦¾à¦‡à¦•à§à¦²à§‹à¦ªà¦¿à¦¡à¦¿à¦¯à¦¼à¦¾<ExternalLink style={{ width: 13, height: 13, opacity: .7 }} />
             </a>
-
-            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "8px 16px", borderRadius: 12, background: "#131624", border: "1px solid #23283e", color: "#10b981", fontSize: 13, fontWeight: 700 }}>
-              <span style={{ width: 8, height: 8, borderRadius: "50%", background: "#10b981", display: "inline-block", boxShadow: "0 0 10px #10b981" }} />
-              <span>ভিপিএস লাইভ (২৪/৭)</span>
+            <div style={{ display: "inline-flex", alignItems: "center", gap: 8, padding: "9px 16px", borderRadius: 12, background: "rgba(16,185,129,.08)", border: "1px solid rgba(16,185,129,.2)", color: "#10b981", fontSize: 12, fontWeight: 700 }}>
+              <span className="pdot" style={{ width: 8, height: 8, borderRadius: "50%", background: "#10b981", display: "inline-block" }} />
+              à¦­à¦¿à¦ªà¦¿à¦à¦¸ à¦²à¦¾à¦‡à¦­ (à§¨à§ª/à§­)
             </div>
           </div>
         </div>
 
-        {/* ── 4 KPI METRIC CARDS ── */}
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 14, marginTop: 22, paddingTop: 18, borderTop: "1px solid #1a1e30" }}>
-          
-          {/* Card 1 */}
-          <div style={{ background: "#131624", border: "1px solid #20253a", borderRadius: 14, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 42, height: 42, borderRadius: 10, background: "rgba(124, 58, 237, 0.15)", border: "1px solid rgba(124, 58, 237, 0.3)", display: "flex", alignItems: "center", justifyContent: "center", color: "#a855f7" }}>
-              <Package style={{ width: 20, height: 20 }} />
-            </div>
-            <div>
-              <div style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600 }}>মোট ওষুধ তালিকা</div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: "#fff", marginTop: 2 }}>{totalCount} টি ফর্মুলা</div>
-            </div>
-          </div>
+        <hr className="divd" />
 
-          {/* Card 2 */}
-          <div style={{ background: "#131624", border: "1px solid #20253a", borderRadius: 14, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 42, height: 42, borderRadius: 10, background: "rgba(16, 185, 129, 0.15)", border: "1px solid rgba(16, 185, 129, 0.3)", display: "flex", alignItems: "center", justifyContent: "center", color: "#10b981" }}>
-              <ShieldCheck style={{ width: 20, height: 20 }} />
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 12, padding: "16px 0" }}>
+          {[
+            { icon: Package, color: "#a855f7", glow: "rgba(168,85,247,.25)", bg: "rgba(168,85,247,.1)", bd: "rgba(168,85,247,.2)", lbl: "à¦®à§‹à¦Ÿ à¦“à¦·à§à¦§ à¦¤à¦¾à¦²à¦¿à¦•à¦¾", val: `${total} à¦Ÿà¦¿ à¦«à¦°à§à¦®à§à¦²à¦¾`, vc: "#c084fc" },
+            { icon: ShieldCheck, color: "#10b981", glow: "rgba(16,185,129,.25)", bg: "rgba(16,185,129,.1)", bd: "rgba(16,185,129,.2)", lbl: "à¦¸à§à¦Ÿà¦• à¦¸à¦•à§à¦°à¦¿à¦¯à¦¼", val: `${inStock} à¦Ÿà¦¿ à¦…à§à¦¯à¦¾à¦•à§à¦Ÿà¦¿à¦­`, vc: "#34d399" },
+            { icon: Tag, color: "#60a5fa", glow: "rgba(96,165,250,.25)", bg: "rgba(96,165,250,.1)", bd: "rgba(96,165,250,.2)", lbl: "à¦…à¦«à¦¾à¦° à¦“ à¦¡à¦¿à¦¸à¦•à¦¾à¦‰à¦¨à§à¦Ÿ", val: `${offers} à¦Ÿà¦¿ à¦¸à§à¦ªà§‡à¦¶à¦¾à¦² à¦¡à¦¿à¦²`, vc: "#93c5fd" },
+            { icon: Zap, color: "#fbbf24", glow: "rgba(251,191,36,.25)", bg: "rgba(251,191,36,.1)", bd: "rgba(251,191,36,.2)", lbl: "à¦à¦†à¦‡ à¦•à§à¦²à§‹à¦œà¦¿à¦‚ à¦°à§‡à¦¡à¦¿", val: "à§©,à§¦à§¦à§¦à§³ à¦®à¦¾à¦¸à§à¦Ÿà¦¾à¦° à¦•à§‹à¦°à§à¦¸", vc: "#fcd34d" },
+          ].map((k, i) => { const I = k.icon; return (
+            <div key={i} className="kpi" style={{ borderColor: k.bd }}>
+              <div style={{ width: 44, height: 44, borderRadius: 12, background: k.bg, border: `1px solid ${k.bd}`, display: "flex", alignItems: "center", justifyContent: "center", color: k.color, boxShadow: `0 4px 16px ${k.glow}`, flexShrink: 0 }}>
+                <I style={{ width: 20, height: 20 }} />
+              </div>
+              <div>
+                <div style={{ fontSize: 11, color: "#64748b", fontWeight: 600, marginBottom: 4, textTransform: "uppercase", letterSpacing: ".06em" }}>{k.lbl}</div>
+                <div style={{ fontSize: 17, fontWeight: 800, color: k.vc, lineHeight: 1 }}>{k.val}</div>
+              </div>
+              <div style={{ position: "absolute", top: 12, right: 12, color: k.color, opacity: .12 }}><I style={{ width: 32, height: 32 }} /></div>
             </div>
-            <div>
-              <div style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600 }}>স্টক সক্রিয়</div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: "#10b981", marginTop: 2 }}>{inStockCount} টি প্রস্তুত</div>
-            </div>
-          </div>
-
-          {/* Card 3 */}
-          <div style={{ background: "#131624", border: "1px solid #20253a", borderRadius: 14, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 42, height: 42, borderRadius: 10, background: "rgba(59, 130, 246, 0.15)", border: "1px solid rgba(59, 130, 246, 0.3)", display: "flex", alignItems: "center", justifyContent: "center", color: "#60a5fa" }}>
-              <Tag style={{ width: 20, height: 20 }} />
-            </div>
-            <div>
-              <div style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600 }}>অফার ও ডিসকাউন্ট</div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: "#60a5fa", marginTop: 2 }}>{offerCount} টি স্পেশাল ডিল</div>
-            </div>
-          </div>
-
-          {/* Card 4 */}
-          <div style={{ background: "#131624", border: "1px solid #20253a", borderRadius: 14, padding: "14px 18px", display: "flex", alignItems: "center", gap: 14 }}>
-            <div style={{ width: 42, height: 42, borderRadius: 10, background: "rgba(245, 158, 11, 0.15)", border: "1px solid rgba(245, 158, 11, 0.3)", display: "flex", alignItems: "center", justifyContent: "center", color: "#fbbf24" }}>
-              <Zap style={{ width: 20, height: 20 }} />
-            </div>
-            <div>
-              <div style={{ fontSize: 12, color: "#94a3b8", fontWeight: 600 }}>এআই ক্লোজিং রেডি</div>
-              <div style={{ fontSize: 18, fontWeight: 800, color: "#fbbf24", marginTop: 2 }}>৩,০০০৳ মাস্টার কোর্স</div>
-            </div>
-          </div>
-
+          ); })}
         </div>
 
-        {/* ── SEARCH BAR & SORTING ── */}
-        <div style={{ marginTop: 20, display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-          
-          {/* Search Form */}
-          <form onSubmit={handleSearch} style={{ flex: 1, minWidth: 280, display: "flex", gap: 8 }}>
+        <hr className="divd" />
+
+        <div style={{ display: "flex", gap: 12, alignItems: "center", padding: "14px 0", flexWrap: "wrap" }}>
+          <form onSubmit={handleSearch} style={{ flex: 1, minWidth: 280, display: "flex", gap: 10 }}>
             <div style={{ position: "relative", flex: 1 }}>
-              <Search style={{ position: "absolute", left: 14, top: 14, width: 18, height: 18, color: "#64748b" }} />
-              <input
-                type="text"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-                placeholder="ওষুধের নাম বা সমস্যা খুঁজুন... (যেমন: Soul Mate, Dream Touch, Men's Burner, লিভার, বাত, ব্যথা)"
-                style={{
-                  width: "100%", height: 46, borderRadius: 12,
-                  background: "#141724", border: "1px solid #252b42",
-                  padding: "0 40px 0 42px", color: "#fff", fontSize: 14,
-                  outline: "none", boxSizing: "border-box"
-                }}
-              />
-              {search && (
-                <button
-                  type="button"
-                  onClick={() => { setSearch(""); setTimeout(fetchProducts, 50); }}
-                  style={{ position: "absolute", right: 12, top: 13, background: "transparent", border: "none", color: "#94a3b8", cursor: "pointer" }}
-                >
-                  <X style={{ width: 18, height: 18 }} />
-                </button>
-              )}
+              <Search style={{ position: "absolute", left: 16, top: 16, width: 18, height: 18, color: "#475569", pointerEvents: "none" }} />
+              <input className="sinput" type="text" value={search} onChange={e => setSearch(e.target.value)} placeholder="à¦“à¦·à§à¦§à§‡à¦° à¦¨à¦¾à¦® à¦¬à¦¾ à¦¸à¦®à¦¸à§à¦¯à¦¾ à¦–à§à¦à¦œà§à¦¨... (Soul Mate, Dream Touch, Men's Burner)" />
+              {search && <button type="button" onClick={() => { setSearch(""); setTimeout(fetchProducts, 50); }} style={{ position: "absolute", right: 14, top: 15, background: "transparent", border: "none", color: "#64748b", cursor: "pointer", display: "flex" }}><X style={{ width: 18, height: 18 }} /></button>}
             </div>
-
-            <button
-              type="submit"
-              style={{
-                height: 46, padding: "0 22px", borderRadius: 12,
-                background: "linear-gradient(135deg, #7c3aed, #4f46e5)",
-                color: "#fff", border: "none", fontWeight: 700, fontSize: 14,
-                cursor: "pointer", display: "inline-flex", alignItems: "center", gap: 6,
-                boxShadow: "0 4px 12px rgba(124,58,237,0.25)"
-              }}
-            >
-              <span>খুঁজুন</span>
-            </button>
+            <button type="submit" className="btnp" style={{ height: 50, padding: "0 24px" }}><Search style={{ width: 16, height: 16 }} /><span>à¦–à§à¦à¦œà§à¦¨</span></button>
           </form>
-
-          {/* Sort Dropdown */}
-          <div style={{ display: "flex", alignItems: "center", gap: 8, height: 46, padding: "0 14px", borderRadius: 12, background: "#141724", border: "1px solid #252b42", color: "#cbd5e1", fontSize: 13, fontWeight: 600 }}>
-            <ArrowUpDown style={{ width: 16, height: 16, color: "#a855f7" }} />
-            <span>সাজান:</span>
-            <select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value as any)}
-              style={{ background: "transparent", color: "#fff", fontWeight: 700, border: "none", outline: "none", cursor: "pointer", fontSize: 13 }}
-            >
-              <option value="sl" style={{ background: "#141724" }}>সিরিয়াল (১-৫৭)</option>
-              <option value="price_low" style={{ background: "#141724" }}>মূল্য: কম থেকে বেশি</option>
-              <option value="price_high" style={{ background: "#141724" }}>মূল্য: বেশি থেকে কম</option>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, height: 50, padding: "0 16px", borderRadius: 14, background: "rgba(255,255,255,.03)", border: "1px solid #1e2438", color: "#cbd5e1", fontSize: 13, fontWeight: 600, flexShrink: 0 }}>
+            <ArrowUpDown style={{ width: 15, height: 15, color: "#a855f7" }} />
+            <span style={{ color: "#64748b" }}>à¦¸à¦¾à¦œà¦¾à¦¨:</span>
+            <select className="ssel" value={sortBy} onChange={e => setSortBy(e.target.value as any)}>
+              <option value="sl">à¦¸à¦¿à¦°à¦¿à¦¯à¦¼à¦¾à¦² (à§§-à§«à§­)</option>
+              <option value="price_low">à¦®à§‚à¦²à§à¦¯: à¦•à¦® â†’ à¦¬à§‡à¦¶à¦¿</option>
+              <option value="price_high">à¦®à§‚à¦²à§à¦¯: à¦¬à§‡à¦¶à¦¿ â†’ à¦•à¦®</option>
             </select>
           </div>
-
         </div>
 
-        {/* ── FILTER PILLS ROW ── */}
-        <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 14, overflowX: "auto", paddingBottom: 4 }}>
+        <hr className="divd" />
+
+        <div style={{ display: "flex", alignItems: "center", gap: 8, padding: "12px 0", overflowX: "auto", flexWrap: "nowrap" }}>
           {[
-            { id: "all", label: "সবগুলো ওষুধ", icon: Layers, count: totalCount },
-            { id: "in_stock", label: "ইন স্টক", icon: CheckCircle2, count: inStockCount },
-            { id: "discounted", label: "স্পেশাল অফার", icon: Flame, count: offerCount },
-            { id: "mens", label: "পুরুষ স্বাস্থ্য ও শক্তি", icon: Sparkles },
-            { id: "pain", label: "বাত ও জয়েন্ট ব্যথা", icon: HeartPulse },
-            { id: "gastric", label: "গ্যাস ও লিভার কেয়ার", icon: ShieldCheck },
-          ].map((tab) => {
-            const Icon = tab.icon;
-            const isActive = activeFilter === tab.id;
-            return (
-              <button
-                key={tab.id}
-                onClick={() => setActiveFilter(tab.id as FilterCategory)}
-                style={{
-                  display: "inline-flex", alignItems: "center", gap: 7,
-                  padding: "8px 16px", borderRadius: 10,
-                  fontSize: 12, fontWeight: 700, cursor: "pointer",
-                  whiteSpace: "nowrap", transition: "all 0.2s",
-                  background: isActive ? "#7c3aed" : "#141724",
-                  color: isActive ? "#fff" : "#94a3b8",
-                  border: isActive ? "1px solid #8b5cf6" : "1px solid #252b42",
-                  boxShadow: isActive ? "0 4px 14px rgba(124,58,237,0.3)" : "none"
-                }}
-              >
-                <Icon style={{ width: 14, height: 14 }} />
-                <span>{tab.label}</span>
-                {tab.count !== undefined && (
-                  <span style={{ fontSize: 11, padding: "1px 6px", borderRadius: 10, background: isActive ? "rgba(255,255,255,0.25)" : "#202538", color: isActive ? "#fff" : "#cbd5e1" }}>
-                    {tab.count}
-                  </span>
-                )}
-              </button>
-            );
-          })}
+            { id: "all", lbl: "à¦¸à¦¬à¦—à§à¦²à§‹ à¦“à¦·à§à¦§", icon: Layers, cnt: total },
+            { id: "in_stock", lbl: "à¦‡à¦¨ à¦¸à§à¦Ÿà¦•", icon: CheckCircle2, cnt: inStock },
+            { id: "discounted", lbl: "à¦¸à§à¦ªà§‡à¦¶à¦¾à¦² à¦…à¦«à¦¾à¦°", icon: Flame, cnt: offers },
+            { id: "mens", lbl: "à¦ªà§à¦°à§à¦· à¦¸à§à¦¬à¦¾à¦¸à§à¦¥à§à¦¯ à¦“ à¦¶à¦•à§à¦¤à¦¿", icon: Sparkles },
+            { id: "pain", lbl: "à¦¬à¦¾à¦¤ à¦“ à¦œà¦¯à¦¼à§‡à¦¨à§à¦Ÿ à¦¬à§à¦¯à¦¥à¦¾", icon: HeartPulse },
+            { id: "gastric", lbl: "à¦—à§à¦¯à¦¾à¦¸ à¦“ à¦²à¦¿à¦­à¦¾à¦° à¦•à§‡à¦¯à¦¼à¦¾à¦°", icon: ShieldCheck },
+          ].map(t => { const I = t.icon; const on = activeFilter === t.id; return (
+            <button key={t.id} className={`fpill${on ? " on" : ""}`} onClick={() => setActiveFilter(t.id as FilterCategory)}>
+              <I style={{ width: 14, height: 14 }} /><span>{t.lbl}</span>
+              {(t as any).cnt !== undefined && <span style={{ fontSize: 10, padding: "1px 7px", borderRadius: 20, background: on ? "rgba(255,255,255,.2)" : "rgba(255,255,255,.06)", fontWeight: 800 }}>{(t as any).cnt}</span>}
+            </button>
+          ); })}
         </div>
-
       </div>
 
-      {/* ── PRODUCT CARDS GRID ── */}
-      <div style={{ padding: "28px 32px 60px", maxWidth: 1600, margin: "0 auto" }}>
+      <div style={{ padding: "28px 32px 80px", maxWidth: 1700, margin: "0 auto", position: "relative", zIndex: 1 }}>
         {loading ? (
-          <div style={{ textAlign: "center", padding: "80px 20px" }}>
-            <div style={{ width: 50, height: 50, borderRadius: 16, background: "rgba(124,58,237,0.15)", border: "1px solid rgba(124,58,237,0.3)", display: "flex", alignItems: "center", justifyContent: "center", margin: "0 auto 16px", color: "#a855f7" }}>
-              <RefreshCw style={{ width: 24, height: 24 }} />
-            </div>
-            <p style={{ fontSize: 16, fontWeight: 700, color: "#f8fafc" }}>মেডিসিন ডেটা লোড হচ্ছে...</p>
-            <p style={{ fontSize: 13, color: "#64748b", marginTop: 4 }}>ভিপিএস ক্লাউড স্টোরেজ থেকে রিয়েল-টাইম তথ্য আনা হচ্ছে</p>
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 20 }}>
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} style={{ borderRadius: 20, overflow: "hidden", border: "1px solid #1a1f32" }}>
+                <div className="shim" style={{ height: 190 }} />
+                <div style={{ padding: 16, background: "#131624" }}>
+                  <div className="shim" style={{ height: 16, width: "70%", marginBottom: 10 }} />
+                  <div className="shim" style={{ height: 12, width: "50%", marginBottom: 18 }} />
+                  <div className="shim" style={{ height: 36 }} />
+                </div>
+              </div>
+            ))}
           </div>
-        ) : filteredProducts.length === 0 ? (
-          <div style={{ textAlign: "center", padding: "60px 20px", background: "#111422", borderRadius: 16, border: "1px solid #1e2235", maxWidth: 500, margin: "40px auto" }}>
-            <Search style={{ width: 36, height: 36, color: "#64748b", margin: "0 auto 12px" }} />
-            <h3 style={{ fontSize: 16, fontWeight: 700, color: "#fff" }}>কোনো ওষুধ পাওয়া যায়নি</h3>
-            <p style={{ fontSize: 13, color: "#94a3b8", marginTop: 6 }}>অন্য কোনো নাম লিখে সার্চ করুন অথবা ফিল্টার পরিবর্তন করুন।</p>
-            <button
-              onClick={() => { setSearch(""); setActiveFilter("all"); fetchProducts(); }}
-              style={{ marginTop: 16, padding: "8px 18px", borderRadius: 10, background: "#7c3aed", color: "#fff", border: "none", fontWeight: 700, fontSize: 12, cursor: "pointer" }}
-            >
-              সব ওষুধ দেখুন
-            </button>
+        ) : filtered.length === 0 ? (
+          <div style={{ textAlign: "center", padding: "80px 20px", background: "rgba(19,22,36,.6)", borderRadius: 24, border: "1px dashed #1e2438", maxWidth: 480, margin: "40px auto" }}>
+            <Search style={{ width: 44, height: 44, color: "#334155", margin: "0 auto 16px" }} />
+            <h3 style={{ fontSize: 18, fontWeight: 700, color: "#f1f5f9", marginBottom: 8 }}>à¦•à§‹à¦¨à§‹ à¦“à¦·à§à¦§ à¦ªà¦¾à¦“à¦¯à¦¼à¦¾ à¦¯à¦¾à¦¯à¦¼à¦¨à¦¿</h3>
+            <p style={{ fontSize: 13, color: "#94a3b8", marginBottom: 20 }}>à¦…à¦¨à§à¦¯ à¦•à§‹à¦¨à§‹ à¦¨à¦¾à¦® à¦²à¦¿à¦–à§‡ à¦¸à¦¾à¦°à§à¦š à¦•à¦°à§à¦¨ à¦…à¦¥à¦¬à¦¾ à¦«à¦¿à¦²à§à¦Ÿà¦¾à¦° à¦ªà¦°à¦¿à¦¬à¦°à§à¦¤à¦¨ à¦•à¦°à§à¦¨à¥¤</p>
+            <button className="btnp" onClick={() => { setSearch(""); setActiveFilter("all"); fetchProducts(); }}>à¦¸à¦¬ à¦“à¦·à§à¦§ à¦¦à§‡à¦–à§à¦¨</button>
           </div>
         ) : (
-          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(280px, 1fr))", gap: 20 }}>
-            {filteredProducts.map((product) => {
-              const currentPrice = product.discount_price || product.custom_price;
-              const isOutOfStock = product.stock_status === "out_of_stock";
-              const isLimited = product.stock_status === "limited";
-
+          <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill,minmax(280px,1fr))", gap: 22 }}>
+            {filtered.map(p => {
+              const isOut = p.stock_status === "out_of_stock"; const isLim = p.stock_status === "limited";
+              const sCls = isOut ? "sr" : isLim ? "sa" : "sg"; const sLbl = isOut ? "à¦¸à§à¦Ÿà¦• à¦¶à§‡à¦·" : isLim ? "à¦¸à§€à¦®à¦¿à¦¤ à¦¸à§à¦Ÿà¦•" : "à¦‡à¦¨ à¦¸à§à¦Ÿà¦•";
               return (
-                <div
-                  key={product.sl}
-                  onClick={() => setSelected(product)}
-                  style={{
-                    background: "#131624",
-                    borderRadius: 16,
-                    border: "1px solid #20253a",
-                    overflow: "hidden",
-                    display: "flex",
-                    flexDirection: "column",
-                    justifyContent: "space-between",
-                    cursor: "pointer",
-                    transition: "transform 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease"
-                  }}
-                  onMouseEnter={(e) => {
-                    const el = e.currentTarget;
-                    el.style.borderColor = "#7c3aed";
-                    el.style.transform = "translateY(-4px)";
-                    el.style.boxShadow = "0 14px 30px rgba(124, 58, 237, 0.2)";
-                  }}
-                  onMouseLeave={(e) => {
-                    const el = e.currentTarget;
-                    el.style.borderColor = "#20253a";
-                    el.style.transform = "translateY(0)";
-                    el.style.boxShadow = "none";
-                  }}
-                >
-                  {/* Product Media */}
-                  <div style={{ height: 180, width: "100%", position: "relative", background: "#0a0c14", overflow: "hidden" }}>
-                    {product.imageUrl && !imageErrors.has(product.imageFile) ? (
-                      <img
-                        src={product.imageUrl}
-                        alt={product.name}
-                        style={{ width: "100%", height: "100%", objectFit: "cover" }}
-                        onError={() => {
-                          setImageErrors(prev => new Set(prev).add(product.imageFile));
-                        }}
-                      />
+                <div key={p.sl} className="pcard sup" onClick={() => setSelected(p)}>
+                  <div className="cmedia">
+                    {p.imageUrl && !imageErrors.has(p.imageFile) ? (
+                      <img src={p.imageUrl} alt={p.name} onError={() => setImageErrors(prev => new Set(prev).add(p.imageFile))} />
                     ) : (
-                      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", color: "#64748b" }}>
-                        <Stethoscope style={{ width: 44, height: 44, opacity: 0.5 }} />
-                        <span style={{ fontSize: 11, marginTop: 6, color: "#64748b" }}>ফর্মুলা #{product.sl}</span>
+                      <div style={{ width: "100%", height: "100%", display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 8 }}>
+                        <Stethoscope style={{ width: 48, height: 48, color: "#1e2438", opacity: .4 }} />
+                        <span style={{ fontSize: 11, color: "#2d3660", fontWeight: 700 }}>SL #{p.sl}</span>
                       </div>
                     )}
-
-                    {/* Top SL Badge */}
-                    <div style={{ position: "absolute", top: 10, left: 10, background: "rgba(124, 58, 237, 0.95)", color: "#fff", fontSize: 11, fontWeight: 800, padding: "3px 9px", borderRadius: 7, zIndex: 2, boxShadow: "0 2px 8px rgba(0,0,0,0.5)" }}>
-                      SL #{product.sl}
+                    <div className="cmov" />
+                    <div style={{ position: "absolute", top: 10, left: 10, display: "flex", gap: 6 }}>
+                      <span style={{ background: "rgba(124,58,237,.9)", color: "#fff", fontSize: 10, fontWeight: 800, padding: "3px 8px", borderRadius: 6, backdropFilter: "blur(8px)" }}>SL #{p.sl}</span>
+                      {p.discount_price && <span style={{ background: "rgba(16,185,129,.9)", color: "#fff", fontSize: 10, fontWeight: 800, padding: "3px 8px", borderRadius: 6, backdropFilter: "blur(8px)" }}>à¦…à¦«à¦¾à¦°</span>}
                     </div>
-
-                    {/* Top Stock Badge */}
-                    <div style={{
-                      position: "absolute", top: 10, right: 10,
-                      background: isOutOfStock ? "rgba(239, 68, 68, 0.9)" : isLimited ? "rgba(245, 158, 11, 0.9)" : "rgba(16, 185, 129, 0.9)",
-                      color: "#fff", fontSize: 11, fontWeight: 700, padding: "3px 9px", borderRadius: 7, zIndex: 2,
-                      display: "flex", alignItems: "center", gap: 5, boxShadow: "0 2px 8px rgba(0,0,0,0.5)"
-                    }}>
-                      <span style={{ width: 6, height: 6, borderRadius: "50%", background: "#fff", display: "inline-block" }} />
-                      <span>{isOutOfStock ? "স্টক শেষ" : isLimited ? "সীমিত স্টক" : "ইন স্টক"}</span>
+                    <div style={{ position: "absolute", top: 10, right: 10 }}>
+                      <span className={sCls} style={{ fontSize: 10, fontWeight: 700, padding: "3px 10px", borderRadius: 20, display: "inline-flex", alignItems: "center", gap: 5, backdropFilter: "blur(8px)" }}>
+                        <span style={{ width: 5, height: 5, borderRadius: "50%", background: "currentColor", display: "inline-block" }} />{sLbl}
+                      </span>
+                    </div>
+                    <div style={{ position: "absolute", bottom: 0, left: 0, right: 0, padding: "12px 14px 8px" }}>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: "#fff", lineHeight: 1.3, textShadow: "0 2px 8px rgba(0,0,0,.8)" }}>{p.name}</div>
                     </div>
                   </div>
-
-                  {/* Product Info Body */}
-                  <div style={{ padding: "16px", flex: 1, display: "flex", flexDirection: "column", justifyContent: "space-between", gap: 12 }}>
-                    <div>
-                      <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: "#fff", lineHeight: 1.35 }}>
-                        {product.name}
-                      </h3>
-                      <p style={{ margin: "4px 0 0", fontSize: 12, color: "#94a3b8" }}>
-                        {product.generic || product.manufacturer || "গ্রীন হেলথ ল্যাবরেটরিজ"}
-                      </p>
-
-                      {/* Pricing Tag Display */}
-                      <div style={{ marginTop: 10, display: "flex", alignItems: "baseline", gap: 8 }}>
-                        {product.discount_price ? (
-                          <>
-                            <span style={{ fontSize: 20, fontWeight: 800, color: "#10b981" }}>
-                              ৳{product.discount_price}
-                            </span>
-                            {product.custom_price && (
-                              <span style={{ fontSize: 13, textDecoration: "line-through", color: "#64748b" }}>
-                                ৳{product.custom_price}
-                              </span>
-                            )}
-                            <span style={{ fontSize: 10, fontWeight: 700, color: "#10b981", background: "rgba(16,185,129,0.12)", padding: "2px 7px", borderRadius: 6, marginLeft: "auto" }}>
-                              অফার
-                            </span>
-                          </>
-                        ) : product.custom_price ? (
-                          <span style={{ fontSize: 20, fontWeight: 800, color: "#10b981" }}>
-                            ৳{product.custom_price}
-                          </span>
-                        ) : (
-                          <span style={{ fontSize: 12, color: "#a855f7", fontWeight: 600, display: "flex", alignItems: "center", gap: 4 }}>
-                            <Info style={{ width: 14, height: 14 }} /> মূল্য নির্ধারণ করুন
-                          </span>
-                        )}
-                      </div>
-
-                      {/* Custom Offer Note Tag */}
-                      {product.custom_note && (
-                        <div style={{ marginTop: 8, padding: "5px 9px", borderRadius: 8, background: "rgba(124, 58, 237, 0.1)", border: "1px solid rgba(124, 58, 237, 0.25)", color: "#c084fc", fontSize: 11, display: "flex", alignItems: "center", gap: 6 }}>
-                          <Flame style={{ width: 13, height: 13, color: "#c084fc", flexShrink: 0 }} />
-                          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{product.custom_note}</span>
-                        </div>
+                  <div style={{ padding: "14px 16px 16px", display: "flex", flexDirection: "column", gap: 10 }}>
+                    <p style={{ fontSize: 11, color: "#64748b", lineHeight: 1.5, margin: 0 }}>{(p.generic || p.manufacturer || "à¦—à§à¦°à§€à¦¨ à¦¹à§‡à¦²à¦¥ à¦²à§à¦¯à¦¾à¦¬à¦°à§‡à¦Ÿà¦°à¦¿à¦œ").slice(0, 80)}</p>
+                    <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                      {p.discount_price ? (
+                        <><span className="pneon" style={{ fontSize: 22, fontWeight: 900 }}>à§³{p.discount_price}</span>
+                          {p.custom_price && <span style={{ fontSize: 13, textDecoration: "line-through", color: "#475569" }}>à§³{p.custom_price}</span>}</>
+                      ) : p.custom_price ? (
+                        <span className="pneon" style={{ fontSize: 22, fontWeight: 900 }}>à§³{p.custom_price}</span>
+                      ) : (
+                        <span style={{ fontSize: 12, color: "#7c3aed", fontWeight: 600, display: "flex", alignItems: "center", gap: 5 }}><Info style={{ width: 13, height: 13 }} />à¦®à§‚à¦²à§à¦¯ à¦¨à¦¿à¦°à§à¦§à¦¾à¦°à¦£ à¦•à¦°à§à¦¨</span>
                       )}
                     </div>
-
-                    {/* Action Button */}
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setSelected(product); }}
-                      style={{
-                        width: "100%", padding: "10px", borderRadius: 10,
-                        border: "none", background: "linear-gradient(135deg, #7c3aed, #4f46e5)",
-                        color: "#fff", fontSize: 13, fontWeight: 700, cursor: "pointer",
-                        display: "flex", alignItems: "center", justifyContent: "center", gap: 6,
-                        boxShadow: "0 4px 12px rgba(124,58,237,0.2)"
-                      }}
-                    >
-                      <Edit3 style={{ width: 14, height: 14 }} />
-                      <span>লাইভ এডিট ও তথ্য</span>
-                    </button>
+                    {p.custom_note && <div style={{ padding: "6px 10px", borderRadius: 8, background: "rgba(124,58,237,.08)", border: "1px solid rgba(124,58,237,.2)", color: "#c084fc", fontSize: 11, display: "flex", alignItems: "center", gap: 6 }}><Flame style={{ width: 12, height: 12, flexShrink: 0 }} /><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{p.custom_note}</span></div>}
+                    <button className="cbtn" onClick={e => { e.stopPropagation(); setSelected(p); }}><Edit3 style={{ width: 14, height: 14 }} /><span>à¦à¦¡à¦¿à¦Ÿ à¦“ à¦²à¦¾à¦‡à¦­ à¦•à¦¨à§à¦Ÿà§à¦°à§‹à¦²</span></button>
                   </div>
                 </div>
               );
@@ -587,313 +377,142 @@ export default function ProductsPage() {
         )}
       </div>
 
-      {/* ── MODAL CONSOLE ── */}
       {selected && (
-        <div
-          onClick={closeModal}
-          style={{
-            position: "fixed", inset: 0, background: "rgba(0,0,0,0.85)",
-            backdropFilter: "blur(8px)", display: "flex", alignItems: "center", justifyContent: "center",
-            zIndex: 1000, padding: 16
-          }}
-        >
-          <div
-            onClick={(e) => e.stopPropagation()}
-            style={{
-              width: "100%", maxWidth: 840, maxHeight: "90vh",
-              background: "#121522", borderRadius: 20, border: "1px solid #282d45",
-              boxShadow: "0 25px 60px rgba(0,0,0,0.8)", display: "flex", flexDirection: "column",
-              overflow: "hidden"
-            }}
-          >
-            {/* Modal Header */}
-            <div style={{ padding: "18px 24px", borderBottom: "1px solid #20253a", background: "#151828", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14 }}>
-              <div style={{ display: "flex", alignItems: "center", gap: 14 }}>
+        <div className="mbk" onClick={closeModal}>
+          <div className="msh fsc" onClick={e => e.stopPropagation()}>
+            <div style={{ padding: "20px 26px", borderBottom: "1px solid rgba(255,255,255,.06)", display: "flex", alignItems: "center", justifyContent: "space-between", gap: 14, flexShrink: 0 }}>
+              <div style={{ display: "flex", alignItems: "center", gap: 14, minWidth: 0 }}>
                 {selected.imageUrl && !imageErrors.has(selected.imageFile) ? (
-                  <img
-                    src={selected.imageUrl}
-                    alt={selected.name}
-                    style={{ width: 48, height: 48, borderRadius: 10, objectFit: "cover", border: "1px solid #2b324d" }}
-                  />
+                  <img src={selected.imageUrl} alt={selected.name} style={{ width: 52, height: 52, borderRadius: 12, objectFit: "cover", border: "2px solid rgba(124,58,237,.4)", flexShrink: 0 }} />
                 ) : (
-                  <div style={{ width: 48, height: 48, borderRadius: 10, background: "#1c2035", display: "flex", alignItems: "center", justifyContent: "center", color: "#a855f7" }}>
-                    <Stethoscope style={{ width: 24, height: 24 }} />
+                  <div style={{ width: 52, height: 52, borderRadius: 12, background: "rgba(124,58,237,.1)", border: "1px solid rgba(124,58,237,.3)", display: "flex", alignItems: "center", justifyContent: "center", flexShrink: 0 }}>
+                    <Stethoscope style={{ width: 24, height: 24, color: "#a855f7" }} />
                   </div>
                 )}
-                <div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                    <h2 style={{ margin: 0, fontSize: 18, fontWeight: 800, color: "#fff" }}>{selected.name}</h2>
-                    <span style={{ fontSize: 12, fontWeight: 700, padding: "2px 7px", borderRadius: 6, background: "#7c3aed", color: "#fff" }}>
-                      #{selected.sl}
-                    </span>
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+                    <h2 style={{ fontSize: 17, fontWeight: 800, color: "#f1f5f9", margin: 0 }}>{selected.name}</h2>
+                    <span style={{ fontSize: 10, fontWeight: 800, padding: "2px 8px", borderRadius: 6, background: "rgba(124,58,237,.25)", color: "#c084fc", border: "1px solid rgba(124,58,237,.3)" }}>#{selected.sl}</span>
                   </div>
-                  <p style={{ margin: "2px 0 0", fontSize: 12, color: "#94a3b8" }}>
-                    বক্সে যা লিখবেন তা ২ সেকেন্ডের মধ্যে স্বয়ংক্রিয়ভাবে ভিপিএসে সংরক্ষিত হবে
-                  </p>
+                  <p style={{ margin: "3px 0 0", fontSize: 11, color: "#64748b" }}>à¦Ÿà¦¾à¦‡à¦ª à¦•à¦°à¦¾à¦° à§¨ à¦¸à§‡à¦•à§‡à¦¨à§à¦¡à§‡à¦° à¦®à¦§à§à¦¯à§‡ à¦­à¦¿à¦ªà¦¿à¦à¦¸à§‡ à¦¸à§à¦¬à¦¯à¦¼à¦‚à¦•à§à¦°à¦¿à¦¯à¦¼ à¦¸à§‡à¦­ à¦¹à¦¬à§‡</p>
                 </div>
               </div>
-
-              {/* Status Pill & Close */}
-              <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                {/* Auto-Save Live Badge */}
-                <div style={{
-                  padding: "6px 12px", borderRadius: 10, fontSize: 12, fontWeight: 700,
-                  display: "flex", alignItems: "center", gap: 6,
-                  background:
-                    saveStatus === "typing" ? "rgba(245, 158, 11, 0.15)" :
-                    saveStatus === "saving" ? "rgba(59, 130, 246, 0.15)" :
-                    saveStatus === "saved" ? "rgba(16, 185, 129, 0.15)" :
-                    saveStatus === "error" ? "rgba(239, 68, 68, 0.15)" : "rgba(34, 197, 94, 0.1)",
-                  color:
-                    saveStatus === "typing" ? "#fbbf24" :
-                    saveStatus === "saving" ? "#60a5fa" :
-                    saveStatus === "saved" ? "#10b981" :
-                    saveStatus === "error" ? "#f87171" : "#10b981",
-                  border: `1px solid ${
-                    saveStatus === "typing" ? "#f59e0b" :
-                    saveStatus === "saving" ? "#3b82f6" :
-                    saveStatus === "saved" ? "#10b981" :
-                    saveStatus === "error" ? "#ef4444" : "rgba(34, 197, 94, 0.3)"
-                  }`
-                }}>
-                  {saveStatus === "typing" && <span>⏳ টাইপ করছেন...</span>}
-                  {saveStatus === "saving" && <span>🔄 সেভ হচ্ছে...</span>}
-                  {saveStatus === "saved" && <span>✓ সংরক্ষিত ({lastSavedTime || "এখন"})</span>}
-                  {saveStatus === "idle" && <span>✓ ভিপিএসে সক্রিয়</span>}
-                  {saveStatus === "error" && <span>✕ সেভ এরর</span>}
-                </div>
-
-                <button
-                  onClick={closeModal}
-                  style={{ width: 34, height: 34, borderRadius: 10, background: "#1e2235", border: "1px solid #282d45", color: "#94a3b8", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center" }}
-                >
-                  <X style={{ width: 18, height: 18 }} />
-                </button>
+              <div style={{ display: "flex", alignItems: "center", gap: 10, flexShrink: 0 }}>
+                <div className={svCls} style={{ padding: "6px 14px", borderRadius: 20, fontSize: 11, fontWeight: 700 }}>{svLbl}</div>
+                <button onClick={closeModal}
+                  style={{ width: 36, height: 36, borderRadius: 10, background: "rgba(255,255,255,.05)", border: "1px solid rgba(255,255,255,.08)", color: "#94a3b8", cursor: "pointer", display: "flex", alignItems: "center", justifyContent: "center", transition: "all .2s" }}
+                  onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = "rgba(239,68,68,.15)"; (e.currentTarget as HTMLElement).style.color = "#f87171"; }}
+                  onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = "rgba(255,255,255,.05)"; (e.currentTarget as HTMLElement).style.color = "#94a3b8"; }}
+                ><X style={{ width: 18, height: 18 }} /></button>
               </div>
             </div>
 
-            {/* Modal Tabs Bar */}
-            <div style={{ display: "flex", gap: 8, padding: "10px 24px", background: "#0e101a", borderBottom: "1px solid #1e2235", overflowX: "auto" }}>
+            <div style={{ display: "flex", gap: 4, padding: "10px 20px", background: "rgba(0,0,0,.3)", borderBottom: "1px solid rgba(255,255,255,.04)", overflowX: "auto", flexShrink: 0 }}>
               {[
-                { id: "pricing", label: "মূল্য ও স্টক পলিসি", icon: DollarSign },
-                { id: "pitch", label: "হাকিমি সেলস পিচ ও অফার", icon: Flame },
-                { id: "clinical", label: "সেবনবিধি ও সমাধান", icon: HeartPulse },
-                { id: "specialists", label: "ডাক্তারদের উক্তি ও আপত্তি খণ্ডন", icon: Stethoscope },
-              ].map((tab) => {
-                const Icon = tab.icon;
-                const isActive = modalTab === tab.id;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setModalTab(tab.id as ModalTab)}
-                    style={{
-                      display: "inline-flex", alignItems: "center", gap: 7,
-                      padding: "8px 14px", borderRadius: 8, border: "none",
-                      fontSize: 12, fontWeight: 700, cursor: "pointer",
-                      whiteSpace: "nowrap",
-                      background: isActive ? "rgba(124, 58, 237, 0.2)" : "transparent",
-                      color: isActive ? "#c084fc" : "#94a3b8",
-                      borderBottom: isActive ? "2px solid #a855f7" : "2px solid transparent"
-                    }}
-                  >
-                    <Icon style={{ width: 14, height: 14 }} />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
+                { id: "pricing", lbl: "à¦®à§‚à¦²à§à¦¯ à¦“ à¦¸à§à¦Ÿà¦•", icon: DollarSign },
+                { id: "pitch", lbl: "à¦¹à¦¾à¦•à¦¿à¦®à¦¿ à¦¸à§‡à¦²à¦¸ à¦ªà¦¿à¦š", icon: Flame },
+                { id: "clinical", lbl: "à¦¸à§‡à¦¬à¦¨à¦¬à¦¿à¦§à¦¿ à¦“ à¦¸à¦®à¦¾à¦§à¦¾à¦¨", icon: HeartPulse },
+                { id: "specialists", lbl: "à¦¡à¦¾à¦•à§à¦¤à¦¾à¦° à¦“ à¦†à¦ªà¦¤à§à¦¤à¦¿ à¦–à¦£à§à¦¡à¦¨", icon: Stethoscope },
+              ].map(t => { const I = t.icon; const on = modalTab === t.id; return (
+                <button key={t.id} className={`mtab${on ? " on" : ""}`} onClick={() => setModalTab(t.id as ModalTab)}>
+                  <I style={{ width: 13, height: 13 }} /><span>{t.lbl}</span>
+                </button>
+              ); })}
             </div>
 
-            {/* Modal Body */}
-            <div style={{ padding: "24px", overflowY: "auto", display: "flex", flexDirection: "column", gap: 20 }}>
-              
-              {/* TAB 1: Pricing & Stock */}
+            <div style={{ padding: "22px 26px", overflowY: "auto", flex: 1 }}>
               {modalTab === "pricing" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))", gap: 16, background: "#151828", padding: 18, borderRadius: 14, border: "1px solid #23283e" }}>
-                    
-                    {/* Regular Price */}
+                <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(200px,1fr))", gap: 16 }}>
                     <div>
-                      <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#cbd5e1", marginBottom: 6 }}>
-                        💰 রেগুলার মূল্য (টাকা)
-                      </label>
-                      <input
-                        type="text"
-                        value={selected.custom_price || ""}
-                        onChange={(e) => handleFieldChange("custom_price", e.target.value)}
-                        placeholder="যেমন: ৩,৫০০"
-                        style={{ width: "100%", height: 42, padding: "0 12px", borderRadius: 8, background: "#0c0e17", border: "1px solid #282d45", color: "#fff", fontSize: 14, outline: "none", boxSizing: "border-box" }}
-                      />
-                      <span style={{ fontSize: 11, color: "#64748b", marginTop: 4, display: "block" }}>কাস্টমারকে পূর্বে প্রদর্শিত কাটা মূল্য</span>
+                      <label className="lp" style={{ display: "block", marginBottom: 8 }}>ðŸ’° à¦°à§‡à¦—à§à¦²à¦¾à¦° à¦®à§‚à¦²à§à¦¯</label>
+                      <input className="finput" type="text" value={selected.custom_price || ""} onChange={e => handleFieldChange("custom_price", e.target.value)} placeholder="à¦¯à§‡à¦®à¦¨: à§©,à§«à§¦à§¦" />
+                      <span style={{ fontSize: 11, color: "#475569", marginTop: 5, display: "block" }}>à¦•à¦¾à¦Ÿà¦¾ à¦®à§‚à¦²à§à¦¯ à¦¹à¦¿à¦¸à§‡à¦¬à§‡ à¦¦à§‡à¦–à¦¾à¦¬à§‡</span>
                     </div>
-
-                    {/* Offer Price */}
                     <div>
-                      <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#10b981", marginBottom: 6 }}>
-                        🏷️ অফার/ডিসকাউন্ট মূল্য (টাকা)
-                      </label>
-                      <input
-                        type="text"
-                        value={selected.discount_price || ""}
-                        onChange={(e) => handleFieldChange("discount_price", e.target.value)}
-                        placeholder="যেমন: ৩,০০০"
-                        style={{ width: "100%", height: 42, padding: "0 12px", borderRadius: 8, background: "#0c0e17", border: "1px solid #10b981", color: "#10b981", fontWeight: 800, fontSize: 14, outline: "none", boxSizing: "border-box" }}
-                      />
-                      <span style={{ fontSize: 11, color: "#10b981", marginTop: 4, display: "block" }}>এআই কাস্টমারকে এই অফার মূল্যে ক্লোজ করবে</span>
+                      <label className="lg" style={{ display: "block", marginBottom: 8 }}>ðŸ·ï¸ à¦…à¦«à¦¾à¦° à¦®à§‚à¦²à§à¦¯</label>
+                      <input className="finput" type="text" value={selected.discount_price || ""} onChange={e => handleFieldChange("discount_price", e.target.value)} placeholder="à¦¯à§‡à¦®à¦¨: à§©,à§¦à§¦à§¦" style={{ borderColor: "rgba(16,185,129,.3)", color: "#34d399" }} />
+                      <span style={{ fontSize: 11, color: "#10b981", marginTop: 5, display: "block" }}>à¦à¦†à¦‡ à¦à¦‡ à¦®à§‚à¦²à§à¦¯à§‡ à¦•à§à¦²à§‹à¦œ à¦•à¦°à¦¬à§‡</span>
                     </div>
-
-                    {/* Stock Status */}
                     <div>
-                      <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#cbd5e1", marginBottom: 6 }}>
-                        📦 স্টক স্ট্যাটাস
-                      </label>
-                      <select
-                        value={selected.stock_status || "in_stock"}
-                        onChange={(e) => handleFieldChange("stock_status", e.target.value)}
-                        style={{ width: "100%", height: 42, padding: "0 12px", borderRadius: 8, background: "#0c0e17", border: "1px solid #282d45", color: "#fff", fontSize: 14, outline: "none", boxSizing: "border-box", cursor: "pointer" }}
-                      >
-                        <option value="in_stock" style={{ background: "#141724", color: "#10b981" }}>পর্যাপ্ত স্টক আছে (In Stock)</option>
-                        <option value="limited" style={{ background: "#141724", color: "#fbbf24" }}>সীমিত স্টক (Limited Stock)</option>
-                        <option value="out_of_stock" style={{ background: "#141724", color: "#f87171" }}>স্টক শেষ (Out of Stock)</option>
+                      <label className="lb" style={{ display: "block", marginBottom: 8 }}>ðŸ“¦ à¦¸à§à¦Ÿà¦• à¦¸à§à¦Ÿà§à¦¯à¦¾à¦Ÿà¦¾à¦¸</label>
+                      <select className="fsel" value={selected.stock_status || "in_stock"} onChange={e => handleFieldChange("stock_status", e.target.value)}>
+                        <option value="in_stock">âœ… à¦ªà¦°à§à¦¯à¦¾à¦ªà§à¦¤ à¦¸à§à¦Ÿà¦• à¦†à¦›à§‡</option>
+                        <option value="limited">âš ï¸ à¦¸à§€à¦®à¦¿à¦¤ à¦¸à§à¦Ÿà¦•</option>
+                        <option value="out_of_stock">âŒ à¦¸à§à¦Ÿà¦• à¦¶à§‡à¦·</option>
                       </select>
-                      <span style={{ fontSize: 11, color: "#64748b", marginTop: 4, display: "block" }}>স্টক শেষ হলে এআই সরাসরি কাস্টমারকে জানাবে</span>
+                      <span style={{ fontSize: 11, color: "#475569", marginTop: 5, display: "block" }}>à¦à¦†à¦‡ à¦¸à§à¦¬à¦¯à¦¼à¦‚à¦•à§à¦°à¦¿à¦¯à¦¼à¦­à¦¾à¦¬à§‡ à¦œà¦¾à¦¨à¦¾à¦¬à§‡</span>
                     </div>
-
                   </div>
-
-                  {/* Strategy Box */}
-                  <div style={{ padding: "14px 18px", borderRadius: 12, background: "rgba(124, 58, 237, 0.1)", border: "1px solid rgba(124, 58, 237, 0.25)", display: "flex", gap: 12 }}>
-                    <Sparkles style={{ width: 20, height: 20, color: "#a855f7", flexShrink: 0, marginTop: 2 }} />
-                    <div style={{ fontSize: 12, color: "#d8b4fe", lineHeight: 1.6 }}>
-                      <strong style={{ color: "#fff", display: "block", marginBottom: 2 }}>হাই-টিকেট ক্লোজিং স্ট্র্যাটেজি:</strong>
-                      মূল সমস্যাগুলোর স্থায়ী সমাধানের জন্য আমাদের ৩,০০০ টাকার প্রিমিয়াম প্যাকেজটিকে মূল ফোকাস রাখুন। ডিসকাউন্ট প্রাইসে ৩,০০০ টাকা দিলে জেমিনি ফ্ল্যাশ কাস্টমারকে সর্বোচ্চ কনভিন্সিং উপায়ে অর্ডার ক্লোজ করতে পারে।
+                  <div className="ibox" style={{ display: "flex", gap: 12, alignItems: "flex-start" }}>
+                    <Sparkles style={{ width: 18, height: 18, color: "#a855f7", flexShrink: 0, marginTop: 2 }} />
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#fff", marginBottom: 4 }}>ðŸŽ¯ à¦¹à¦¾à¦‡-à¦Ÿà¦¿à¦•à§‡à¦Ÿ à¦•à§à¦²à§‹à¦œà¦¿à¦‚ à¦•à§Œà¦¶à¦²</div>
+                      <div style={{ fontSize: 12, color: "#c4b5fd", lineHeight: 1.7 }}>à§©,à§¦à§¦à§¦ à¦Ÿà¦¾à¦•à¦¾à¦° à¦ªà§à¦°à¦¿à¦®à¦¿à¦¯à¦¼à¦¾à¦® à¦ªà§à¦¯à¦¾à¦•à§‡à¦œà¦•à§‡ à¦«à§‹à¦•à¦¾à¦¸ à¦°à¦¾à¦–à§à¦¨à¥¤ à¦à¦†à¦‡ à¦•à¦¾à¦¸à§à¦Ÿà¦®à¦¾à¦°à§‡à¦° à¦¸à¦®à¦¸à§à¦¯à¦¾ à¦¶à§à¦¨à§‡ à¦¸à§à¦¥à¦¾à¦¯à¦¼à§€ à¦¸à¦®à¦¾à¦§à¦¾à¦¨à§‡à¦° à¦‰à¦ªà¦° à¦œà§‹à¦° à¦¦à¦¿à¦¯à¦¼à§‡ à¦•à§à¦²à§‹à¦œ à¦•à¦°à¦¬à§‡à¥¤</div>
                     </div>
                   </div>
                 </div>
               )}
-
-              {/* TAB 2: Pitch & Offers */}
               {modalTab === "pitch" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
                   <div>
-                    <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#c084fc", marginBottom: 6 }}>
-                      🎁 বিশেষ অফার / শর্তাবলী (এআই কাস্টমারকে এই অফার বলবে)
-                    </label>
-                    <input
-                      type="text"
-                      value={selected.custom_note || ""}
-                      onChange={(e) => handleFieldChange("custom_note", e.target.value)}
-                      placeholder="যেমন: ২ ফাইল নিলে ফ্রি হোম ডেলিভারি! ফ্রেশ ল্যাব ব্যাচ বুকিংয়ে বিশেষ সুবিধা।"
-                      style={{ width: "100%", height: 44, padding: "0 14px", borderRadius: 10, background: "#151828", border: "1px solid #282d45", color: "#fff", fontSize: 13, outline: "none", boxSizing: "border-box" }}
-                    />
+                    <label className="lp" style={{ display: "block", marginBottom: 8 }}>ðŸŽ à¦¬à¦¿à¦¶à§‡à¦· à¦…à¦«à¦¾à¦° / à¦¶à¦°à§à¦¤à¦¾à¦¬à¦²à§€</label>
+                    <input className="finput" type="text" value={selected.custom_note || ""} onChange={e => handleFieldChange("custom_note", e.target.value)} placeholder="à¦¯à§‡à¦®à¦¨: à§¨ à¦«à¦¾à¦‡à¦² à¦¨à¦¿à¦²à§‡ à¦«à§à¦°à¦¿ à¦¹à§‹à¦® à¦¡à§‡à¦²à¦¿à¦­à¦¾à¦°à¦¿!" />
                   </div>
-
                   <div>
-                    <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#60a5fa", marginBottom: 6 }}>
-                      🦁 সিনিয়র হাকিমের আলটিমেট ফর্মুলেশন পিচ ও শ্রেষ্ঠত্ব
-                    </label>
-                    <textarea
-                      rows={4}
-                      value={selected.custom_pitch || ""}
-                      onChange={(e) => handleFieldChange("custom_pitch", e.target.value)}
-                      placeholder="যেমন: খাঁটি হিমালয়ান শিলাজিৎ, অশ্বগন্ধা ও প্রাকৃতিক ভেষজ উপাদানে প্রস্তুত যা পেনাইল নার্ভ সচল করে এবং স্থায়ী শক্তি ফিরিয়ে আনে।"
-                      style={{ width: "100%", padding: "12px 14px", borderRadius: 10, background: "#151828", border: "1px solid #282d45", color: "#fff", fontSize: 13, outline: "none", boxSizing: "border-box", resize: "vertical" }}
-                    />
+                    <label className="lb" style={{ display: "block", marginBottom: 8 }}>ðŸ¦ à¦¹à¦¾à¦•à¦¿à¦®à§‡à¦° à¦†à¦²à¦Ÿà¦¿à¦®à§‡à¦Ÿ à¦ªà¦¿à¦š</label>
+                    <textarea className="ftxt" rows={5} value={selected.custom_pitch || ""} onChange={e => handleFieldChange("custom_pitch", e.target.value)} placeholder="à¦–à¦¾à¦à¦Ÿà¦¿ à¦¹à¦¿à¦®à¦¾à¦²à¦¯à¦¼à¦¾à¦¨ à¦¶à¦¿à¦²à¦¾à¦œà¦¿à§Ž, à¦…à¦¶à§à¦¬à¦—à¦¨à§à¦§à¦¾ à¦“ à¦ªà§à¦°à¦¾à¦•à§ƒà¦¤à¦¿à¦• à¦­à§‡à¦·à¦œà§‡ à¦ªà§à¦°à¦¸à§à¦¤à§à¦¤..." />
                   </div>
-
                   <div>
-                    <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#94a3b8", marginBottom: 6 }}>
-                      📝 অতিরিক্ত তথ্য ও বিশেষ নির্দেশনা (Custom Details)
-                    </label>
-                    <textarea
-                      rows={2}
-                      value={selected.custom_details || ""}
-                      onChange={(e) => handleFieldChange("custom_details", e.target.value)}
-                      placeholder="ডেলিভারি বা প্যাকেজিং সংক্রান্ত কোনো বিশেষ নোট..."
-                      style={{ width: "100%", padding: "10px 14px", borderRadius: 10, background: "#151828", border: "1px solid #282d45", color: "#fff", fontSize: 13, outline: "none", boxSizing: "border-box", resize: "vertical" }}
-                    />
+                    <label style={{ display: "block", fontSize: 11, fontWeight: 800, letterSpacing: ".08em", textTransform: "uppercase", color: "#94a3b8", marginBottom: 8 }}>ðŸ“ à¦…à¦¤à¦¿à¦°à¦¿à¦•à§à¦¤ à¦¨à¦¿à¦°à§à¦¦à§‡à¦¶à¦¨à¦¾</label>
+                    <textarea className="ftxt" rows={3} value={selected.custom_details || ""} onChange={e => handleFieldChange("custom_details", e.target.value)} placeholder="à¦¡à§‡à¦²à¦¿à¦­à¦¾à¦°à¦¿ à¦¬à¦¾ à¦ªà§à¦¯à¦¾à¦•à§‡à¦œà¦¿à¦‚ à¦¸à¦‚à¦•à§à¦°à¦¾à¦¨à§à¦¤ à¦¬à¦¿à¦¶à§‡à¦· à¦¨à§‹à¦Ÿ..." />
                   </div>
                 </div>
               )}
-
-              {/* TAB 3: Clinical & Solutions */}
               {modalTab === "clinical" && (
                 <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
-                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(320px, 1fr))", gap: 16 }}>
+                  <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 16 }}>
                     <div>
-                      <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#38bdf8", marginBottom: 6 }}>
-                        💊 সেবনবিধি ও ডোজ ফর্ম (Dosage / How to Take)
-                      </label>
-                      <textarea
-                        rows={4}
-                        value={selected.dosageForm || ""}
-                        onChange={(e) => handleFieldChange("dosageForm", e.target.value)}
-                        placeholder="যেমন: প্রতিদিন রাতে খাবারের পর কুসুম গরম দুধ বা পানিসহ ১টি করে ক্যাপসুল সেব্য।"
-                        style={{ width: "100%", padding: "12px 14px", borderRadius: 10, background: "#151828", border: "1px solid #282d45", color: "#fff", fontSize: 13, outline: "none", boxSizing: "border-box", resize: "vertical" }}
-                      />
+                      <label className="lb" style={{ display: "block", marginBottom: 8 }}>ðŸ’Š à¦¸à§‡à¦¬à¦¨à¦¬à¦¿à¦§à¦¿ à¦“ à¦¡à§‹à¦œ</label>
+                      <textarea className="ftxt" rows={5} value={selected.dosageForm || ""} onChange={e => handleFieldChange("dosageForm", e.target.value)} placeholder="à¦¯à§‡à¦®à¦¨: à¦ªà§à¦°à¦¤à¦¿à¦¦à¦¿à¦¨ à¦°à¦¾à¦¤à§‡ à¦–à¦¾à¦¬à¦¾à¦°à§‡à¦° à¦ªà¦° à¦•à§à¦¸à§à¦® à¦—à¦°à¦® à¦¦à§à¦§à¦¸à¦¹ à§§à¦Ÿà¦¿ à¦•à§à¦¯à¦¾à¦ªà¦¸à§à¦²à¥¤" />
                     </div>
-
                     <div>
-                      <label style={{ display: "block", fontSize: 12, fontWeight: 700, color: "#f87171", marginBottom: 6 }}>
-                        ⚠️ রোগীর শারীরিক সমস্যা ও স্থায়ী সমাধান (Pain Points)
-                      </label>
-                      <textarea
-                        rows={4}
-                        value={selected.painPoints || ""}
-                        onChange={(e) => handleFieldChange("painPoints", e.target.value)}
-                        placeholder="দ্রুত বীর্যপাত, লিঙ্গ শিথিলতা, শুক্রাণু পাতলা হওয়া বা স্নায়বিক দুর্বলতার লক্ষণ ও সমাধান..."
-                        style={{ width: "100%", padding: "12px 14px", borderRadius: 10, background: "#151828", border: "1px solid #282d45", color: "#fff", fontSize: 13, outline: "none", boxSizing: "border-box", resize: "vertical" }}
-                      />
+                      <label className="lr" style={{ display: "block", marginBottom: 8 }}>âš ï¸ à¦¸à¦®à¦¸à§à¦¯à¦¾ à¦“ à¦¸à¦®à¦¾à¦§à¦¾à¦¨</label>
+                      <textarea className="ftxt" rows={5} value={selected.painPoints || ""} onChange={e => handleFieldChange("painPoints", e.target.value)} placeholder="à¦¦à§à¦°à§à¦¤ à¦¬à§€à¦°à§à¦¯à¦ªà¦¾à¦¤, à¦²à¦¿à¦™à§à¦— à¦¶à¦¿à¦¥à¦¿à¦²à¦¤à¦¾à¦° à¦²à¦•à§à¦·à¦£ à¦“ à¦¸à¦®à¦¾à¦§à¦¾à¦¨..." />
                     </div>
                   </div>
-
                   {selected.dietary && (
-                    <div style={{ padding: "14px 18px", borderRadius: 12, background: "rgba(16, 185, 129, 0.1)", border: "1px solid rgba(16, 185, 129, 0.25)" }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#10b981", marginBottom: 6, display: "flex", alignItems: "center", gap: 6 }}>
-                        <ShieldCheck style={{ width: 16, height: 16 }} />
-                        <span>🥗 পুষ্টি ও দ্রুত কার্যকারিতা ডায়েট চার্ট</span>
-                      </div>
-                      <div style={{ fontSize: 12, color: "#a7f3d0", whiteSpace: "pre-line", lineHeight: 1.6 }}>
-                        {selected.dietary}
-                      </div>
+                    <div style={{ padding: "16px 18px", borderRadius: 14, background: "rgba(16,185,129,.06)", border: "1px solid rgba(16,185,129,.2)" }}>
+                      <div style={{ fontSize: 12, fontWeight: 700, color: "#10b981", marginBottom: 8, display: "flex", alignItems: "center", gap: 6 }}><ShieldCheck style={{ width: 15, height: 15 }} />ðŸ¥— à¦ªà§à¦·à§à¦Ÿà¦¿ à¦“ à¦¡à¦¾à¦¯à¦¼à§‡à¦Ÿ à¦šà¦¾à¦°à§à¦Ÿ</div>
+                      <div style={{ fontSize: 12, color: "#a7f3d0", whiteSpace: "pre-line", lineHeight: 1.7 }}>{selected.dietary}</div>
                     </div>
                   )}
                 </div>
               )}
-
-              {/* TAB 4: Specialists & Objections */}
               {modalTab === "specialists" && (
-                <div style={{ display: "flex", flexDirection: "column", gap: 18 }}>
+                <div style={{ display: "flex", flexDirection: "column", gap: 20 }}>
                   {selected.specialists && selected.specialists.length > 0 ? (
                     <div>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#38bdf8", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
-                        <Stethoscope style={{ width: 16, height: 16 }} />
-                        <span>বিশ্বখ্যাত ৫ জন বিশেষজ্ঞ ডাক্তার ও গবেষকদের উক্তি</span>
-                      </div>
-                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 12 }}>
-                        {selected.specialists.map((sp, idx) => (
-                          <div key={idx} style={{ padding: "12px 14px", borderRadius: 10, background: "#151828", border: "1px solid #282d45" }}>
-                            <div style={{ fontWeight: 700, color: "#93c5fd", fontSize: 13 }}>{sp.name} {sp.flag || ""}</div>
-                            <div style={{ fontSize: 11, color: "#94a3b8", marginBottom: 4 }}>{sp.title ? `${sp.title}, ` : ""}{sp.institute}</div>
-                            <div style={{ fontSize: 12, color: "#e2e8f0", fontStyle: "italic", lineHeight: 1.5 }}>"{sp.quote}"</div>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: "#60a5fa", marginBottom: 12, display: "flex", alignItems: "center", gap: 6, letterSpacing: ".06em", textTransform: "uppercase" }}><Stethoscope style={{ width: 14, height: 14 }} />à¦¬à¦¿à¦¶à§à¦¬à¦–à§à¦¯à¦¾à¦¤ à¦¬à¦¿à¦¶à§‡à¦·à¦œà§à¦žà¦¦à§‡à¦° à¦‰à¦•à§à¦¤à¦¿</div>
+                      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit,minmax(280px,1fr))", gap: 12 }}>
+                        {selected.specialists.map((sp, i) => (
+                          <div key={i} className="spcard">
+                            <div style={{ fontWeight: 700, color: "#93c5fd", fontSize: 13, marginBottom: 2 }}>{sp.name} {sp.flag || ""}</div>
+                            <div style={{ fontSize: 11, color: "#64748b", marginBottom: 8 }}>{sp.title ? `${sp.title}, ` : ""}{sp.institute}</div>
+                            <div style={{ fontSize: 12, color: "#e2e8f0", fontStyle: "italic", lineHeight: 1.6 }}>"{sp.quote}"</div>
                           </div>
                         ))}
                       </div>
                     </div>
-                  ) : (
-                    <p style={{ fontSize: 13, color: "#64748b" }}>এই ওষুধের জন্য কোনো বিশেষজ্ঞ কোটেশন নেই।</p>
-                  )}
-
+                  ) : <p style={{ fontSize: 13, color: "#475569" }}>à¦à¦‡ à¦“à¦·à§à¦§à§‡à¦° à¦œà¦¨à§à¦¯ à¦¬à¦¿à¦¶à§‡à¦·à¦œà§à¦ž à¦•à§‹à¦Ÿà§‡à¦¶à¦¨ à¦¨à§‡à¦‡à¥¤</p>}
                   {selected.objections && selected.objections.length > 0 && (
-                    <div style={{ marginTop: 8 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: "#fb7185", marginBottom: 10, display: "flex", alignItems: "center", gap: 6 }}>
-                        <Flame style={{ width: 16, height: 16 }} />
-                        <span>কাস্টমারের ৪টি মূল আপত্তি খণ্ডন ও উত্তর (Objection Destroyers)</span>
-                      </div>
+                    <div>
+                      <div style={{ fontSize: 12, fontWeight: 800, color: "#fb7185", marginBottom: 12, display: "flex", alignItems: "center", gap: 6, letterSpacing: ".06em", textTransform: "uppercase" }}><Flame style={{ width: 14, height: 14 }} />à¦•à¦¾à¦¸à§à¦Ÿà¦®à¦¾à¦°à§‡à¦° à¦†à¦ªà¦¤à§à¦¤à¦¿ à¦–à¦£à§à¦¡à¦¨</div>
                       <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
-                        {selected.objections.map((obj, idx) => (
-                          <div key={idx} style={{ padding: "12px 14px", borderRadius: 10, background: "#151828", border: "1px solid rgba(251, 113, 133, 0.25)" }}>
-                            <div style={{ fontWeight: 700, color: "#fda4af", fontSize: 13, marginBottom: 4 }}>❓ {obj.objection}</div>
-                            <div style={{ fontSize: 12, color: "#e2e8f0", lineHeight: 1.5 }}>💡 {obj.script}</div>
+                        {selected.objections.map((ob, i) => (
+                          <div key={i} className="obcard">
+                            <div style={{ fontWeight: 700, color: "#fda4af", fontSize: 13, marginBottom: 6 }}>â“ {ob.objection}</div>
+                            <div style={{ fontSize: 12, color: "#e2e8f0", lineHeight: 1.6 }}>ðŸ’¡ {ob.script}</div>
                           </div>
                         ))}
                       </div>
@@ -901,24 +520,15 @@ export default function ProductsPage() {
                   )}
                 </div>
               )}
-
             </div>
 
-            {/* Modal Footer */}
-            <div style={{ padding: "14px 24px", borderTop: "1px solid #20253a", background: "#151828", display: "flex", alignItems: "center", justifyContent: "space-between", fontSize: 12, color: "#94a3b8" }}>
-              <span>💡 টাইপ শেষ করার সাথে সাথেই কোনো বাটন না চেপেই তথ্যগুলো ভিপিএসে সংরক্ষিত হবে।</span>
-              <button
-                onClick={closeModal}
-                style={{ padding: "8px 20px", borderRadius: 10, background: "#7c3aed", color: "#fff", border: "none", fontWeight: 700, fontSize: 13, cursor: "pointer" }}
-              >
-                সম্পন্ন করুন
-              </button>
+            <div style={{ padding: "14px 26px", borderTop: "1px solid rgba(255,255,255,.05)", background: "rgba(0,0,0,.3)", display: "flex", alignItems: "center", justifyContent: "space-between", flexShrink: 0, flexWrap: "wrap", gap: 10 }}>
+              <span style={{ fontSize: 11, color: "#475569" }}>ðŸ’¡ à¦Ÿà¦¾à¦‡à¦ª à¦¶à§‡à¦·à§‡à¦° à§¨ à¦¸à§‡à¦•à§‡à¦¨à§à¦¡à§‡à¦° à¦®à¦§à§à¦¯à§‡ à¦¸à§à¦¬à¦¯à¦¼à¦‚à¦•à§à¦°à¦¿à¦¯à¦¼ à¦¸à§‡à¦­ à¦¹à¦¬à§‡</span>
+              <button className="btnp" onClick={closeModal}><Check style={{ width: 15, height: 15 }} />à¦¸à¦®à§à¦ªà¦¨à§à¦¨ à¦•à¦°à§à¦¨</button>
             </div>
-
           </div>
         </div>
       )}
-
     </div>
   );
 }
