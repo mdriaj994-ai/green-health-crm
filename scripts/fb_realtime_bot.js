@@ -56,11 +56,38 @@ try {
   }
 } catch {}
 
+function isProcessedId(id) {
+  if (!id) return false;
+  if (processedIds.has(id)) return true;
+  try {
+    if (fs.existsSync(PROCESSED_FILE)) {
+      const data = JSON.parse(fs.readFileSync(PROCESSED_FILE, "utf-8"));
+      if (Array.isArray(data) && data.includes(id)) {
+        processedIds.add(id);
+        return true;
+      }
+    }
+  } catch {}
+  return false;
+}
+
 function saveProcessedId(id) {
+  if (!id) return;
   processedIds.add(id);
   try {
-    const list = Array.from(processedIds).slice(-500); // keep last 500
-    fs.writeFileSync(PROCESSED_FILE, JSON.stringify(list), "utf-8");
+    const dir = path.join(process.cwd(), "data");
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    let list = [];
+    if (fs.existsSync(PROCESSED_FILE)) {
+      try {
+        list = JSON.parse(fs.readFileSync(PROCESSED_FILE, "utf-8"));
+      } catch {}
+    }
+    if (!list.includes(id)) {
+      list.push(id);
+      if (list.length > 500) list = list.slice(-500);
+      fs.writeFileSync(PROCESSED_FILE, JSON.stringify(list), "utf-8");
+    }
   } catch {}
 }
 
@@ -543,13 +570,26 @@ async function pollOnce() {
           const lastMsg = msgs[0];
           const isFromCustomer = lastMsg.from?.id && String(lastMsg.from.id) !== String(page.pageId);
 
-          if (isFromCustomer && lastMsg.id && !processedIds.has(lastMsg.id)) {
-            processedIds.add(lastMsg.id); // Mark in memory to prevent duplicate in next tick
+          if (isFromCustomer && lastMsg.id) {
+            // 1. Check if already processed by Webhook or previous poll
+            if (isProcessedId(lastMsg.id)) {
+              continue;
+            }
+
+            // 2. Webhook Priority Buffer:
+            // If the message arrived less than 15 seconds ago, let the real-time Webhook handle it!
+            // Poller is strictly a resilient FALLBACK in case Webhooks drop.
+            const msgAge = Date.now() - new Date(lastMsg.created_time).getTime();
+            if (msgAge < 15000) {
+              continue;
+            }
+
+            saveProcessedId(lastMsg.id); // Mark in memory & disk immediately
             const customerName = lastMsg.from?.name || "Customer";
             const senderId = lastMsg.from.id;
             const messageText = (lastMsg.message || "").trim();
 
-            console.log(`[FB_BOT] 🔔 [${page.pageName}] NEW MESSAGE from ${customerName} (${senderId}): "${messageText}"`);
+            console.log(`[FB_BOT] 🔔 [${page.pageName}] FALLBACK NEW MESSAGE from ${customerName} (${senderId}): "${messageText}"`);
 
             // Format recent messages for multi-turn dialogue context (oldest first, up to 10 turns)
             const previousMsgs = msgs.slice(1, 11).reverse();

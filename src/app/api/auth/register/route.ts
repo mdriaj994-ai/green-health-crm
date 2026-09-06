@@ -21,6 +21,7 @@ export async function POST(req: Request) {
       const isSuper = cleanEmail.includes("mdriaj") || cleanEmail.includes("rakib") || existing.role === "SUPER_ADMIN";
       
       try {
+        // @ts-ignore
         const Database = (await import("better-sqlite3")).default;
         const path = (await import("path")).default;
         const dbFile = path.resolve(process.cwd(), "prisma/social_inbox.db");

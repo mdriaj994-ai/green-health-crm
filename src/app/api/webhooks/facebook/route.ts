@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { startMessengerPoller } from "@/lib/messenger-poller";
+import fs from "fs";
+import path from "path";
 
 // Start background poller ensuring it is always active
 try {
@@ -72,8 +74,54 @@ export async function POST(req: Request) {
 }
 
 
-// In-memory dedup set for 60 seconds fallback
+// Persistent shared deduplication across Webhook and Polling Bot
+const PROCESSED_MSGS_FILE = path.join(process.cwd(), "data", "processed_msg_ids.json");
 const processedMsgIds = new Set<string>();
+
+// Preload processed IDs from file if exists
+try {
+  if (fs.existsSync(PROCESSED_MSGS_FILE)) {
+    const data = JSON.parse(fs.readFileSync(PROCESSED_MSGS_FILE, "utf-8"));
+    if (Array.isArray(data)) {
+      for (const id of data) processedMsgIds.add(id);
+    }
+  }
+} catch {}
+
+function isProcessedId(id: string): boolean {
+  if (!id) return false;
+  if (processedMsgIds.has(id)) return true;
+  try {
+    if (fs.existsSync(PROCESSED_MSGS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(PROCESSED_MSGS_FILE, "utf-8"));
+      if (Array.isArray(data) && data.includes(id)) {
+        processedMsgIds.add(id);
+        return true;
+      }
+    }
+  } catch {}
+  return false;
+}
+
+function markProcessedId(id: string) {
+  if (!id) return;
+  processedMsgIds.add(id);
+  try {
+    const dataDir = path.join(process.cwd(), "data");
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+    let list: string[] = [];
+    if (fs.existsSync(PROCESSED_MSGS_FILE)) {
+      try {
+        list = JSON.parse(fs.readFileSync(PROCESSED_MSGS_FILE, "utf-8"));
+      } catch {}
+    }
+    if (!list.includes(id)) {
+      list.push(id);
+      if (list.length > 500) list = list.slice(-500);
+      fs.writeFileSync(PROCESSED_MSGS_FILE, JSON.stringify(list), "utf-8");
+    }
+  } catch {}
+}
 
 // Smart message buffer per sender to combine rapid text + image + audio events (within 2.0s)
 interface PendingSenderEvent {
@@ -277,14 +325,13 @@ export async function handleMessengerMessage(pageId: string, event: any) {
 
   if (!senderId || (!text && !imageUrl && !audioUrl)) return;
 
-  // 1. In-memory Deduplication (ensures uniqueness even if Redis is offline)
+  // 1. Shared Persistent Deduplication (shared with polling bot across processes)
   if (msgId) {
-    if (processedMsgIds.has(msgId)) {
-      console.log(`[MESSENGER] In-memory DUPLICATE message ${msgId} dropped.`);
+    if (isProcessedId(msgId)) {
+      console.log(`[MESSENGER] Shared DUPLICATE message ${msgId} dropped.`);
       return;
     }
-    processedMsgIds.add(msgId);
-    setTimeout(() => processedMsgIds.delete(msgId), 60000);
+    markProcessedId(msgId);
   }
 
   console.log(`[MESSENGER] Page:${pageId} | From:${senderId} | Msg: ${text} | Image: ${imageUrl ? "YES" : "NO"} | Audio: ${audioUrl ? "YES" : "NO"}`);
