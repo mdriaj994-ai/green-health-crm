@@ -132,14 +132,31 @@ async function flushSenderEvent(senderId: string) {
       console.warn("[CHAT_HISTORY_WARN]", histErr);
     }
 
+    const effectiveToken = pageAccessToken || PAGE_TOKEN;
+    if (effectiveToken) {
+      await sendSenderAction(senderId, "mark_seen", effectiveToken);
+      await sendSenderAction(senderId, "typing_on", effectiveToken);
+    }
+
     const replyText = await generateAutoReply(text || "ছবি পাঠালাম", {
       imageUrl: imageUrl || null,
       chatHistory,
     });
 
-    const effectiveToken = pageAccessToken || PAGE_TOKEN;
-
     if (replyText && effectiveToken) {
+      const charCount = replyText.length;
+      const rawDelay = 1800 + (charCount * 25);
+      const jitter = (Math.random() * 800) - 400;
+      const delayMs = Math.min(9500, Math.max(2200, Math.round(rawDelay + jitter)));
+
+      if (delayMs > 4500) {
+        await new Promise(r => setTimeout(r, 3500));
+        await sendSenderAction(senderId, "typing_on", effectiveToken);
+        await new Promise(r => setTimeout(r, delayMs - 3500));
+      } else {
+        await new Promise(r => setTimeout(r, delayMs));
+      }
+
       await sendMessengerReply(pageId, senderId, replyText, effectiveToken);
       console.log(`[AUTO_REPLY_SENT] To: ${senderId} | Reply: "${replyText.substring(0, 80)}..."`);
 
@@ -389,6 +406,21 @@ export async function handleMessengerMessage(pageId: string, event: any) {
   } catch (dbErr: any) {
     console.warn("[DB_SYNC_WARN]", dbErr.message);
   }
+}
+
+
+async function sendSenderAction(recipientId: string, action: "typing_on" | "typing_off" | "mark_seen" = "typing_on", accessToken: string = PAGE_TOKEN) {
+  try {
+    const url = `https://graph.facebook.com/v19.0/me/messages?access_token=${accessToken}`;
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient: { id: recipientId },
+        sender_action: action,
+      }),
+    });
+  } catch {}
 }
 
 async function sendMessengerReply(pageId: string, recipientId: string, text: string, accessToken: string) {

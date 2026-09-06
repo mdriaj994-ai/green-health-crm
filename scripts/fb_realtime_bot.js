@@ -391,6 +391,12 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
 12. CLEAN PLAIN TEXT ONLY:
     - Plain text only. Absolutely DO NOT use markdown bolding or asterisks (no ** or ## or *).
 
+13. NATURAL HUMAN CHAT BREVITY & PACING (CRITICAL):
+    - Real human doctors on Messenger text in short, conversational paragraphs (2 to 4 sentences maximum).
+    - NEVER write long essays or 4-5 giant paragraphs in a single reply! Customers immediately spot automated bots when given overwhelming text.
+    - If the customer says "আমার কোনো সমস্যা নেই" or "amar kono problem e nai":
+      Respond warmly in 2 sentences: "মাশাআল্লাহ ভাইয়া, শুনে খুব ভালো লাগল! সুস্থ থাকাটাই পরম নিয়ামত। সবসময় নিজেকে ফিট ও প্রাণবন্ত রাখতে চাইলে যেকোনো স্বাস্থ্য পরামর্শে নির্দ্বিধায় নক দেবেন। ভালো থাকবেন!"
+
 ${productContext ? `\n--- LIVE MEDICINE DASHBOARD DATA ---\n${productContext}\n-----------------------------------\n` : ""}
 ${masterKB ? `\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\n${masterKB}\n-----------------------------------------------\n` : ""}
 `;
@@ -454,6 +460,38 @@ ${masterKB ? `\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\n${masterKB}\n---
   // Safe fallback for unavailable items
   return "দুঃখিত, এই প্রোডাক্টটি বর্তমানে আমাদের কাছে নেই।";
 }
+
+
+// ── Send Sender Action (typing_on, mark_seen) via Facebook Graph API ───────────
+async function sendSenderAction(recipientId, action = "typing_on", pageAccessToken = PAGE_TOKEN) {
+  try {
+    const url = `https://graph.facebook.com/v19.0/me/messages?access_token=${pageAccessToken}`;
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient: { id: recipientId },
+        sender_action: action
+      })
+    });
+  } catch (err) {}
+}
+
+// ── Calculate Realistic Human Typing Delay ───────────────────────────────────
+function calculateHumanTypingDelay(replyText) {
+  const charCount = (replyText || "").length;
+  // Natural reading & thinking baseline: 1.8s
+  // Human typing speed: ~25ms per character
+  // Short message (30-60 chars): ~2.2 - 3.2s
+  // Medium message (70-150 chars): ~3.8 - 6.0s
+  // Long message (160+ chars): ~6.5 - 9.5s
+  const rawDelay = 1800 + (charCount * 25);
+  const jitter = (Math.random() * 800) - 400; // ±400ms random variation
+  const finalDelay = Math.min(9500, Math.max(2200, Math.round(rawDelay + jitter)));
+  return finalDelay;
+}
+
+const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // ── Send Message via Facebook Graph API ──────────────────────────────────────
 async function sendFacebookMessage(recipientId, text, pageAccessToken = PAGE_TOKEN) {
