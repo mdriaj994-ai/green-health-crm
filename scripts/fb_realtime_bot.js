@@ -695,7 +695,7 @@ async function sendFacebookImage(recipientId, imageFileOrPath, pageAccessToken =
 async function sendFacebookVoiceNote(recipientId, text, pageAccessToken = PAGE_TOKEN) {
   const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || "sk_b704126ae6ecca01f041a6505e4e7a695f40df803a4f8bd3";
   const rawVoiceId = process.env.ELEVENLABS_VOICE_ID;
-  const ELEVENLABS_VOICE_ID = (rawVoiceId && rawVoiceId !== "FhOnCtjmaAIRIS1Dg2bk") ? rawVoiceId : "TX3LPaxmHKxFdv7VOQHJ";
+  const ELEVENLABS_VOICE_ID = (rawVoiceId && rawVoiceId !== "FhOnCtjmaAIRIS1Dg2bk" && rawVoiceId !== "TX3LPaxmHKxFdv7VOQHJ") ? rawVoiceId : "2RikWi4odb2uhZQb9waV";
 
   if (!ELEVENLABS_API_KEY) return null;
 

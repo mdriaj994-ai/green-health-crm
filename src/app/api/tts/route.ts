@@ -10,7 +10,7 @@ const execAsync = promisify(exec);
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || "sk_b704126ae6ecca01f041a6505e4e7a695f40df803a4f8bd3";
 const rawVoiceId = process.env.ELEVENLABS_VOICE_ID;
-const ELEVENLABS_VOICE_ID = (rawVoiceId && rawVoiceId !== "FhOnCtjmaAIRIS1Dg2bk") ? rawVoiceId : "TX3LPaxmHKxFdv7VOQHJ";
+const ELEVENLABS_VOICE_ID = (rawVoiceId && rawVoiceId !== "FhOnCtjmaAIRIS1Dg2bk" && rawVoiceId !== "TX3LPaxmHKxFdv7VOQHJ") ? rawVoiceId : "2RikWi4odb2uhZQb9waV";
 
 // Gemini TTS voices: Aoede (female, warm), Charon (male, deep), Fenrir (male, strong), Kore (female, clear), Puck (male, upbeat)
 const GEMINI_VOICE = process.env.GEMINI_TTS_VOICE || "Algieba"; // Smooth, lower pitch - perfect for customer support
@@ -20,7 +20,7 @@ const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "";
 async function generateWithElevenLabsTTS(text: string, filePath: string, voiceId: string = ELEVENLABS_VOICE_ID): Promise<boolean> {
   if (!ELEVENLABS_API_KEY) return false;
   try {
-    const activeVoice = (voiceId === "FhOnCtjmaAIRIS1Dg2bk") ? "TX3LPaxmHKxFdv7VOQHJ" : voiceId;
+    const activeVoice = (voiceId === "FhOnCtjmaAIRIS1Dg2bk" || voiceId === "TX3LPaxmHKxFdv7VOQHJ") ? "2RikWi4odb2uhZQb9waV" : voiceId;
     console.log(`[ELEVENLABS_TTS] Generating audio with Voice ID: ${activeVoice}`);
     const url = `https://api.elevenlabs.io/v1/text-to-speech/${activeVoice}`;
     const res = await fetch(url, {
