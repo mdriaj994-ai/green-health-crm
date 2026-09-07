@@ -740,11 +740,11 @@ async function sendMessengerVoiceNote(recipientId: string, text: string, accessT
       },
       body: JSON.stringify({
         text: cleanText,
-        model_id: "eleven_multilingual_v2",
+        model_id: "eleven_v3_conversational",
         voice_settings: {
-          stability: 0.40,
-          similarity_boost: 0.88,
-          style: 0.10,
+          stability: 0.35,
+          similarity_boost: 0.85,
+          style: 0.20,
           use_speaker_boost: true
         }
       })
