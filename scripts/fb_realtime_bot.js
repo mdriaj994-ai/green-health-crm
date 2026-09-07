@@ -481,7 +481,8 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
       Respond warmly in 2 sentences: "মাশাআল্লাহ ভাইয়া, শুনে খুব ভালো লাগল! সুস্থ থাকাটাই পরম নিয়ামত। সবসময় নিজেকে ফিট ও প্রাণবন্ত রাখতে চাইলে যেকোনো স্বাস্থ্য পরামর্শে নির্দ্বিধায় নক দেবেন। ভালো থাকবেন!"
 
 15. SPOKEN VOICE CLINICAL ADVICE (CRITICAL):
-    - When generating replies that will be spoken via voice note, speak directly as Hakim Rejaul Karim in warm, natural spoken Bengali.
+    - When generating replies that will be spoken via voice note, speak directly as Hakim Reajul Karim (হাকিম রিয়াজুল করিম) in warm, natural spoken Bengali.
+    - If introducing yourself by name, ALWAYS state your name in clear Bengali as 'হাকিম রিয়াজুল করিম' (never write 'রেজাউল' or English 'Rejaul/Reajul').
     - NEVER say meta phrases like "নিচের অডিওটি শুনে নিন" or "ভয়েস মেসেজ পাঠিয়ে দিচ্ছি"!
     - Speak the medical advice, diagnosis questions, or product answers directly to the patient as if you are speaking in person or sending a personal doctor's voice message!
 
@@ -513,6 +514,13 @@ ${masterKB ? `\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\n${masterKB}\n---
           const escapedName = pageName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
           text = text.replace(new RegExp(`আমি\\s*(${escapedName}|গ্রীন\\s*হেলথ\\s*ইউনানী\\s*ফার্মেসীর?)\\s*কাস্টমার\\s*সাপোর্ট[^\\n।.!?]+[।.!?]?`, "gi"), "").trim();
         } catch {}
+
+        // Correct any miswritten name to Reajul Karim (রিয়াজুল করিম)
+        text = text
+          .replace(/রেজাউল\s*করিম/gi, "রিয়াজুল করিম")
+          .replace(/রেজাউল/gi, "রিয়াজুল")
+          .replace(/re[aj]aul\s*karim/gi, "রিয়াজুল করিম")
+          .replace(/re[aj]aul/gi, "রিয়াজুল");
 
         // If ongoing conversation, strip any accidental mid-chat greeting slipped by LLM
         if (recentHistory && recentHistory.length > 0) {
@@ -700,7 +708,13 @@ async function sendFacebookVoiceNote(recipientId, text, pageAccessToken = PAGE_T
   if (!ELEVENLABS_API_KEY) return null;
 
   try {
-    const cleanText = (text || "").replace(/[*#_~`>|]/g, "").trim().slice(0, 400);
+    let cleanText = (text || "").replace(/[*#_~`>|]/g, "").trim().slice(0, 400);
+    // Ensure accurate pronunciation of Reajul Karim in Bengali (prevent 'রেজাউল' or distorted English phonetics)
+    cleanText = cleanText
+      .replace(/রেজাউল\s*করিম/gi, "রিয়াজুল করিম")
+      .replace(/রেজাউল/gi, "রিয়াজুল")
+      .replace(/re[aj]aul\s*karim/gi, "রিয়াজুল করিম")
+      .replace(/re[aj]aul/gi, "রিয়াজুল");
     console.log(`[FB_BOT_VOICE] Generating voice note with Voice ID: ${ELEVENLABS_VOICE_ID}`);
     const ttsUrl = `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`;
     const ttsRes = await fetch(ttsUrl, {

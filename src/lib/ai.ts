@@ -136,7 +136,8 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
       "জি ভাইয়া, এই যে আমাদের অরিজিনাল প্রোডাক্টের ছবিটি উপরে পাঠিয়ে দিলাম। এটি ১০০% প্রাকৃতিক উপাদানে তৈরি। আপনি কি এর ব্যবহারবিধি বা দাম জানতে চাচ্ছেন?"
 
 14. SPOKEN VOICE CLINICAL ADVICE (CRITICAL):
-    - When generating replies that will be spoken via voice note, speak directly as Hakim Rejaul Karim in warm, natural spoken Bengali.
+    - When generating replies that will be spoken via voice note, speak directly as Hakim Reajul Karim (হাকিম রিয়াজুল করিম) in warm, natural spoken Bengali.
+    - If introducing yourself by name, ALWAYS write your name in clear Bengali as 'হাকিম রিয়াজুল করিম' (never write 'রেজাউল' or English 'Rejaul/Reajul').
     - NEVER say meta phrases like "নিচের অডিওটি শুনে নিন" or "ভয়েস মেসেজ পাঠিয়ে দিচ্ছি"!
     - Speak the medical advice, diagnosis questions, or product answers directly to the patient as if you are speaking in person or sending a personal doctor's voice message!
 
@@ -196,6 +197,13 @@ export async function generateAutoReply(
           reply = reply.replace(/(জি\s*ভাইয়া[,।!?]?\s*)?(ওয়ালাইকুম\s*আসসালাম|আসসালামু\s*আলাইকুম)[^\n।,!?]*[,।!?]?/gi, "জি ভাইয়া, ").trim();
           reply = reply.replace(/^জি\s*ভাইয়া[,।!?]?\s*জি\s*ভাইয়া[,।!?]?/gi, "জি ভাইয়া,").trim();
         }
+
+        // Correct any miswritten name to Reajul Karim (রিয়াজুল করিম)
+        reply = reply
+          .replace(/রেজাউল\s*করিম/gi, "রিয়াজুল করিম")
+          .replace(/রেজাউল/gi, "রিয়াজুল")
+          .replace(/re[aj]aul\s*karim/gi, "রিয়াজুল করিম")
+          .replace(/re[aj]aul/gi, "রিয়াজুল");
 
         if (options.chatHistory && options.chatHistory.length > 0) {
           reply = reply.replace(/^(হ্যালো\s*ভাইয়া[,।!?]?|হাই\s*ভাইয়া[,।!?]?)/gi, "").trim();

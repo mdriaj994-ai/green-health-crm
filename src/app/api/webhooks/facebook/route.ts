@@ -729,7 +729,12 @@ async function sendMessengerVoiceNote(recipientId: string, text: string, accessT
 
   try {
     // 1. Generate audio via ElevenLabs
-    const cleanText = text.replace(/[*#_~`>|]/g, "").trim().slice(0, 400);
+    let cleanText = text.replace(/[*#_~`>|]/g, "").trim().slice(0, 400);
+    cleanText = cleanText
+      .replace(/রেজাউল\s*করিম/gi, "রিয়াজুল করিম")
+      .replace(/রেজাউল/gi, "রিয়াজুল")
+      .replace(/re[aj]aul\s*karim/gi, "রিয়াজুল করিম")
+      .replace(/re[aj]aul/gi, "রিয়াজুল");
     console.log(`[FB_VOICE_NOTE] Generating voice note with Voice ID: ${ELEVENLABS_VOICE_ID}`);
     const ttsUrl = `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`;
     const ttsRes = await fetch(ttsUrl, {
