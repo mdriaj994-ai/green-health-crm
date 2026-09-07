@@ -33,9 +33,9 @@ async function generateWithElevenLabsTTS(text: string, filePath: string, voiceId
         text,
         model_id: "eleven_v3_conversational",
         voice_settings: {
-          stability: 0.35,
+          stability: 0.44,
           similarity_boost: 0.85,
-          style: 0.20,
+          style: 0.10,
           use_speaker_boost: true
         }
       })
