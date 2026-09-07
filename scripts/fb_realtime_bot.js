@@ -45,8 +45,55 @@ function getActivePages() {
 
 const PROCESSED_FILE = path.join(process.cwd(), "data", "processed_msg_ids.json");
 const THREAD_MEMORY_FILE = path.join(process.cwd(), "data", "thread_memory.json");
+const VOICE_USERS_FILE = path.join(process.cwd(), "data", "voice_users.json");
 const processedIds = new Set();
 const threadMemory = new Map();
+const voiceUsers = new Set();
+
+// Preload voice users
+try {
+  if (fs.existsSync(VOICE_USERS_FILE)) {
+    const list = JSON.parse(fs.readFileSync(VOICE_USERS_FILE, "utf-8"));
+    if (Array.isArray(list)) {
+      for (const id of list) voiceUsers.add(String(id));
+    }
+  }
+} catch {}
+
+function isVoiceMode(userId) {
+  if (!userId) return false;
+  return voiceUsers.has(String(userId));
+}
+
+function setVoiceMode(userId, enabled = true) {
+  if (!userId) return;
+  const idStr = String(userId);
+  if (enabled) {
+    voiceUsers.add(idStr);
+  } else {
+    voiceUsers.delete(idStr);
+  }
+  try {
+    const dir = path.dirname(VOICE_USERS_FILE);
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(VOICE_USERS_FILE, JSON.stringify(Array.from(voiceUsers)), "utf-8");
+  } catch {}
+}
+
+function isOnlyVoiceRequest(text) {
+  if (!text) return false;
+  const clean = text.trim().toLowerCase();
+  return (
+    /^(voice|boyes|boes|voyes|ভয়েস|ভয়েস|অডিও|audio)(\s*(dao|den|din|pathan|koro|koren|bolo|bolen|দাও|দেন|দিন|পাঠান|করুন|বলো|বলেন))?$/i.test(clean) ||
+    /^(vai|bhai|vaiya|bhaiya)?\s*(voice|boyes|boes|voyes|ভয়েস|ভয়েস|মুখে)\s*(dao|den|din|pathan|bolo|bolen|দাও|দেন|দিন|পাঠান|বলুন|বলো|বলেন)?$/i.test(clean) ||
+    /^(voice\s*dao|voice\s*den|voice\s*din|ভয়েস\s*দাও|ভয়েস\s*দাও|ভয়েস\s*দেন|ভয়েস\s*দেন|ভয়েস\s*দিন|মুখে\s*বলুন|মুখে\s*বলো|কথা\s*বলুন)$/i.test(clean)
+  );
+}
+
+function isVoiceRequested(text) {
+  if (!text) return false;
+  return /voice|boyes|boes|voyes|ভয়েস|ভয়েস|কথা বলুন|মুখে বলুন|মুখে বলেন|মুখে বলো|অডিও|audio/i.test(text);
+}
 
 // Preload processed IDs from file if exists
 try {
@@ -433,12 +480,10 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
     - If the customer says "আমার কোনো সমস্যা নেই" or "amar kono problem e nai":
       Respond warmly in 2 sentences: "মাশাআল্লাহ ভাইয়া, শুনে খুব ভালো লাগল! সুস্থ থাকাটাই পরম নিয়ামত। সবসময় নিজেকে ফিট ও প্রাণবন্ত রাখতে চাইলে যেকোনো স্বাস্থ্য পরামর্শে নির্দ্বিধায় নক দেবেন। ভালো থাকবেন!"
 
-15. VOICE MESSAGE REQUEST HANDLING (CRITICAL - WE SEND REAL VOICE NOTES!):
-    - When the customer asks for voice or audio (যেমন: "voice dao", "voice den", "ভয়েস দিন", "ভয়েস পাঠান", "মুখে বলুন", "কথা বলুন", "অডিও দিন"):
-      Our server AUTOMATICALLY generates and delivers an authentic Bengali voice note using ElevenLabs right to their Messenger!
-      ABSOLUTELY NEVER SAY "ভয়েস মেসেজ পাঠানোর সুযোগ নেই" OR "ভয়েস অপশন নেই"!
-      Always reply warmly affirming the voice message:
-      "জি ভাইয়া, অবশ্যই! এই যে আমি ভয়েস মেসেজ পাঠিয়ে আপনাকে মুখে বুঝিয়ে দিচ্ছি, দয়া করে নিচের অডিওটি শুনে নিন।"
+15. SPOKEN VOICE CLINICAL ADVICE (CRITICAL):
+    - When generating replies that will be spoken via voice note, speak directly as Hakim Rejaul Karim in warm, natural spoken Bengali.
+    - NEVER say meta phrases like "নিচের অডিওটি শুনে নিন" or "ভয়েস মেসেজ পাঠিয়ে দিচ্ছি"!
+    - Speak the medical advice, diagnosis questions, or product answers directly to the patient as if you are speaking in person or sending a personal doctor's voice message!
 
 ${productContext ? `\n--- LIVE MEDICINE DASHBOARD DATA ---\n${productContext}\n-----------------------------------\n` : ""}
 ${masterKB ? `\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\n${masterKB}\n-----------------------------------------------\n` : ""}
@@ -793,19 +838,51 @@ async function pollOnce() {
               }
             }
 
+            // ── Voice Mode & Voice Request Logic ──
+            if (/^(text\s*(dao|den|din)|লিখুন|লিখে\s*বলুন|text\s*a\s*bolen)/i.test(messageText.trim())) {
+              setVoiceMode(senderId, false);
+            }
+
+            const isOnlyVoice = isOnlyVoiceRequest(messageText);
+            const isGeneralVoice = isVoiceRequested(messageText);
+
+            if (isOnlyVoice || isGeneralVoice) {
+              setVoiceMode(senderId, true);
+            }
+
+            // CASE 1: Customer explicitly asked for voice of previous answer ("voice dao")
+            if (isOnlyVoice) {
+              const lastPageMsg = msgs.slice(1).find(m => String(m.from?.id) === String(page.pageId) && (m.message || "").trim().length > 0);
+              const voiceText = lastPageMsg?.message || "জি ভাইয়া, আপনার স্বাস্থ্যগত যেকোনো সমস্যা বা পরামর্শের জন্য নির্ভয়ে বলুন, আমি আপনাকে সাহায্য করছি।";
+
+              console.log(`[FB_BOT] Customer asked for voice of previous answer. Sending voice note only to ${senderId}: "${voiceText.slice(0, 60)}..."`);
+              await sendSenderAction(senderId, "typing_on", page.accessToken);
+              const sentVoice = await sendFacebookVoiceNote(senderId, voiceText, page.accessToken);
+              if (!sentVoice) {
+                await sendFacebookMessage(senderId, voiceText, page.accessToken);
+              }
+              saveProcessedId(lastMsg.id);
+              continue;
+            }
+
+            // CASE 2: Normal inquiry or Question while in Voice Mode
+            const userInVoiceMode = isVoiceMode(senderId);
+
             // Generate AI reply with thread memory and page-specific identity
             const replyText = await generateReply(messageText, customerName, senderId, recentHistory, page.pageName);
             console.log(`[FB_BOT] 🤖 [${page.pageName}] REPLY: "${replyText.slice(0, 70)}..."`);
 
-            // Send reply to Messenger using this page's access token
-            const sendResult = await sendFacebookMessage(senderId, replyText, page.accessToken);
-            console.log(`[FB_BOT] 🚀 [${page.pageName}] SENT [${sendResult.status}]:`, sendResult.data?.message_id || sendResult.data);
-
-            // If customer requested voice or audio, send ElevenLabs voice note
-            const isVoiceRequested = /voice|boyes|boes|voyes|ভয়েস|ভয়েস|কথা বলুন|মুখে বলুন|অডিও|audio/i.test(messageText);
-            if (isVoiceRequested) {
-              console.log(`[FB_BOT] Voice requested by customer. Sending ElevenLabs voice note...`);
-              await sendFacebookVoiceNote(senderId, replyText, page.accessToken);
+            if (userInVoiceMode) {
+              console.log(`[FB_BOT] 🎙️ Sending answer as voice note only to ${senderId}: "${replyText.slice(0, 70)}..."`);
+              await sendSenderAction(senderId, "typing_on", page.accessToken);
+              const sentVoice = await sendFacebookVoiceNote(senderId, replyText, page.accessToken);
+              if (!sentVoice) {
+                // Fallback to text if voice note generation failed
+                await sendFacebookMessage(senderId, replyText, page.accessToken);
+              }
+            } else {
+              const sendResult = await sendFacebookMessage(senderId, replyText, page.accessToken);
+              console.log(`[FB_BOT] 🚀 [${page.pageName}] SENT [${sendResult.status}]:`, sendResult.data?.message_id || sendResult.data);
             }
 
             saveProcessedId(lastMsg.id); // Persist to file once successfully attempted

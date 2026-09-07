@@ -201,37 +201,94 @@ async function flushSenderEvent(senderId: string) {
       console.warn("[AUTO_REPLY_PIC_WARN]", picErr.message);
     }
 
+    // ── Voice Mode & Voice Request Logic ──
+    const { isVoiceMode, setVoiceMode, isOnlyVoiceRequest, isVoiceRequested } = await import("@/lib/voice-mode");
+
+    if (/^(text\s*(dao|den|din)|লিখুন|লিখে\s*বলুন|text\s*a\s*bolen)/i.test(text.trim())) {
+      setVoiceMode(senderId, false);
+    }
+
+    const isOnlyVoice = isOnlyVoiceRequest(text);
+    const isGeneralVoice = isVoiceRequested(text) || Boolean(audioUrl);
+
+    if (isOnlyVoice || isGeneralVoice) {
+      setVoiceMode(senderId, true);
+    }
+
+    // CASE 1: Customer specifically requested voice for previous answer ("voice dao")
+    if (isOnlyVoice) {
+      const lastAgentMsg = chatHistory.slice().reverse().find(m => m.sender === "AGENT" && m.text.trim().length > 0);
+      const voiceText = lastAgentMsg?.text || "জি ভাইয়া, আপনার স্বাস্থ্যগত যেকোনো সমস্যা বা পরামর্শের জন্য নির্ভয়ে বলুন, আমি আপনাকে সাহায্য করছি।";
+
+      console.log(`[EXPLICIT_VOICE_REQUEST] Customer asked for voice of previous answer. Sending voice note only to ${senderId}: "${voiceText.substring(0, 60)}..."`);
+      await sendSenderAction(senderId, "typing_on", effectiveToken);
+      const sentVoice = await sendMessengerVoiceNote(senderId, voiceText, effectiveToken);
+      if (!sentVoice) {
+        await sendMessengerReply(pageId, senderId, voiceText, effectiveToken);
+      }
+
+      // Save bot voice reply to DB
+      try {
+        const { prisma } = await import("@/lib/prisma");
+        const account = await prisma.connectedAccount.findFirst({
+          where: { pageId, platform: { in: ["MESSENGER", "FACEBOOK"] }, isActive: true },
+        }) as any;
+        if (account) {
+          const contact = await prisma.contact.findFirst({
+            where: { platformUserId: senderId, platform: "MESSENGER" },
+          });
+          if (contact) {
+            const convId = `conv_${account.id}_${contact.id}`;
+            await (prisma as any).message.create({
+              data: {
+                conversationId: convId,
+                content: `[ভয়েস মেসেজ] ${voiceText}`,
+                senderType: "AGENT",
+                platformMsgId: "auto_" + Date.now(),
+              },
+            });
+          }
+        }
+      } catch (saveErr) {
+        console.warn("[SAVE_VOICE_REPLY_WARN]", saveErr);
+      }
+      return;
+    }
+
+    // CASE 2: Normal inquiry or Question while in Voice Mode
+    const userInVoiceMode = isVoiceMode(senderId);
+
     const replyText = await generateAutoReply(text || "ছবি পাঠালাম", {
       imageUrl: imageUrl || null,
       chatHistory,
     });
 
     if (replyText && effectiveToken) {
-      const charCount = replyText.length;
-      const rawDelay = 1800 + (charCount * 25);
-      const jitter = (Math.random() * 800) - 400;
-      const delayMs = Math.min(9500, Math.max(2200, Math.round(rawDelay + jitter)));
-
-      if (delayMs > 4500) {
-        await new Promise(r => setTimeout(r, 3500));
+      if (userInVoiceMode) {
+        // Customer is in voice mode: send reply directly as voice note ONLY (no text)
+        console.log(`[VOICE_MODE_ACTIVE] Customer is in voice mode. Sending response as voice note only to ${senderId}: "${replyText.substring(0, 80)}..."`);
         await sendSenderAction(senderId, "typing_on", effectiveToken);
-        await new Promise(r => setTimeout(r, delayMs - 3500));
-      } else {
-        await new Promise(r => setTimeout(r, delayMs));
-      }
-
-      await sendMessengerReply(pageId, senderId, replyText, effectiveToken);
-      console.log(`[AUTO_REPLY_SENT] To: ${senderId} | Reply: "${replyText.substring(0, 80)}..."`);
-
-      // If customer sent voice message or requested voice/audio, send ElevenLabs voice note
-      const isVoiceRequested = Boolean(audioUrl) || /voice|boyes|boes|voyes|ভয়েস|ভয়েস|কথা বলুন|মুখে বলুন|অডিও|audio/i.test(text);
-      if (isVoiceRequested) {
-        console.log(`[VOICE_NOTE_TRIGGER] Customer requested voice or sent voice note. Generating ElevenLabs reply...`);
-        try {
-          await sendMessengerVoiceNote(senderId, replyText, effectiveToken);
-        } catch (vErr: any) {
-          console.warn("[VOICE_NOTE_TRIGGER_WARN]", vErr.message);
+        const sentVoice = await sendMessengerVoiceNote(senderId, replyText, effectiveToken);
+        if (!sentVoice) {
+          // Fallback to text if voice note generation/upload failed
+          await sendMessengerReply(pageId, senderId, replyText, effectiveToken);
         }
+      } else {
+        const charCount = replyText.length;
+        const rawDelay = 1800 + (charCount * 25);
+        const jitter = (Math.random() * 800) - 400;
+        const delayMs = Math.min(9500, Math.max(2200, Math.round(rawDelay + jitter)));
+
+        if (delayMs > 4500) {
+          await new Promise(r => setTimeout(r, 3500));
+          await sendSenderAction(senderId, "typing_on", effectiveToken);
+          await new Promise(r => setTimeout(r, delayMs - 3500));
+        } else {
+          await new Promise(r => setTimeout(r, delayMs));
+        }
+
+        await sendMessengerReply(pageId, senderId, replyText, effectiveToken);
+        console.log(`[AUTO_REPLY_SENT] To: ${senderId} | Reply: "${replyText.substring(0, 80)}..."`);
       }
 
       // Save bot reply to DB
@@ -249,7 +306,7 @@ async function flushSenderEvent(senderId: string) {
             await (prisma as any).message.create({
               data: {
                 conversationId: convId,
-                content: replyText,
+                content: userInVoiceMode ? `[ভয়েস মেসেজ] ${replyText}` : replyText,
                 mediaUrl: picProduct?.imageFile ? `/api/products/image?file=${encodeURIComponent(picProduct.imageFile)}` : null,
                 senderType: "AGENT",
                 platformMsgId: "auto_" + Date.now(),
