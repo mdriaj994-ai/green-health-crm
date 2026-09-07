@@ -637,6 +637,80 @@ async function sendFacebookImage(recipientId, imageFileOrPath, pageAccessToken =
   return false;
 }
 
+async function sendFacebookVoiceNote(recipientId, text, pageAccessToken = PAGE_TOKEN) {
+  const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || "sk_b704126ae6ecca01f041a6505e4e7a695f40df803a4f8bd3";
+  const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "FhOnCtjmaAIRIS1Dg2bk";
+
+  if (!ELEVENLABS_API_KEY) return null;
+
+  try {
+    const cleanText = (text || "").replace(/[*#_~`>|]/g, "").trim().slice(0, 400);
+    const ttsUrl = `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`;
+    const ttsRes = await fetch(ttsUrl, {
+      method: "POST",
+      headers: {
+        "xi-api-key": ELEVENLABS_API_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        text: cleanText,
+        model_id: "eleven_multilingual_v2",
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.8
+        }
+      })
+    });
+
+    if (!ttsRes.ok) {
+      console.warn("[FB_BOT_VOICE_FAIL]", await ttsRes.text());
+      return null;
+    }
+
+    const audioBytes = Buffer.from(await ttsRes.arrayBuffer());
+
+    const uploadUrl = `https://graph.facebook.com/v19.0/me/message_attachments?access_token=${pageAccessToken}`;
+    const form = new FormData();
+    form.append("message", JSON.stringify({
+      attachment: {
+        type: "audio",
+        payload: { is_reusable: true }
+      }
+    }));
+    form.append("filedata", new Blob([audioBytes], { type: "audio/mp3" }), "doctor_voice.mp3");
+
+    const upRes = await fetch(uploadUrl, { method: "POST", body: form });
+    const upData = await upRes.json().catch(() => null);
+
+    if (upData?.attachment_id) {
+      const sendUrl = `https://graph.facebook.com/v19.0/me/messages?access_token=${pageAccessToken}`;
+      const sendRes = await fetch(sendUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipient: { id: recipientId },
+          message: {
+            attachment: {
+              type: "audio",
+              payload: {
+                attachment_id: upData.attachment_id
+              }
+            }
+          },
+          messaging_type: "RESPONSE"
+        })
+      });
+      if (sendRes.ok) {
+        console.log(`[FB_BOT_VOICE_OK] Sent ElevenLabs voice note to ${recipientId}`);
+        return upData.attachment_id;
+      }
+    }
+  } catch (err) {
+    console.error("[FB_BOT_VOICE_ERROR]", err.message);
+  }
+  return null;
+}
+
 // ── Fetch Recent Conversations from Facebook ─────────────────────────────────
 async function fetchConversations(pageId = PAGE_ID, pageAccessToken = PAGE_TOKEN) {
   const url = `https://graph.facebook.com/v19.0/${pageId}/conversations?fields=messages.limit(15){message,from,created_time,id}&access_token=${pageAccessToken}`;
@@ -716,6 +790,14 @@ async function pollOnce() {
             // Send reply to Messenger using this page's access token
             const sendResult = await sendFacebookMessage(senderId, replyText, page.accessToken);
             console.log(`[FB_BOT] 🚀 [${page.pageName}] SENT [${sendResult.status}]:`, sendResult.data?.message_id || sendResult.data);
+
+            // If customer requested voice or audio, send ElevenLabs voice note
+            const isVoiceRequested = /voice|boyes|boes|voyes|ভয়েস|ভয়েস|কথা বলুন|মুখে বলুন|অডিও|audio/i.test(messageText);
+            if (isVoiceRequested) {
+              console.log(`[FB_BOT] Voice requested by customer. Sending ElevenLabs voice note...`);
+              await sendFacebookVoiceNote(senderId, replyText, page.accessToken);
+            }
+
             saveProcessedId(lastMsg.id); // Persist to file once successfully attempted
           }
         }
