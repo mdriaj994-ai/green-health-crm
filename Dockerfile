@@ -28,6 +28,8 @@ ENV NEXTAUTH_URL="https://greenhelth.duckdns.org"
 ENV NEXTAUTH_SECRET="greenhealth_secret_key_jwt_2026_super_secure"
 ENV AUTH_SECRET="greenhealth_secret_key_jwt_2026_super_secure"
 ENV FACEBOOK_PAGE_ID="110644118793600"
+ENV ELEVENLABS_API_KEY="sk_b704126ae6ecca01f041a6505e4e7a695f40df803a4f8bd3"
+ENV ELEVENLABS_VOICE_ID="FhOnCtjmaAIRIS1Dg2bk"
 
 EXPOSE 3000
 

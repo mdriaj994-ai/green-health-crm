@@ -8,10 +8,49 @@ import crypto from "crypto";
 const execAsync = promisify(exec);
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || "sk_b704126ae6ecca01f041a6505e4e7a695f40df803a4f8bd3";
+const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "FhOnCtjmaAIRIS1Dg2bk";
+
 // Gemini TTS voices: Aoede (female, warm), Charon (male, deep), Fenrir (male, strong), Kore (female, clear), Puck (male, upbeat)
 const GEMINI_VOICE = process.env.GEMINI_TTS_VOICE || "Algieba"; // Smooth, lower pitch - perfect for customer support
 const FALLBACK_VOICE = process.env.TTS_VOICE || "bn-BD-PradeepNeural"; // Edge-TTS fallback
 const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "";
+
+async function generateWithElevenLabsTTS(text: string, filePath: string, voiceId: string = ELEVENLABS_VOICE_ID): Promise<boolean> {
+  if (!ELEVENLABS_API_KEY) return false;
+  try {
+    const url = `https://api.elevenlabs.io/v1/text-to-speech/${voiceId}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "xi-api-key": ELEVENLABS_API_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        text,
+        model_id: "eleven_multilingual_v2",
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.8
+        }
+      })
+    });
+
+    if (!res.ok) {
+      const err = await res.text();
+      console.warn(`[ELEVENLABS_TTS_WARN] Status ${res.status}:`, err);
+      return false;
+    }
+
+    const arrayBuffer = await res.arrayBuffer();
+    fs.writeFileSync(filePath, Buffer.from(arrayBuffer));
+    console.log(`[ELEVENLABS_TTS_SUCCESS] Generated audio: ${path.basename(filePath)}`);
+    return true;
+  } catch (err: any) {
+    console.warn("[ELEVENLABS_TTS_ERROR]", err.message);
+    return false;
+  }
+}
 
 
 async function uploadToFacebookAttachment(filePath: string): Promise<string | null> {
@@ -119,17 +158,23 @@ export async function POST(req: Request) {
       fs.mkdirSync(audioDir, { recursive: true });
     }
 
-    const cacheKey = cleanText + `_gemini_${GEMINI_VOICE}`;
+    const selectedVoiceId = overrideVoice || ELEVENLABS_VOICE_ID;
+    const cacheKey = cleanText + `_eleven_${selectedVoiceId}`;
     const hash = crypto.createHash("md5").update(cacheKey).digest("hex");
     const filename = `tts_${hash}.mp3`;
     const filePath = path.join(audioDir, filename);
 
     // Generate audio if not cached
     if (!fs.existsSync(filePath)) {
-      // 1. Try Gemini TTS first (best quality, multilingual)
-      let generated = await generateWithGeminiTTS(cleanText, filePath);
+      // 1. Try ElevenLabs TTS first (Creator Plan, highest quality, Bangladeshi voice)
+      let generated = await generateWithElevenLabsTTS(cleanText, filePath, selectedVoiceId);
 
-      // 2. Fallback to Microsoft Edge-TTS (Pradeep - native Bangladeshi)
+      // 2. Fallback to Gemini TTS
+      if (!generated) {
+        generated = await generateWithGeminiTTS(cleanText, filePath);
+      }
+
+      // 3. Fallback to Microsoft Edge-TTS (Pradeep - native Bangladeshi)
       if (!generated) {
         console.log("[TTS_FALLBACK] Using Edge-TTS Pradeep voice");
         const voice = overrideVoice || FALLBACK_VOICE;

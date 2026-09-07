@@ -223,6 +223,17 @@ async function flushSenderEvent(senderId: string) {
       await sendMessengerReply(pageId, senderId, replyText, effectiveToken);
       console.log(`[AUTO_REPLY_SENT] To: ${senderId} | Reply: "${replyText.substring(0, 80)}..."`);
 
+      // If customer sent voice message or requested voice/audio, send ElevenLabs voice note
+      const isVoiceRequested = Boolean(audioUrl) || /voice|boyes|boes|voyes|ভয়েস|ভয়েস|কথা বলুন|মুখে বলুন|অডিও|audio/i.test(text);
+      if (isVoiceRequested) {
+        console.log(`[VOICE_NOTE_TRIGGER] Customer requested voice or sent voice note. Generating ElevenLabs reply...`);
+        try {
+          await sendMessengerVoiceNote(senderId, replyText, effectiveToken);
+        } catch (vErr: any) {
+          console.warn("[VOICE_NOTE_TRIGGER_WARN]", vErr.message);
+        }
+      }
+
       // Save bot reply to DB
       try {
         const { prisma } = await import("@/lib/prisma");
@@ -650,6 +661,88 @@ async function sendMessengerImage(recipientId: string, imageFileOrPath: string, 
   }
 
   return false;
+}
+
+async function sendMessengerVoiceNote(recipientId: string, text: string, accessToken: string): Promise<string | null> {
+  const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || "sk_b704126ae6ecca01f041a6505e4e7a695f40df803a4f8bd3";
+  const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "FhOnCtjmaAIRIS1Dg2bk";
+
+  if (!ELEVENLABS_API_KEY) return null;
+
+  try {
+    // 1. Generate audio via ElevenLabs
+    const cleanText = text.replace(/[*#_~`>|]/g, "").trim().slice(0, 400);
+    const ttsUrl = `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`;
+    const ttsRes = await fetch(ttsUrl, {
+      method: "POST",
+      headers: {
+        "xi-api-key": ELEVENLABS_API_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        text: cleanText,
+        model_id: "eleven_multilingual_v2",
+        voice_settings: {
+          stability: 0.5,
+          similarity_boost: 0.8
+        }
+      })
+    });
+
+    if (!ttsRes.ok) {
+      console.warn("[VOICE_NOTE_ELEVEN_FAIL]", await ttsRes.text());
+      return null;
+    }
+
+    const audioBytes = Buffer.from(await ttsRes.arrayBuffer());
+
+    // 2. Upload to Facebook message_attachments
+    const uploadUrl = `https://graph.facebook.com/v19.0/me/message_attachments?access_token=${accessToken}`;
+    const form = new FormData();
+    form.append("message", JSON.stringify({
+      attachment: {
+        type: "audio",
+        payload: { is_reusable: true }
+      }
+    }));
+    form.append("filedata", new Blob([audioBytes], { type: "audio/mp3" }), "doctor_voice.mp3");
+
+    const upRes = await fetch(uploadUrl, { method: "POST", body: form });
+    const upData = await upRes.json().catch(() => null);
+
+    if (upData?.attachment_id) {
+      // 3. Send voice note attachment
+      const sendUrl = `https://graph.facebook.com/v19.0/me/messages?access_token=${accessToken}`;
+      const sendRes = await fetch(sendUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipient: { id: recipientId },
+          message: {
+            attachment: {
+              type: "audio",
+              payload: {
+                attachment_id: upData.attachment_id
+              }
+            }
+          },
+          messaging_type: "RESPONSE"
+        })
+      });
+      const sendData = await sendRes.json().catch(() => null);
+      if (sendRes.ok) {
+        console.log(`[FB_VOICE_NOTE_OK] Sent ElevenLabs voice note to ${recipientId}`);
+        return upData.attachment_id;
+      } else {
+        console.warn(`[FB_VOICE_NOTE_SEND_WARN]`, sendData);
+      }
+    } else {
+      console.warn(`[FB_VOICE_ATTACH_WARN]`, upData);
+    }
+  } catch (err: any) {
+    console.error("[VOICE_NOTE_ERROR]", err.message);
+  }
+  return null;
 }
 
 async function handleFacebookComment(pageId: string, value: any) {
