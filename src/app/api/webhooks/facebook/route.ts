@@ -722,13 +722,15 @@ async function sendMessengerImage(recipientId: string, imageFileOrPath: string, 
 
 async function sendMessengerVoiceNote(recipientId: string, text: string, accessToken: string): Promise<string | null> {
   const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || "sk_b704126ae6ecca01f041a6505e4e7a695f40df803a4f8bd3";
-  const ELEVENLABS_VOICE_ID = process.env.ELEVENLABS_VOICE_ID || "FhOnCtjmaAIRIS1Dg2bk";
+  const rawVoiceId = process.env.ELEVENLABS_VOICE_ID;
+  const ELEVENLABS_VOICE_ID = (rawVoiceId && rawVoiceId !== "FhOnCtjmaAIRIS1Dg2bk") ? rawVoiceId : "TX3LPaxmHKxFdv7VOQHJ";
 
   if (!ELEVENLABS_API_KEY) return null;
 
   try {
     // 1. Generate audio via ElevenLabs
     const cleanText = text.replace(/[*#_~`>|]/g, "").trim().slice(0, 400);
+    console.log(`[FB_VOICE_NOTE] Generating voice note with Voice ID: ${ELEVENLABS_VOICE_ID}`);
     const ttsUrl = `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`;
     const ttsRes = await fetch(ttsUrl, {
       method: "POST",
