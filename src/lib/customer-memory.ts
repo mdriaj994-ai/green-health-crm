@@ -36,6 +36,7 @@ export interface CustomerProfile {
   followUpCount?: number;
   lastFollowUpTime?: number;
   followUpHistory?: FollowUpRecord[];
+  prefersVoice?: boolean;
 }
 
 export interface FollowUpCandidate {

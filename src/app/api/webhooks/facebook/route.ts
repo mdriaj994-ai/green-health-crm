@@ -203,18 +203,15 @@ async function flushSenderEvent(senderId: string) {
     }
 
     // ── Voice Mode & Voice Request Logic ──
-    const { isVoiceMode, setVoiceMode, isOnlyVoiceRequest, isVoiceRequested } = await import("@/lib/voice-mode");
+    const { isVoiceMode, setVoiceMode, isOnlyVoiceRequest, isVoiceRequested, isTextModeRequested } = await import("@/lib/voice-mode");
 
-    if (/^(text\s*(dao|den|din)|লিখুন|লিখে\s*বলুন|text\s*a\s*bolen)/i.test(text.trim())) {
+    if (isTextModeRequested(text)) {
       setVoiceMode(senderId, false);
+    } else if (isOnlyVoiceRequest(text) || isVoiceRequested(text) || Boolean(audioUrl)) {
+      setVoiceMode(senderId, true);
     }
 
     const isOnlyVoice = isOnlyVoiceRequest(text);
-    const isGeneralVoice = isVoiceRequested(text) || Boolean(audioUrl);
-
-    if (isOnlyVoice || isGeneralVoice) {
-      setVoiceMode(senderId, true);
-    }
 
     // CASE 1: Customer specifically requested voice for previous answer ("voice dao")
     if (isOnlyVoice) {

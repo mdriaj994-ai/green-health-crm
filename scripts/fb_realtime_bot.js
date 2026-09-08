@@ -51,19 +51,37 @@ const processedIds = new Set();
 const threadMemory = new Map();
 const voiceUsers = new Set();
 
-// Preload voice users
-try {
-  if (fs.existsSync(VOICE_USERS_FILE)) {
-    const list = JSON.parse(fs.readFileSync(VOICE_USERS_FILE, "utf-8"));
-    if (Array.isArray(list)) {
-      for (const id of list) voiceUsers.add(String(id));
+function reloadVoiceUsersFromDisk() {
+  try {
+    if (fs.existsSync(VOICE_USERS_FILE)) {
+      const list = JSON.parse(fs.readFileSync(VOICE_USERS_FILE, "utf-8"));
+      if (Array.isArray(list)) {
+        for (const id of list) voiceUsers.add(String(id));
+      }
     }
-  }
-} catch {}
+  } catch {}
+}
+reloadVoiceUsersFromDisk();
 
 function isVoiceMode(userId) {
   if (!userId) return false;
-  return voiceUsers.has(String(userId));
+  const idStr = String(userId);
+  if (voiceUsers.has(idStr)) return true;
+
+  // Multi-process check
+  reloadVoiceUsersFromDisk();
+  if (voiceUsers.has(idStr)) return true;
+
+  // Check permanent customer profile
+  try {
+    const prof = customerMemory.getCustomerProfile(idStr);
+    if (prof && prof.prefersVoice) {
+      voiceUsers.add(idStr);
+      return true;
+    }
+  } catch {}
+
+  return false;
 }
 
 function setVoiceMode(userId, enabled = true) {
@@ -79,21 +97,35 @@ function setVoiceMode(userId, enabled = true) {
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
     fs.writeFileSync(VOICE_USERS_FILE, JSON.stringify(Array.from(voiceUsers)), "utf-8");
   } catch {}
+
+  try {
+    customerMemory.updateCustomerProfile(idStr, { prefersVoice: enabled });
+  } catch {}
 }
 
 function isOnlyVoiceRequest(text) {
   if (!text) return false;
   const clean = text.trim().toLowerCase();
   return (
-    /^(voice|boyes|boes|voyes|ভয়েস|ভয়েস|অডিও|audio)(\s*(dao|den|din|pathan|koro|koren|bolo|bolen|দাও|দেন|দিন|পাঠান|করুন|বলো|বলেন))?$/i.test(clean) ||
-    /^(vai|bhai|vaiya|bhaiya)?\s*(voice|boyes|boes|voyes|ভয়েস|ভয়েস|মুখে)\s*(dao|den|din|pathan|bolo|bolen|দাও|দেন|দিন|পাঠান|বলুন|বলো|বলেন)?$/i.test(clean) ||
-    /^(voice\s*dao|voice\s*den|voice\s*din|ভয়েস\s*দাও|ভয়েস\s*দাও|ভয়েস\s*দেন|ভয়েস\s*দেন|ভয়েস\s*দিন|মুখে\s*বলুন|মুখে\s*বলো|কথা\s*বলুন)$/i.test(clean)
+    /^(voice|boyes|boes|voyes|ভয়েস|ভয়েস|বয়েজ|বয়েজ|বয়েস|বয়েস|অডিও|audio)(\s*(dao|den|din|pathan|koro|koren|bolo|bolen|দাও|দেন|দিন|পাঠান|করুন|বলো|বলেন))?$/i.test(clean) ||
+    /^(vai|bhai|vaiya|bhaiya)?\s*(voice|boyes|boes|voyes|ভয়েস|ভয়েস|বয়েজ|বয়েজ|বয়েস|বয়েস|মুখে)\s*(dao|den|din|pathan|bolo|bolen|দাও|দেন|দিন|পাঠান|বলুন|বলো|বলেন)?$/i.test(clean) ||
+    /^(voice\s*dao|voice\s*den|voice\s*din|ভয়েস\s*দাও|ভয়েস\s*দাও|ভয়েস\s*দেন|ভয়েস\s*দেন|ভয়েস\s*দিন|বয়েজ\s*দাও|বয়েজ\s*দেন|বয়েজ\s*দিন|মুখে\s*বলুন|মুখে\s*বলো|কথা\s*বলুন)$/i.test(clean)
   );
 }
 
 function isVoiceRequested(text) {
   if (!text) return false;
-  return /voice|boyes|boes|voyes|ভয়েস|ভয়েস|কথা বলুন|মুখে বলুন|মুখে বলেন|মুখে বলো|অডিও|audio/i.test(text);
+  return /voice|boyes|boes|voyes|ভয়েস|ভয়েস|বয়েজ|বয়েজ|বয়েস|বয়েস|কথা বলুন|মুখে বলুন|মুখে বলেন|মুখে বলো|অডিও|audio/i.test(text);
+}
+
+function isTextModeRequested(text) {
+  if (!text) return false;
+  const clean = text.trim().toLowerCase();
+  return (
+    /\b(text|txt)\b.*(dao|den|din|bolen|bolun|bolo|pathan|koro|koren|দাও|দেন|দিন|বলেন|বলুন|পাঠান)/i.test(clean) ||
+    /(টেক্সট|টেক্সটে|মেসেজে?|লিখে|লেখা)\s*(দাও|দেন|দিন|বলেন|বলুন|বলো|পাঠান|করুন|লিখুন)/i.test(clean) ||
+    /^(text|txt|লিখে|লিখুন|লেখা|মেসেজ|message)$/i.test(clean)
+  );
 }
 
 // Preload processed IDs from file if exists
@@ -441,9 +473,12 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
      * "ডেলিভারি চার্জ ১৫০ টাকা লাগবে।"
    - STRICT BAN: Never say vague phrases like "কিছু টাকা", "অল্প টাকা", or avoid the price. Always write the exact number clearly.
 
-4. EXACT ORDER FORM FORMAT (হুবহু অর্ডার ফরম্যাট):
-   - When the customer asks to order, wants to take the medicine, or when asking if they want to order:
-     You MUST provide this EXACT format:
+4. STRICT ORDER FORM RULES (অর্ডার ফরম দেওয়ার সুনির্দিষ্ট নিয়ম):
+   - ABSOLUTE BAN ON UNSOLICITED ORDER FORMS: NEVER provide the order form when the customer is asking questions, asking what a medicine does ("কি কাজ করে", "উপকার কি", "কাজ কি"), asking about ingredients, dosage ("কীভাবে খাবো"), price ("দাম কত"), or having a general consultation!
+   - ONLY provide the order form when the customer EXPLICITLY expresses buying/ordering intent (e.g., "নিতে চাই", "অর্ডার করবো", "অর্ডার দিন", "পাঠিয়ে দিন", "কুরিয়ার করে দেন", "বুক করুন", "ঠিকানা দিচ্ছি", "অর্ডার কনফার্ম").
+   - If the customer asks what AMBER or any medicine does (e.g. "AMBER aita ki ki kaj kore"):
+     Reply in 2 to 3 warm, reassuring sentences as Hakim Reajul Karim. Explain that it naturally improves blood flow, testosterone, and stamina with pure Ayurvedic herbs and Swarna Bhasma without any side effects. End with a caring consultation question (e.g. "আপনার সমস্যাটা কত দিনের ভাইয়া?"). NEVER ATTACH THE ORDER FORM!
+   - When the customer DOES explicitly confirm they want to order, then and ONLY then provide this EXACT format:
 ভাইয়া, আপনি কি আমাদের প্রোডাক্ট নিতে চাচ্ছেন? নিতে চাইলে নিচের তথ্যগুলো পূরণ করে পাঠিয়ে দিন:
 আপনার
 নাম=
@@ -481,8 +516,10 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
 9. CLEAN PLAIN TEXT ONLY:
    - Absolutely DO NOT use markdown bolding or asterisks (no ** or ## or *).
 
-10. NATURAL HUMAN CHAT BREVITY & PACING:
-    - Real human doctors on Messenger text in short, conversational paragraphs (2 to 3 sentences maximum, plus order form if closing).
+10. NATURAL HUMAN CHAT BREVITY & PACING (স্বাভাবিক মানবিক সংক্ষিপ্ত কথোপকথন):
+    - Real human doctors on Messenger text in short, conversational paragraphs (2 to 3 sentences maximum).
+    - NEVER write long essays, numbered bullet points (১, ২, ৩), or textbook lectures.
+    - NEVER attach the order form during inquiry stage.
     - If customer says "আমার কোনো সমস্যা নেই", reply warmly:
       "মাশাআল্লাহ ভাইয়া, শুনে খুব ভালো লাগল! সুস্থ থাকাটাই পরম নিয়ামত। সবসময় ফিট থাকতে যেকোনো পরামর্শে নির্দ্বিধায় নক দেবেন। ভালো থাকবেন!"
 
@@ -531,6 +568,16 @@ ${masterKB ? `\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\n${masterKB}\n---
           .replace(/রেজাউল/gi, "রিয়াজুল")
           .replace(/re[aj]aul\s*karim/gi, "রিয়াজুল করিম")
           .replace(/re[aj]aul/gi, "রিয়াজুল");
+
+        // Clean leading page name or header line (e.g., "গ্রীন হেলথ ইউনানী ফার্মেসী\n")
+        text = text.replace(/^(গ্রীন\s*হেলথ\s*ইউনানী\s*ফার্মেসী|Green Health Unani Pharmacy)[\s:\-—]*\n+/gi, "").trim();
+
+        // Safety Guard: If customer did not express buying intent, strip any unsolicited order form
+        const hasBuyIntent = /(নিতে\s*চাই|অর্ডার|পাঠান|পাঠিয়ে|কুরিয়ার|ডেলিভারি|বুক\s*কর|ঠিকানা|পার্সেল|order|buy|kuriar|delivery|parcel|address)/i.test(customerMessage);
+        if (!hasBuyIntent) {
+          text = text.replace(/(ভাইয়া,?\s*আপনি\s*কি\s*আমাদের\s*প্রোডাক্ট\s*নিতে\s*চাচ্ছেন\?[\s\S]*?নাম্বার\s*=?[^\n]*)/gi, "").trim();
+          text = text.replace(/(আপনার\s*\n\s*নাম\s*=[\s\S]*?নাম্বার\s*=?[^\n]*)/gi, "").trim();
+        }
 
         // If ongoing conversation, strip any accidental mid-chat greeting slipped by LLM
         if (effectiveHistory && effectiveHistory.length > 0) {
@@ -879,16 +926,13 @@ async function pollOnce() {
             }
 
             // ── Voice Mode & Voice Request Logic ──
-            if (/^(text\s*(dao|den|din)|লিখুন|লিখে\s*বলুন|text\s*a\s*bolen)/i.test(messageText.trim())) {
+            if (isTextModeRequested(messageText)) {
               setVoiceMode(senderId, false);
+            } else if (isOnlyVoiceRequest(messageText) || isVoiceRequested(messageText)) {
+              setVoiceMode(senderId, true);
             }
 
             const isOnlyVoice = isOnlyVoiceRequest(messageText);
-            const isGeneralVoice = isVoiceRequested(messageText);
-
-            if (isOnlyVoice || isGeneralVoice) {
-              setVoiceMode(senderId, true);
-            }
 
             // CASE 1: Customer explicitly asked for voice of previous answer ("voice dao")
             if (isOnlyVoice) {

@@ -59,6 +59,7 @@ function getCustomerProfile(senderId, defaultName = "") {
       firstContact: Date.now(),
       lastContact: Date.now(),
       totalMessages: 0,
+      prefersVoice: false,
     };
     memoryCache.set(idStr, newProfile);
     saveMemory();
