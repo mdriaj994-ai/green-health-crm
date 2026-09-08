@@ -192,9 +192,10 @@ async function flushSenderEvent(senderId: string) {
       const { isPictureRequest, findProductForImage } = await import("@/lib/product-db");
       if (isPictureRequest(text)) {
         picProduct = findProductForImage(text, chatHistory);
-        if (picProduct?.imageFile && effectiveToken) {
-          console.log(`[AUTO_REPLY_PIC] Customer requested picture. Sending "${picProduct.name}" (${picProduct.imageFile}) to ${senderId}`);
-          await sendMessengerImage(senderId, picProduct.imageFile, effectiveToken);
+        const imgToSend = picProduct?.imageFile || "WhatsApp Image 2026-08-31 at 2.35.30 PM.jpeg";
+        if (effectiveToken) {
+          console.log(`[AUTO_REPLY_PIC] Customer requested picture. Sending (${imgToSend}) to ${senderId}`);
+          await sendMessengerImage(senderId, imgToSend, effectiveToken);
         }
       }
     } catch (picErr: any) {
@@ -734,7 +735,13 @@ async function sendMessengerVoiceNote(recipientId: string, text: string, accessT
       .replace(/রেজাউল\s*করিম/gi, "রিয়াজুল করিম")
       .replace(/রেজাউল/gi, "রিয়াজুল")
       .replace(/re[aj]aul\s*karim/gi, "রিয়াজুল করিম")
-      .replace(/re[aj]aul/gi, "রিয়াজুল");
+      .replace(/re[aj]aul/gi, "রিয়াজুল")
+      .replace(/নাম\s*=/gi, "নাম,")
+      .replace(/জেলা\s*=/gi, "জেলা,")
+      .replace(/থানা\s*=/gi, "থানা,")
+      .replace(/রিসিভ ঠিকানা\s*=/gi, "রিসিভ ঠিকানা,")
+      .replace(/নাম্বার\s*=/gi, "মোবাইল নাম্বার")
+      .replace(/=/g, " ");
     console.log(`[FB_VOICE_NOTE] Generating voice note with Voice ID: ${ELEVENLABS_VOICE_ID}`);
     const ttsUrl = `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`;
     const ttsRes = await fetch(ttsUrl, {

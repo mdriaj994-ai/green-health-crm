@@ -176,7 +176,8 @@ export function findProductInDB(query: string): MergedProduct | null {
     "viga": ["viga", "ভিগা"],
     "shark": ["shark", "শার্ক"],
     "tiger king": ["tiger king", "tiger", "টাইগার কিং"],
-    "rheumarex": ["rheumarex", "রিউমারেক্স"]
+    "rheumarex": ["rheumarex", "রিউমারেক্স"],
+    "amber": ["amber", "ambar", "amber premium", "ambar premium", "আম্বার", "অম্বর", "অ্যাম্বার", "অंबर", "अंबर", "যৌন বিছানা রাজা", "বিছানা রাজা", "bistar raja", "tantra sutra", "gold bhasma", "স্বর্ণ ভস্ম"]
   };
 
   // 1. Alias match
