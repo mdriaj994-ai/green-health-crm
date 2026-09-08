@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { MergedProduct, findProductInDB, buildProductAIContext } from "./product-db";
+import { buildCustomerMemoryPrompt, extractCustomerFacts, appendChatMessage } from "./customer-memory";
 import fs from "fs";
 import path from "path";
 
@@ -21,6 +22,8 @@ export interface AIContextOptions {
   tone?: string;
   imageUrl?: string | null;
   platform?: string;
+  senderId?: string;
+  customerName?: string;
 }
 
 let cachedDefaultKB = "";
@@ -54,6 +57,7 @@ function detectLanguage(text: string): string {
 
 function buildSystemInstruction(options: AIContextOptions, liveProductContext: string = "", detectedLang: string = "Bengali"): string {
   const kb = options.businessDetails?.trim() || getDefaultKnowledgeBase();
+  const customerMemoryPrompt = options.senderId ? buildCustomerMemoryPrompt(options.senderId, options.customerName) : "";
 
   return `You are an elite Senior Hakim, Certified Medical Researcher, and Master Sales Closer representing Green Health Unani Pharmacy (গ্রীন হেলথ ইউনানী ফার্মেসী) in Bangladesh.
 
@@ -136,6 +140,7 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
     - If introducing yourself by name, ALWAYS write your name in clear Bengali as 'হাকিম রিয়াজুল করিম' (never write 'রেজাউল' or English 'Rejaul/Reajul').
     - NEVER say meta phrases like "নিচের অডিওটি শুনে নিন" or "ভয়েস মেসেজ পাঠিয়ে দিচ্ছি"!
 
+${customerMemoryPrompt ? `\n${customerMemoryPrompt}\n` : ""}
 ${liveProductContext ? `\n--- LIVE DASHBOARD DATA FOR THIS INQUIRY ---\n${liveProductContext}\n-------------------------------------------\n` : ""}
 
 Knowledge Base:
@@ -150,6 +155,12 @@ export async function generateAutoReply(
   options: AIContextOptions = {}
 ): Promise<string> {
   const effectiveMessage = incomingMessage?.trim() || "";
+
+  // Extract facts & update permanent customer profile if senderId is present
+  if (options.senderId) {
+    extractCustomerFacts(options.senderId, effectiveMessage, options.customerName);
+    appendChatMessage(options.senderId, "user", effectiveMessage);
+  }
 
   // Search live VPS database for matched product
   const matchedProduct = findProductInDB(effectiveMessage);
@@ -166,6 +177,14 @@ export async function generateAutoReply(
 
   const detectedLang = detectLanguage(effectiveMessage);
 
+  // Format multi-turn conversation history
+  const historyText = options.chatHistory && options.chatHistory.length > 0
+    ? `Previous Multi-Turn Conversation History (পূর্ববর্তী বার্তালাপ):\n` +
+      options.chatHistory.map(m => `${m.sender === "AGENT" ? "হাকিম রিয়াজুল করিম (ডাক্তার)" : (options.customerName || "কাস্টমার")}: "${m.text}"`).join("\n") +
+      `\n\n`
+    : "";
+  const userPrompt = `${historyText}Customer (${options.customerName || "Customer"}): "${effectiveMessage}"\nReply:`;
+
   // Try available models in order
   for (const modelName of PRIMARY_MODELS) {
     try {
@@ -178,7 +197,6 @@ export async function generateAutoReply(
         },
       });
 
-      const userPrompt = `Customer message: "${effectiveMessage}". Provide an accurate, helpful reply:`;
       const result = await model.generateContent(userPrompt);
       let reply = result.response.text().trim();
 
@@ -203,6 +221,12 @@ export async function generateAutoReply(
         if (options.chatHistory && options.chatHistory.length > 0) {
           reply = reply.replace(/^(হ্যালো\s*ভাইয়া[,।!?]?|হাই\s*ভাইয়া[,।!?]?)/gi, "").trim();
         }
+
+        // Append assistant reply to permanent customer memory
+        if (options.senderId) {
+          appendChatMessage(options.senderId, "model", reply, false);
+        }
+
         return reply;
       }
     } catch (modelErr: any) {

@@ -262,6 +262,7 @@ async function flushSenderEvent(senderId: string) {
     const replyText = await generateAutoReply(text || "ছবি পাঠালাম", {
       imageUrl: imageUrl || null,
       chatHistory,
+      senderId,
     });
 
     if (replyText && effectiveToken) {
@@ -270,6 +271,10 @@ async function flushSenderEvent(senderId: string) {
         console.log(`[VOICE_MODE_ACTIVE] Customer is in voice mode. Sending response as voice note only to ${senderId}: "${replyText.substring(0, 80)}..."`);
         await sendSenderAction(senderId, "typing_on", effectiveToken);
         const sentVoice = await sendMessengerVoiceNote(senderId, replyText, effectiveToken);
+        try {
+          const { appendChatMessage } = await import("@/lib/customer-memory");
+          appendChatMessage(senderId, "model", replyText, true);
+        } catch {}
         if (!sentVoice) {
           // Fallback to text if voice note generation/upload failed
           await sendMessengerReply(pageId, senderId, replyText, effectiveToken);

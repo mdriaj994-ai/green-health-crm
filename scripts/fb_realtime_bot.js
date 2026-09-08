@@ -7,6 +7,7 @@ const { GoogleGenerativeAI } = require("@google/generative-ai");
 const fs = require("fs");
 
 const Database = require("better-sqlite3");
+const customerMemory = require("./customer_memory.js");
 
 const PAGE_ID = process.env.FACEBOOK_PAGE_ID || "110644118793600";
 const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAW6YWihfogBSY0coWHPtYcw2Gwm11ZAznBKAIcOzhgKQJWYITHuelgvzJfoWl0QjgrsRD5DEViDdpVyQKyvxGkBVJ8saKOzXi4IaXvIwYWuJXVJwNxBGsUdru7NAV9Rk5hrGCJigh9NuX1ury8ATCBYvbjBce885iGjucQ3LSbzYQwqQvNGfcu7GO70jQu3QiwI1";
@@ -383,6 +384,12 @@ function detectLanguage(text) {
 }
 
 async function generateReply(customerMessage, senderName, senderId = null, recentHistory = [], pageName = "গ্রীন হেলথ ইউনানী ফার্মেসী") {
+  // Extract and persist permanent customer facts
+  if (senderId) {
+    customerMemory.extractCustomerFacts(senderId, customerMessage, senderName);
+    customerMemory.appendChatMessage(senderId, "user", customerMessage, false);
+  }
+
   const { context: productContext, matched } = getLiveProductInfo(customerMessage, senderId, recentHistory);
 
   const masterPath = path.join(process.cwd(), "data", "medicine_master_complete_db.json");
@@ -393,6 +400,16 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
   const masterKB = fs.existsSync(kbPath) ? fs.readFileSync(kbPath, "utf-8") : "";
   const catalogSummary = buildStoreCatalog(master, edits);
   const detectedLang = detectLanguage(customerMessage);
+  const customerMemoryPrompt = senderId ? customerMemory.buildCustomerMemoryPrompt(senderId, senderName) : "";
+
+  // Supplement recent history from permanent memory if history array is sparse
+  let effectiveHistory = (recentHistory && recentHistory.length > 0) ? [...recentHistory] : [];
+  if (effectiveHistory.length <= 1 && senderId) {
+    const memHistory = customerMemory.getRecentChatHistory(senderId, 12);
+    if (memHistory.length > effectiveHistory.length) {
+      effectiveHistory = memHistory;
+    }
+  }
 
   const systemInstruction = `You are an elite Senior Hakim, Certified Medical Researcher, and Master Sales Closer representing ${pageName} in Bangladesh.
 
@@ -437,8 +454,8 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
    - Do NOT change the keys (নাম=, জেলা=, থানা=, রিসিভ ঠিকানা=, নাম্বার =) in the form!
 
 5. ANTI-REPETITION & CONVERSATIONAL MEMORY (একটি কথা বারবার না বলা):
-   - Current Conversation Status: ${recentHistory && recentHistory.length > 0 ? "ACTIVE ONGOING DIALOGUE" : "NEW CONVERSATION"}
-   - Look at the previous conversation history carefully!
+   - Current Conversation Status: ${effectiveHistory && effectiveHistory.length > 0 ? "ACTIVE ONGOING DIALOGUE" : "NEW CONVERSATION"}
+   - Look at the permanent memory and previous conversation history carefully!
    - If the customer ALREADY stated their age, marital status, or symptoms, NEVER ASK AGAIN!
    - Never repeat the same greeting, explanation, or question in consecutive turns.
    - Move the consultation forward dynamically based on what the customer just said.
@@ -455,7 +472,7 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
    - GREETING FIRST: If the customer ONLY says Salam ("assalam alaikum", "salam") or casual greeting ("hi", "hello", "vaiya") WITHOUT mentioning any health problem or product:
      DO NOT ask personal medical questions yet! Simply return the greeting warmly:
      "ওয়ালাইকুম আসসালাম ভাইয়া। আলহামদুলিল্লাহ, ভালো আছি। আপনি কেমন আছেন? আপনাকে কীভাবে সাহায্য করতে পারি বলুন।"
-   - When the customer mentions a health problem, ask ONE relevant missing question at a time (Age & Marital Status -> Symptoms -> Duration) if not already provided.
+   - When the customer mentions a health problem, ask ONE relevant missing question at a time (Age & Marital Status -> Symptoms -> Duration) if not already provided in permanent memory.
 
 8. EMPATHY & FRUSTRATION HANDLING (SCIENTIFIC VALIDATION):
    - When customer shares past failure with cheap chemicals:
@@ -478,6 +495,7 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
     - If introducing yourself by name, ALWAYS state your name in clear Bengali as 'হাকিম রিয়াজুল করিম' (never write 'রেজাউল' or English 'Rejaul/Reajul').
     - NEVER say meta phrases like "নিচের অডিওটি শুনে নিন" or "ভয়েস মেসেজ পাঠিয়ে দিচ্ছি"!
 
+${customerMemoryPrompt ? `\n${customerMemoryPrompt}\n` : ""}
 ${productContext ? `\n--- LIVE MEDICINE DASHBOARD DATA ---\n${productContext}\n-----------------------------------\n` : ""}
 ${masterKB ? `\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\n${masterKB}\n-----------------------------------------------\n` : ""}
 `;
@@ -491,8 +509,8 @@ ${masterKB ? `\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\n${masterKB}\n---
         generationConfig: { maxOutputTokens: 250, temperature: 0.45 }
       });
 
-      const historyText = recentHistory && recentHistory.length > 0
-        ? `Recent Conversation Context:\n${recentHistory.join("\n")}\n\n`
+      const historyText = effectiveHistory && effectiveHistory.length > 0
+        ? `Recent Conversation Context:\n${effectiveHistory.join("\n")}\n\n`
         : "";
       const prompt = `${historyText}Customer (${senderName || "Customer"}): "${customerMessage}"\nReply:`;
       const res = await model.generateContent(prompt);
@@ -515,15 +533,22 @@ ${masterKB ? `\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\n${masterKB}\n---
           .replace(/re[aj]aul/gi, "রিয়াজুল");
 
         // If ongoing conversation, strip any accidental mid-chat greeting slipped by LLM
-        if (recentHistory && recentHistory.length > 0) {
+        if (effectiveHistory && effectiveHistory.length > 0) {
           text = text.replace(/^(ওয়ালাইকুম\s*আসসালাম[^\n।,!?]*[,।!?]?|আসসালামু\s*আলাইকুম[^\n।,!?]*[,।!?]?|হ্যালো\s*ভাইয়া[,।!?]?|হাই\s*ভাইয়া[,।!?]?)/gi, "").trim();
         }
+
+        // Persist model reply to customer permanent memory
+        if (senderId) {
+          customerMemory.appendChatMessage(senderId, "model", text, false);
+        }
+
         return text;
       }
     } catch (err) {
       console.warn(`[AI_MODEL_WARN] (${m}):`, err.message);
     }
   }
+
 
 
   // Smart Fallback if Gemini models hit 503 or fail
@@ -873,7 +898,9 @@ async function pollOnce() {
               console.log(`[FB_BOT] Customer asked for voice of previous answer. Sending voice note only to ${senderId}: "${voiceText.slice(0, 60)}..."`);
               await sendSenderAction(senderId, "typing_on", page.accessToken);
               const sentVoice = await sendFacebookVoiceNote(senderId, voiceText, page.accessToken);
-              if (!sentVoice) {
+              if (sentVoice) {
+                customerMemory.appendChatMessage(senderId, "model", voiceText, true);
+              } else {
                 await sendFacebookMessage(senderId, voiceText, page.accessToken);
               }
               saveProcessedId(lastMsg.id);
@@ -891,7 +918,9 @@ async function pollOnce() {
               console.log(`[FB_BOT] 🎙️ Sending answer as voice note only to ${senderId}: "${replyText.slice(0, 70)}..."`);
               await sendSenderAction(senderId, "typing_on", page.accessToken);
               const sentVoice = await sendFacebookVoiceNote(senderId, replyText, page.accessToken);
-              if (!sentVoice) {
+              if (sentVoice) {
+                customerMemory.appendChatMessage(senderId, "model", replyText, true);
+              } else {
                 // Fallback to text if voice note generation failed
                 await sendFacebookMessage(senderId, replyText, page.accessToken);
               }
