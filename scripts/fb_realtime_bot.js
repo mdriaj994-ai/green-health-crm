@@ -725,7 +725,7 @@ async function sendFacebookVoiceNote(recipientId, text, pageAccessToken = PAGE_T
   if (!ELEVENLABS_API_KEY) return null;
 
   try {
-    let cleanText = (text || "").replace(/[*#_~`>|]/g, "").trim().slice(0, 400);
+    let cleanText = (text || "").replace(/[*#_~`>|]/g, "").replace(/\s+/g, " ").trim().slice(0, 2500);
     // Ensure accurate pronunciation of Reajul Karim in Bengali (prevent 'রেজাউল' or distorted English phonetics)
     cleanText = cleanText
       .replace(/রেজাউল\s*করিম/gi, "রিয়াজুল করিম")
