@@ -31,18 +31,18 @@ async function generateWithElevenLabsTTS(text: string, filePath: string, voiceId
       },
       body: JSON.stringify({
         text,
-        model_id: "eleven_v3_conversational",
+        model_id: "eleven_multilingual_v2",
         voice_settings: {
-          stability: 0.44,
-          similarity_boost: 0.85,
-          style: 0.10,
+          stability: 0.50,
+          similarity_boost: 0.80,
+          style: 0.0,
           use_speaker_boost: true
         }
       })
     });
 
     if (!res.ok) {
-      console.warn(`[ELEVENLABS_TTS_RETRY] Retrying with eleven_multilingual_v2`);
+      console.warn(`[ELEVENLABS_TTS_RETRY] Retrying with eleven_flash_v2_5`);
       res = await fetch(url, {
         method: "POST",
         headers: {
@@ -51,11 +51,11 @@ async function generateWithElevenLabsTTS(text: string, filePath: string, voiceId
         },
         body: JSON.stringify({
           text,
-          model_id: "eleven_multilingual_v2",
+          model_id: "eleven_flash_v2_5",
           voice_settings: {
-            stability: 0.44,
-            similarity_boost: 0.85,
-            style: 0.10,
+            stability: 0.50,
+            similarity_boost: 0.80,
+            style: 0.0,
             use_speaker_boost: true
           }
         })
