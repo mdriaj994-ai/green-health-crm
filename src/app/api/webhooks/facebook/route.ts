@@ -732,7 +732,7 @@ async function sendMessengerVoiceNote(recipientId: string, text: string, accessT
 
   try {
     // 1. Generate audio via ElevenLabs
-    let cleanText = (text || "").replace(/[*#_~`>|]/g, "").replace(/\s+/g, " ").trim().slice(0, 3000);
+    let cleanText = (text || "").replace(/[*#_~`>|]/g, "").replace(/\s+/g, " ").trim();
     cleanText = cleanText
       .replace(/রেজাউল\s*করিম/gi, "রিয়াজুল করিম")
       .replace(/রেজাউল/gi, "রিয়াজুল")

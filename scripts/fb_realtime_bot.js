@@ -543,7 +543,7 @@ ${masterKB ? `\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\n${masterKB}\n---
       const model = genAI.getGenerativeModel({
         model: m,
         systemInstruction,
-        generationConfig: { maxOutputTokens: 250, temperature: 0.45 }
+        generationConfig: { maxOutputTokens: 2048, temperature: 0.45 }
       });
 
       const historyText = effectiveHistory && effectiveHistory.length > 0
@@ -772,7 +772,7 @@ async function sendFacebookVoiceNote(recipientId, text, pageAccessToken = PAGE_T
   if (!ELEVENLABS_API_KEY) return null;
 
   try {
-    let cleanText = (text || "").replace(/[*#_~`>|]/g, "").replace(/\s+/g, " ").trim().slice(0, 3000);
+    let cleanText = (text || "").replace(/[*#_~`>|]/g, "").replace(/\s+/g, " ").trim();
     // Ensure accurate pronunciation of Reajul Karim in Bengali (prevent 'রেজাউল' or distorted English phonetics)
     cleanText = cleanText
       .replace(/রেজাউল\s*করিম/gi, "রিয়াজুল করিম")

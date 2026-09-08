@@ -197,7 +197,7 @@ export async function generateAutoReply(
         model: modelName,
         systemInstruction: buildSystemInstruction(options, liveProductContext, detectedLang),
         generationConfig: {
-          maxOutputTokens: 250,
+          maxOutputTokens: 2048,
           temperature: 0.45,
         },
       });
