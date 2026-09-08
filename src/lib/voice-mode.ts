@@ -1,5 +1,6 @@
 import fs from "fs";
 import path from "path";
+import { getCustomerProfile, updateCustomerProfile } from "./customer-memory";
 
 const VOICE_USERS_FILE = path.join(process.cwd(), "data", "voice_users.json");
 const voiceUsers = new Set<string>();
@@ -28,15 +29,16 @@ function persistVoiceUsers() {
 export function isVoiceMode(userId: string): boolean {
   if (!userId) return false;
   const idStr = String(userId);
+
+  // 1. In-memory Set check
   if (voiceUsers.has(idStr)) return true;
 
-  // Multi-process disk sync
+  // 2. Multi-process disk sync
   reloadFromDisk();
   if (voiceUsers.has(idStr)) return true;
 
-  // Permanent customer profile check
+  // 3. Permanent customer profile check
   try {
-    const { getCustomerProfile } = require("@/lib/customer-memory");
     const prof = getCustomerProfile(idStr);
     if (prof && prof.prefersVoice) {
       voiceUsers.add(idStr);
@@ -59,7 +61,6 @@ export function setVoiceMode(userId: string, enabled: boolean = true) {
 
   // Save to customer memory profile as well
   try {
-    const { updateCustomerProfile } = require("@/lib/customer-memory");
     updateCustomerProfile(idStr, { prefersVoice: enabled });
   } catch {}
 }

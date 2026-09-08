@@ -141,15 +141,27 @@ export function extractCustomerFacts(senderId: string, text: string, senderName?
   const clean = text.trim();
 
   // 1. Name extraction
-  if (senderName && (!profile.name || profile.name === "কাস্টমার" || profile.name === "Customer")) {
+  if (senderName && (!profile.name || profile.name === "কাস্টমার" || profile.name === "Customer" || /e\s*ki\s*jano|ki\s*jano|কি\s*জানো/i.test(profile.name))) {
     profile.name = senderName;
   }
-  const nameMatch = clean.match(/(?:আমার\s*নাম|name\s*is|nam\s*[:=]?)\s*([A-Za-z\u0980-\u09FF\s]{2,25})/i);
-  if (nameMatch && nameMatch[1]) {
-    const n = nameMatch[1].trim();
-    if (n.length > 2 && !/কাস্টমার|ভাই|doctor|hakim/i.test(n)) {
-      profile.name = n;
+
+  // Detect if customer is asking a question about their name (NEVER extract questions as names!)
+  const isAskingName = /(?:name|nam|নাম)\s*(?:ki|konta|koto|কি|কী|জানো|jano|bolen|bolun|বলুন|বলো|জানেন)/i.test(clean) ||
+                       /(?:who\s*am\s*i|amar\s*nam|আমার\s*নাম)\s*[?]/i.test(clean);
+
+  if (!isAskingName) {
+    const nameMatch = clean.match(/(?:আমার\s*নাম\s*(?:হলো|হচ্ছে|হবে|is)?|my\s*name\s*is|\bnam\s*[:=]|\bনাম\s*[:=])\s*([A-Za-z\u0980-\u09FF\s]{2,25})/i);
+    if (nameMatch && nameMatch[1]) {
+      const n = nameMatch[1].trim();
+      if (n.length >= 2 && !/^(কাস্টমার|ভাই|doctor|hakim|ki\b|jano\b|e\s*ki|কি\b|কী\b)/i.test(n)) {
+        profile.name = n;
+      }
     }
+  }
+
+  // Safety sanitization: remove accidental question phrases from profile name
+  if (profile.name && (/e\s*ki\s*jano|ki\s*jano|কি\s*জানো|নাম\s*কি/i.test(profile.name) || profile.name.length < 2)) {
+    profile.name = senderName || "";
   }
 
   // 2. Age extraction

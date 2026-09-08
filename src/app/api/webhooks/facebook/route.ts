@@ -204,10 +204,15 @@ async function flushSenderEvent(senderId: string) {
 
     // ── Voice Mode & Voice Request Logic ──
     const { isVoiceMode, setVoiceMode, isOnlyVoiceRequest, isVoiceRequested, isTextModeRequested } = await import("@/lib/voice-mode");
+    const { getCustomerProfile } = await import("@/lib/customer-memory");
+
+    const custProfile = getCustomerProfile(senderId);
+    const lastMsgWasVoice = chatHistory && chatHistory.length > 0 &&
+      chatHistory.slice().reverse().find((m: any) => m.sender === "AGENT")?.text?.includes("[ভয়েস");
 
     if (isTextModeRequested(text)) {
       setVoiceMode(senderId, false);
-    } else if (isOnlyVoiceRequest(text) || isVoiceRequested(text) || Boolean(audioUrl)) {
+    } else if (isOnlyVoiceRequest(text) || isVoiceRequested(text) || Boolean(audioUrl) || custProfile?.prefersVoice || lastMsgWasVoice) {
       setVoiceMode(senderId, true);
     }
 
