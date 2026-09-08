@@ -772,7 +772,7 @@ async function sendFacebookVoiceNote(recipientId, text, pageAccessToken = PAGE_T
   if (!ELEVENLABS_API_KEY) return null;
 
   try {
-    let cleanText = (text || "").replace(/[*#_~`>|]/g, "").replace(/\s+/g, " ").trim().slice(0, 2500);
+    let cleanText = (text || "").replace(/[*#_~`>|]/g, "").replace(/\s+/g, " ").trim().slice(0, 3000);
     // Ensure accurate pronunciation of Reajul Karim in Bengali (prevent 'রেজাউল' or distorted English phonetics)
     cleanText = cleanText
       .replace(/রেজাউল\s*করিম/gi, "রিয়াজুল করিম")
@@ -787,7 +787,7 @@ async function sendFacebookVoiceNote(recipientId, text, pageAccessToken = PAGE_T
       .replace(/=/g, " ");
     console.log(`[FB_BOT_VOICE] Generating voice note with Voice ID: ${ELEVENLABS_VOICE_ID}`);
     const ttsUrl = `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`;
-    const ttsRes = await fetch(ttsUrl, {
+    let ttsRes = await fetch(ttsUrl, {
       method: "POST",
       headers: {
         "xi-api-key": ELEVENLABS_API_KEY,
@@ -804,6 +804,27 @@ async function sendFacebookVoiceNote(recipientId, text, pageAccessToken = PAGE_T
         }
       })
     });
+
+    if (!ttsRes.ok) {
+      console.warn("[FB_BOT_VOICE_RETRY] Retrying with eleven_multilingual_v2");
+      ttsRes = await fetch(ttsUrl, {
+        method: "POST",
+        headers: {
+          "xi-api-key": ELEVENLABS_API_KEY,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          text: cleanText,
+          model_id: "eleven_multilingual_v2",
+          voice_settings: {
+            stability: 0.44,
+            similarity_boost: 0.85,
+            style: 0.10,
+            use_speaker_boost: true
+          }
+        })
+      });
+    }
 
     if (!ttsRes.ok) {
       console.warn("[FB_BOT_VOICE_FAIL]", await ttsRes.text());

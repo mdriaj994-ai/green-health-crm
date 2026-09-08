@@ -732,7 +732,7 @@ async function sendMessengerVoiceNote(recipientId: string, text: string, accessT
 
   try {
     // 1. Generate audio via ElevenLabs
-    let cleanText = text.replace(/[*#_~`>|]/g, "").trim().slice(0, 400);
+    let cleanText = (text || "").replace(/[*#_~`>|]/g, "").replace(/\s+/g, " ").trim().slice(0, 3000);
     cleanText = cleanText
       .replace(/রেজাউল\s*করিম/gi, "রিয়াজুল করিম")
       .replace(/রেজাউল/gi, "রিয়াজুল")
@@ -746,7 +746,7 @@ async function sendMessengerVoiceNote(recipientId: string, text: string, accessT
       .replace(/=/g, " ");
     console.log(`[FB_VOICE_NOTE] Generating voice note with Voice ID: ${ELEVENLABS_VOICE_ID}`);
     const ttsUrl = `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`;
-    const ttsRes = await fetch(ttsUrl, {
+    let ttsRes = await fetch(ttsUrl, {
       method: "POST",
       headers: {
         "xi-api-key": ELEVENLABS_API_KEY,
@@ -763,6 +763,27 @@ async function sendMessengerVoiceNote(recipientId: string, text: string, accessT
         }
       })
     });
+
+    if (!ttsRes.ok) {
+      console.warn("[VOICE_NOTE_ELEVEN_RETRY] Retrying with eleven_multilingual_v2");
+      ttsRes = await fetch(ttsUrl, {
+        method: "POST",
+        headers: {
+          "xi-api-key": ELEVENLABS_API_KEY,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          text: cleanText,
+          model_id: "eleven_multilingual_v2",
+          voice_settings: {
+            stability: 0.44,
+            similarity_boost: 0.85,
+            style: 0.10,
+            use_speaker_boost: true
+          }
+        })
+      });
+    }
 
     if (!ttsRes.ok) {
       console.warn("[VOICE_NOTE_ELEVEN_FAIL]", await ttsRes.text());

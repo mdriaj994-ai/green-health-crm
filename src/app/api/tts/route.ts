@@ -23,7 +23,7 @@ async function generateWithElevenLabsTTS(text: string, filePath: string, voiceId
     const activeVoice = (voiceId === "FhOnCtjmaAIRIS1Dg2bk" || voiceId === "TX3LPaxmHKxFdv7VOQHJ") ? "2RikWi4odb2uhZQb9waV" : voiceId;
     console.log(`[ELEVENLABS_TTS] Generating audio with Voice ID: ${activeVoice}`);
     const url = `https://api.elevenlabs.io/v1/text-to-speech/${activeVoice}`;
-    const res = await fetch(url, {
+    let res = await fetch(url, {
       method: "POST",
       headers: {
         "xi-api-key": ELEVENLABS_API_KEY,
@@ -40,6 +40,27 @@ async function generateWithElevenLabsTTS(text: string, filePath: string, voiceId
         }
       })
     });
+
+    if (!res.ok) {
+      console.warn(`[ELEVENLABS_TTS_RETRY] Retrying with eleven_multilingual_v2`);
+      res = await fetch(url, {
+        method: "POST",
+        headers: {
+          "xi-api-key": ELEVENLABS_API_KEY,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          text,
+          model_id: "eleven_multilingual_v2",
+          voice_settings: {
+            stability: 0.44,
+            similarity_boost: 0.85,
+            style: 0.10,
+            use_speaker_boost: true
+          }
+        })
+      });
+    }
 
     if (!res.ok) {
       const err = await res.text();
