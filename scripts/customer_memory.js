@@ -265,6 +265,117 @@ function getRecentChatHistory(senderId, limit = 15) {
   });
 }
 
+// ── Smart Follow-up Engine ────────────────────────────────────────────────────
+
+// Identify customers who discussed products/symptoms but haven't ordered yet
+function getEligibleFollowUpCandidates(minHours = 72) {
+  if (!isLoaded) loadMemory();
+  const now = Date.now();
+  const candidates = [];
+
+  for (const profile of memoryCache.values()) {
+    // Skip if order already placed or delivered
+    if (profile.orderStatus === "order_placed" || profile.orderStatus === "delivered") continue;
+
+    // Skip if customer never discussed symptoms or a product
+    const hasSymptoms = profile.symptoms && profile.symptoms.length > 0;
+    const hasProduct = !!profile.productDiscussed;
+    if (!hasSymptoms && !hasProduct) continue;
+
+    // Max 3 follow-ups per customer (doctor dignity — no spam)
+    const count = profile.followUpCount || 0;
+    if (count >= 3) continue;
+
+    const msSinceContact = now - (profile.lastContact || profile.firstContact || now);
+    const hoursSinceContact = msSinceContact / (1000 * 60 * 60);
+    const daysSinceContact = Math.max(1, Math.floor(hoursSinceContact / 24));
+
+    // Must be inactive for at least minHours
+    if (hoursSinceContact < minHours) continue;
+
+    // Must wait at least 72 hours between follow-ups
+    if (profile.lastFollowUpTime) {
+      const hoursSinceLastFollowUp = (now - profile.lastFollowUpTime) / (1000 * 60 * 60);
+      if (hoursSinceLastFollowUp < 72) continue;
+    }
+
+    candidates.push({ profile, stage: count + 1, daysSinceLastContact });
+  }
+
+  return candidates;
+}
+
+// Record that a follow-up was sent — saves to profile and chatLog for seamless continuation
+function recordFollowUpSent(senderId, message, stage) {
+  const profile = getCustomerProfile(senderId);
+  profile.followUpCount = (profile.followUpCount || 0) + 1;
+  profile.lastFollowUpTime = Date.now();
+  if (!profile.followUpHistory) profile.followUpHistory = [];
+  profile.followUpHistory.push({
+    stage,
+    message: message.trim(),
+    sentAt: Date.now(),
+  });
+
+  // Append to chatLog so regular chatbot continues context seamlessly
+  appendChatMessage(senderId, "model", message.trim(), false);
+  saveMemory();
+}
+
+// Build LLM prompt to generate a unique, personal, doctor-style follow-up message
+function buildPersonalizedFollowUpPrompt(candidate, doctorName = "হাকিম রিয়াজুল করিম", pharmacyName = "গ্রীন হেলথ ইউনানী ফার্মেসী") {
+  const { profile, stage, daysSinceLastContact } = candidate;
+
+  const symptomStr =
+    profile.symptoms && profile.symptoms.length > 0
+      ? profile.symptoms.join(", ")
+      : profile.productDiscussed
+      ? `${profile.productDiscussed}-এর কোর্স সম্পর্কিত পরামর্শ`
+      : "শারীরিক সুস্থতার পরামর্শ";
+
+  const patientFirstName = (profile.name || "ভাইয়া").split(" ")[0];
+
+  return `
+You are ${doctorName} (হাকিম রিয়াজুল করিম), Senior Ayurvedic Hakim at ${pharmacyName}, Bangladesh.
+You are personally reaching out to a patient who consulted you ${daysSinceLastContact} days ago, but did not finish their conversation or confirm their order. You remembered them naturally — not through any automated system.
+
+PATIENT'S PERMANENT CLINICAL FILE:
+- Name: ${profile.name || "ভাইয়া"} (first name: ${patientFirstName})
+- Age: ${profile.age ? profile.age + " বছর" : "unknown"}
+- Marital Status: ${profile.maritalStatus || "unknown"}
+- Health Problems/Symptoms: ${symptomStr}
+- Duration: ${profile.duration || "some time"}
+- Product Discussed: ${profile.productDiscussed || "Unani herbal formula"}
+- Follow-up Stage: ${stage} of 3 (${daysSinceLastContact} days since last conversation)
+- Previous follow-ups sent: ${(profile.followUpHistory || []).length}
+
+YOUR RULES FOR THIS MESSAGE:
+1. ZERO MARKETING LANGUAGE:
+   - NEVER say "প্রিয় গ্রাহক", "স্পেশাল অফার", "অর্ডার করুন", "সীমিত সময়", or any sales template phrase.
+   - The patient MUST feel their personal doctor genuinely remembered them from a real clinical session.
+
+2. TONE — Stage-based variation (generate a UNIQUE message, NOT the same template each time):
+   - Stage 1 (${daysSinceLastContact} days passed, ~3-5 days):
+     Open warmly, mention you were thinking about them, ask if their ${profile.symptoms[0] || "problem"} has improved since you last spoke, and whether they have started any treatment yet. Keep it curious and caring.
+   - Stage 2 (~6-12 days):
+     Open with concern, gently note that problems like theirs tend to worsen if left untreated for too long (nerve weakness and circulation issues compound). Ask how they are feeling today and if they need guidance to begin treatment.
+   - Stage 3 (~13-30 days):
+     Open with a warm hello, mention you have not heard from them in a while and wanted to make sure they are okay. Tell them your door (inbox) is always open for free personal advice, no pressure.
+
+3. MUST INCLUDE — Natural personalisation:
+   - Use their first name (${patientFirstName}) naturally in the greeting.
+   - Reference their specific symptom or product discussed (${symptomStr}) — NOT generically.
+
+4. LENGTH & FORMAT:
+   - Maximum 3 sentences total.
+   - Plain, natural spoken Bengali — like a caring doctor texting from their personal phone.
+   - NO asterisks, bold, markdown, emojis, or hashtags.
+   - NO sentence like "আমি আপনাকে ফলোআপ করছি" or anything that reveals this is automated.
+
+Write ONLY the Bengali follow-up message now:
+`.trim();
+}
+
 module.exports = {
   getCustomerProfile,
   updateCustomerProfile,
@@ -273,4 +384,8 @@ module.exports = {
   buildCustomerMemoryPrompt,
   getRecentChatHistory,
   saveMemory,
+  getEligibleFollowUpCandidates,
+  recordFollowUpSent,
+  buildPersonalizedFollowUpPrompt,
 };
+

@@ -986,7 +986,112 @@ async function startBot() {
 
   // Poll every 2.0 seconds
   setInterval(pollOnce, 2000);
+
+  // Start smart follow-up scheduler (checks every hour)
+  setTimeout(async () => {
+    await runFollowUpScheduler();
+    setInterval(runFollowUpScheduler, 60 * 60 * 1000); // every hour
+  }, 30 * 1000); // first run after 30 seconds (let bot fully boot first)
+}
+
+// ── Smart Follow-up Scheduler ─────────────────────────────────────────────────
+// Runs every hour — finds customers who haven't ordered yet and sends
+// a unique, AI-generated, personal doctor-style follow-up message.
+// Each customer gets max 3 follow-ups (3 days, 7 days, 14+ days after last chat).
+let isFollowingUp = false;
+
+async function runFollowUpScheduler() {
+  if (isFollowingUp) return;
+  isFollowingUp = true;
+
+  try {
+    const candidates = customerMemory.getEligibleFollowUpCandidates(72); // min 72 hours inactive
+    if (candidates.length === 0) {
+      console.log("[FOLLOWUP] No eligible follow-up candidates at this time.");
+      isFollowingUp = false;
+      return;
+    }
+
+    console.log(`[FOLLOWUP] 📬 Found ${candidates.length} customer(s) eligible for follow-up.`);
+
+    const activePages = getActivePages();
+    if (!activePages || activePages.length === 0) {
+      isFollowingUp = false;
+      return;
+    }
+
+    // Use the first active page for sending follow-ups (primary page)
+    const primaryPage = activePages[0];
+
+    for (const candidate of candidates) {
+      const { profile, stage, daysSinceLastContact } = candidate;
+      const senderId = profile.senderId;
+
+      try {
+        // 1. Build a unique LLM prompt based on this specific patient's clinical dossier
+        const followUpPrompt = customerMemory.buildPersonalizedFollowUpPrompt(
+          candidate,
+          "হাকিম রিয়াজুল করিম",
+          primaryPage.pageName || "গ্রীন হেলথ ইউনানী ফার্মেসী"
+        );
+
+        // 2. Ask Gemini to generate a personalised, human-like follow-up message
+        let followUpMessage = null;
+        const models = ["gemini-3.1-flash-lite", "gemini-3.5-flash-lite", "gemini-3.7-flash", "gemini-3.5-flash"];
+
+        for (const m of models) {
+          try {
+            const model = genAI.getGenerativeModel({
+              model: m,
+              generationConfig: { maxOutputTokens: 120, temperature: 0.75 }
+            });
+            const res = await model.generateContent(followUpPrompt);
+            const raw = res.response.text().trim();
+            if (raw && raw.length > 10) {
+              // Clean markdown artifacts
+              followUpMessage = raw.replace(/[*#]+/g, "").trim();
+              // Fix name corrections
+              followUpMessage = followUpMessage
+                .replace(/রেজাউল\s*করিম/gi, "রিয়াজুল করিম")
+                .replace(/রেজাউল/gi, "রিয়াজুল");
+              break;
+            }
+          } catch (aiErr) {
+            console.warn(`[FOLLOWUP_AI_WARN] (${m}):`, aiErr.message);
+          }
+        }
+
+        if (!followUpMessage) {
+          console.warn(`[FOLLOWUP] Could not generate AI message for ${senderId}. Skipping.`);
+          continue;
+        }
+
+        // 3. Send the follow-up to the customer via Facebook Messenger
+        console.log(`[FOLLOWUP] 📤 Sending Stage-${stage} follow-up to ${profile.name || senderId} (${daysSinceLastContact} days inactive): "${followUpMessage.slice(0, 80)}..."`);
+        const result = await sendFacebookMessage(senderId, followUpMessage, primaryPage.accessToken);
+
+        if (result && result.status === 200) {
+          // 4. Record in memory so chatbot continues naturally from this follow-up
+          customerMemory.recordFollowUpSent(senderId, followUpMessage, stage);
+          console.log(`[FOLLOWUP] ✅ Follow-up Stage-${stage} delivered to ${profile.name || senderId}.`);
+        } else {
+          console.warn(`[FOLLOWUP] ⚠️ Failed to deliver to ${senderId}. Status: ${result?.status}. The customer may have blocked the page.`);
+          // Mark as undeliverable after 2 failures
+        }
+
+        // Polite delay between follow-ups (3 seconds) to avoid rate limits
+        await sleep(3000);
+      } catch (err) {
+        console.warn(`[FOLLOWUP_ERR] Error processing follow-up for ${senderId}:`, err.message);
+      }
+    }
+  } catch (err) {
+    console.error("[FOLLOWUP_FATAL]", err.message);
+  } finally {
+    isFollowingUp = false;
+  }
 }
 
 startBot();
+
 

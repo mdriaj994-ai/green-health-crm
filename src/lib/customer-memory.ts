@@ -8,6 +8,12 @@ export interface ChatMessageEntry {
   time: number;
 }
 
+export interface FollowUpRecord {
+  stage: number;
+  message: string;
+  sentAt: number;
+}
+
 export interface CustomerProfile {
   senderId: string;
   name: string;
@@ -27,6 +33,15 @@ export interface CustomerProfile {
   firstContact: number;
   lastContact: number;
   totalMessages: number;
+  followUpCount?: number;
+  lastFollowUpTime?: number;
+  followUpHistory?: FollowUpRecord[];
+}
+
+export interface FollowUpCandidate {
+  profile: CustomerProfile;
+  stage: number; // 1 = ~3 days, 2 = ~7 days, 3 = 14+ days
+  daysSinceLastContact: number;
 }
 
 const MEMORY_FILE = path.join(process.cwd(), "data", "customer_memory.json");
@@ -86,6 +101,8 @@ export function getCustomerProfile(senderId: string, defaultName: string = ""): 
       firstContact: Date.now(),
       lastContact: Date.now(),
       totalMessages: 0,
+      followUpCount: 0,
+      followUpHistory: [],
     };
     memoryCache.set(idStr, newProfile);
     saveMemory();
@@ -121,7 +138,6 @@ export function extractCustomerFacts(senderId: string, text: string, senderName?
   profile.lastContact = Date.now();
 
   const clean = text.trim();
-  const lower = clean.toLowerCase();
 
   // 1. Name extraction
   if (senderName && (!profile.name || profile.name === "কাস্টমার" || profile.name === "Customer")) {
@@ -135,17 +151,17 @@ export function extractCustomerFacts(senderId: string, text: string, senderName?
     }
   }
 
-  // 2. Age extraction (e.g. "আমার বয়স ২৮", "বয়স 25", "২৪ বছর", or simple "28" answer)
+  // 2. Age extraction
   if (!profile.age) {
-    const ageMatch = clean.match(/(?:আমার\s*)?(?:বয়স|বয়স|boyos|bos|age)\s*(?:হলো|হবে|holo|hobe)?\s*[:=]?\s*([০-৯0-9]{2})/i) ||
-                     clean.match(/([০-৯0-9]{2})\s*(?:বছর|bochor|years?)/i);
+    const ageMatch =
+      clean.match(/(?:আমার\s*)?(?:বয়স|boyos|bos|age)\s*(?:হলো|হবে|holo|hobe)?\s*[:=]?\s*([০-৯0-9]{2})/i) ||
+      clean.match(/([০-৯0-9]{2})\s*(?:বছর|bochor|years?)/i);
     if (ageMatch && ageMatch[1]) {
       profile.age = toBengaliNumerals(ageMatch[1]);
     } else {
-      // Direct numeric answer if it looks like an age between 18 and 80
       const directNum = clean.match(/^\s*([০-৯0-9]{2})\s*$/);
       if (directNum && directNum[1]) {
-        const val = parseInt(directNum[1].replace(/[০-৯]/g, d => "০১২৩৪৫৬৭৮৯".indexOf(d).toString()), 10);
+        const val = parseInt(directNum[1].replace(/[০-৯]/g, (d) => "০১২৩৪৫৬৭৮৯".indexOf(d).toString()), 10);
         if (val >= 18 && val <= 80) {
           profile.age = toBengaliNumerals(directNum[1]);
         }
@@ -155,21 +171,21 @@ export function extractCustomerFacts(senderId: string, text: string, senderName?
 
   // 3. Marital status extraction
   if (!profile.maritalStatus) {
-    if (/(?:আমি\s*)?অবিবাহিত|obibahito|unmarried|single|বিয়ে\s*করি\s*নাই|বিয়ে\s*করি\s*নি/i.test(clean)) {
+    if (/(?:আমি\s*)?অবিবাহিত|obibahito|unmarried|single|বিয়ে\s*করি\s*নাই|বিয়ে\s*করি\s*নি/i.test(clean)) {
       profile.maritalStatus = "অবিবাহিত";
-    } else if (/(?:আমি\s*)?বিবাহিত|bibahito|married|বিয়ে\s*করেছি|বিয়ে\s*করছি/i.test(clean)) {
+    } else if (/(?:আমি\s*)?বিবাহিত|bibahito|married|বিয়ে\s*করেছি|বিয়ে\s*করছি/i.test(clean)) {
       profile.maritalStatus = "বিবাহিত";
     }
   }
 
   // 4. Symptoms extraction
   const symptomKeywords: Array<{ regex: RegExp; label: string }> = [
-    { regex: /druto\s*birjopat|দ্রুত\s*বীর্যপাত|বীর্য\s*পাতলা|birjo\s*patla|taratari\s*pore|তাড়াতাড়ি\s*পড়ে|দ্রুত\s*পড়ে/i, label: "দ্রুত বীর্যপাত ও বীর্য পাতলা" },
-    { regex: /lingo\s*sithil|লিঙ্গ\s*শিথিল|দুর্বল|durbol|naram|নরম|উত্থান\s*হয়\s*না|utthan|rokto\s*chole\s*na/i, label: "লিঙ্গ শিথিলতা ও দুর্বল উত্থান" },
-    { regex: /timing\s*kom|টাইমিং\s*কম|টাইম\s*পাই\s*না|সময়\s*কম|shomoy\s*kom|বেশি\s*সময়\s*থাকতে\s*পারি\s*না/i, label: "সহবাসে সময় স্বল্পতা (কম টাইমিং)" },
-    { regex: /sopnodosh|স্বপ্নদোষ|khoy|ক্ষয়\s*রোগ|dhatu|ধাতু\s*দুর্বলতা|প্রস্রাবে\s*ধাতু/i, label: "অতিরিক্ত স্বপ্নদোষ ও ধাতু ক্ষয়" },
+    { regex: /druto\s*birjopat|দ্রুত\s*বীর্যপাত|বীর্য\s*পাতলা|birjo\s*patla|taratari\s*pore|তাড়াতাড়ি\s*পড়ে|দ্রুত\s*পড়ে/i, label: "দ্রুত বীর্যপাত ও বীর্য পাতলা" },
+    { regex: /lingo\s*sithil|লিঙ্গ\s*শিথিল|দুর্বল|durbol|naram|নরম|উত্থান\s*হয়\s*না|utthan|rokto\s*chole\s*na/i, label: "লিঙ্গ শিথিলতা ও দুর্বল উত্থান" },
+    { regex: /timing\s*kom|টাইমিং\s*কম|টাইম\s*পাই\s*না|সময়\s*কম|shomoy\s*kom|বেশি\s*সময়\s*থাকতে\s*পারি\s*না/i, label: "সহবাসে সময় স্বল্পতা (কম টাইমিং)" },
+    { regex: /sopnodosh|স্বপ্নদোষ|khoy|ক্ষয়\s*রোগ|dhatu|ধাতু\s*দুর্বলতা|প্রস্রাবে\s*ধাতু/i, label: "অতিরিক্ত স্বপ্নদোষ ও ধাতু ক্ষয়" },
     { regex: /iccha\s*kom|ইচ্ছা\s*কম|রুচি\s*নাই|উত্তেজনা\s*আসে\s*না|sexual\s*desire/i, label: "যৌন আগ্রহ ও উত্তেজনার অভাব" },
-    { regex: /choto|ছোট|bika|বাঁকা|আগামোটা\s*গোড়া\s*চিকন|agagora/i, label: "লিঙ্গের গঠনগত দুর্বলতা ও শিথিলতা" }
+    { regex: /choto|ছোট|bika|বাঁকা|আগামোটা\s*গোড়া\s*চিকন|agagora/i, label: "লিঙ্গের গঠনগত দুর্বলতা ও শিথিলতা" },
   ];
 
   for (const { regex, label } of symptomKeywords) {
@@ -180,7 +196,9 @@ export function extractCustomerFacts(senderId: string, text: string, senderName?
 
   // 5. Duration of problem (e.g. "২ বছর ধরে", "৬ মাস যাবৎ")
   if (!profile.duration) {
-    const durMatch = clean.match(/(?:গত\s*)?([০-৯0-9 এক দুই তিন চার পাঁচ ছয়]+)\s*(?:বছর|মাস|দিন|year|month|সপ্তাহ)\s*(?:ধরে|যাবৎ|jabot|হলো|theke|থেকে)/i);
+    const durMatch = clean.match(
+      /(?:গত\s*)?([০-৯0-9 এক দুই তিন চার পাঁচ ছয়]+)\s*(?:বছর|মাস|দিন|year|month|সপ্তাহ)\s*(?:ধরে|যাবৎ|jabot|হলো|theke|থেকে)/i
+    );
     if (durMatch && durMatch[0]) {
       profile.duration = durMatch[0].trim();
     }
@@ -193,7 +211,7 @@ export function extractCustomerFacts(senderId: string, text: string, senderName?
     profile.orderStatus = "interested";
   }
 
-  // 7. Order Form / Address parsing (e.g. নাম=..., জেলা=..., থানা=..., রিসিভ ঠিকানা=...)
+  // 7. Order Form / Address parsing
   if (/নাম\s*=|জেলা\s*=|থানা\s*=|রিসিভ ঠিকানা\s*=|নাম্বার\s*=/i.test(clean)) {
     profile.orderStatus = "order_placed";
     const parseKey = (key: string): string => {
@@ -216,7 +234,7 @@ export function extractCustomerFacts(senderId: string, text: string, senderName?
 
   // 8. Product discussion detection
   if (/amber|ambar|আম্বার|অম্বর|अंबर/i.test(clean)) {
-    profile.productDiscussed = "AMBER Premium (অম্বর প্রিমিয়াম)";
+    profile.productDiscussed = "AMBER Premium (অম্বর প্রিমিয়াম)";
     profile.productSl = "19";
   } else if (/soul\s*mate|সোল\s*মেট/i.test(clean)) {
     profile.productDiscussed = "সোল মেট (Soul Mate)";
@@ -247,6 +265,7 @@ export function appendChatMessage(
     profile.lastVoiceTranscript = text.trim();
   }
 
+  if (!profile.chatLog) profile.chatLog = [];
   profile.chatLog.push({
     role,
     text: text.trim(),
@@ -267,25 +286,158 @@ export function appendChatMessage(
 export function buildCustomerMemoryPrompt(senderId: string, fallbackName?: string): string {
   const profile = getCustomerProfile(senderId, fallbackName);
 
-  const symptomStr = profile.symptoms.length > 0 ? profile.symptoms.join(", ") : "এখনও নির্দিষ্ট করেননি";
+  const symptomStr = profile.symptoms && profile.symptoms.length > 0
+    ? profile.symptoms.join(", ")
+    : "এখনও নির্দিষ্ট করেননি";
   const addressStr = [profile.district, profile.thana, profile.address].filter(Boolean).join(", ");
 
   return `
 === 🧠 PERMANENT CUSTOMER CLINICAL MEMORY (কাস্টমারের আজীবনের মেমরি) ===
 কাস্টমার আইডি: ${profile.senderId}
-কাস্টমারের নাম: ${profile.name || fallbackName || "সম্মানিত ভাইয়া"}
-বয়স: ${profile.age ? profile.age + " বছর" : "এখনও জানা যায়নি"}
-বৈবাহিক অবস্থা: ${profile.maritalStatus || "এখনও জানা যায়নি"}
+কাস্টমারের নাম: ${profile.name || fallbackName || "সম্মানিত ভাইয়া"}
+বয়স: ${profile.age ? profile.age + " বছর" : "এখনও জানা যায়নি"}
+বৈবাহিক অবস্থা: ${profile.maritalStatus || "এখনও জানা যায়নি"}
 শারীরিক সমস্যা: ${symptomStr}
-সমস্যার স্থায়িত্ব/মেয়াদ: ${profile.duration || "অজানা"}
+সমস্যার স্থায়িত্ব/মেয়াদ: ${profile.duration || "অজানা"}
 আলোচিত প্রোডাক্ট: ${profile.productDiscussed || "প্রাকৃতিক কোর্স"}
-অর্ডার অবস্থা: ${profile.orderStatus === "order_placed" ? "অর্ডার তথ্য দেওয়া হয়েছে" : profile.orderStatus === "interested" ? "আগ্রহী (ফোন দিয়েছেন)" : "পরামর্শ চলমান"}
-সংরক্ষিত ফোন: ${profile.phone || "দেওয়া হয়নি"}
-সংরক্ষিত ঠিকানা: ${addressStr || "দেওয়া হয়নি"}
-গত ভয়েস নোটে ডাক্তার যা বলেছিলেন: ${profile.lastVoiceTranscript ? `"${profile.lastVoiceTranscript}"` : "কোনো ভয়েস পাঠানো হয়নি"}
+অর্ডার অবস্থা: ${profile.orderStatus === "order_placed" ? "অর্ডার তথ্য দেওয়া হয়েছে" : profile.orderStatus === "interested" ? "আগ্রহী (ফোন দিয়েছেন)" : "পরামর্শ চলমান"}
+সংরক্ষিত ফোন: ${profile.phone || "দেওয়া হয়নি"}
+সংরক্ষিত ঠিকানা: ${addressStr || "দেওয়া হয়নি"}
+গত ভয়েস নোটে ডাক্তার যা বলেছিলেন: ${profile.lastVoiceTranscript ? `"${profile.lastVoiceTranscript}"` : "কোনো ভয়েস পাঠানো হয়নি"}
 ======================================================================
 ⚠️ মেমরি গাইডলাইন (CRITICAL):
-1. কাস্টমার যদি ইতিমধ্যে বয়স (${profile.age || "নেই"}), বৈবাহিক অবস্থা (${profile.maritalStatus || "নেই"}) বা সমস্যা জানিয়ে থাকেন, তবে দ্বিতীয়বার কখনোই তা জানতে চাইবেন না!
-2. কাস্টমার পূর্ববর্তী মেসেজে যে তথ্য দিয়েছে তা এই মেমরিতে সংরক্ষিত আছে। তার অতীতের কথার ধারাবাহিকতা বজায় রেখে সম্মান ও আন্তরিকতার সাথে উত্তর দিন।
+1. কাস্টমার যদি ইতিমধ্যে বয়স (${profile.age || "নেই"}), বৈবাহিক অবস্থা (${profile.maritalStatus || "নেই"}) বা সমস্যা জানিয়ে থাকেন, তবে দ্বিতীয়বার কখনোই তা জানতে চাইবেন না!
+2. কাস্টমার পূর্ববর্তী মেসেজে যে তথ্য দিয়েছে তা এই মেমরিতে সংরক্ষিত আছে। তার অতীতের কথার ধারাবাহিকতা বজায় রেখে সম্মান ও আন্তরিকতার সাথে উত্তর দিন।
+`.trim();
+}
+
+// Get recent chat history as formatted strings for LLM prompt
+export function getRecentChatHistory(senderId: string, limit: number = 15): string[] {
+  const profile = getCustomerProfile(senderId);
+  if (!profile.chatLog || profile.chatLog.length === 0) return [];
+  return profile.chatLog.slice(-limit).map((entry) => {
+    const author = entry.role === "user" ? (profile.name || "Customer") : "হাকিম রিয়াজুল করিম (Doctor)";
+    const tag = entry.isVoice ? " [Voice Note]" : "";
+    return `${author}${tag}: "${entry.text}"`;
+  });
+}
+
+// ── Smart Follow-up Engine ────────────────────────────────────────────────────
+
+// Identify customers who discussed products/symptoms but haven't ordered yet
+export function getEligibleFollowUpCandidates(minHours: number = 72): FollowUpCandidate[] {
+  loadMemory();
+  const now = Date.now();
+  const candidates: FollowUpCandidate[] = [];
+
+  for (const profile of memoryCache.values()) {
+    // Skip if order already placed or delivered
+    if (profile.orderStatus === "order_placed" || profile.orderStatus === "delivered") continue;
+
+    // Skip if customer never discussed symptoms or a product
+    const hasSymptoms = profile.symptoms && profile.symptoms.length > 0;
+    const hasProduct = !!profile.productDiscussed;
+    if (!hasSymptoms && !hasProduct) continue;
+
+    // Max 3 follow-ups per customer (doctor dignity — no spam)
+    const count = profile.followUpCount || 0;
+    if (count >= 3) continue;
+
+    const msSinceContact = now - (profile.lastContact || profile.firstContact || now);
+    const hoursSinceContact = msSinceContact / (1000 * 60 * 60);
+    const daysSinceLastContact = Math.max(1, Math.floor(hoursSinceContact / 24));
+
+    // Must be inactive for at least minHours
+    if (hoursSinceContact < minHours) continue;
+
+    // Must wait at least 72 hours between follow-ups
+    if (profile.lastFollowUpTime) {
+      const hoursSinceLastFollowUp = (now - profile.lastFollowUpTime) / (1000 * 60 * 60);
+      if (hoursSinceLastFollowUp < 72) continue;
+    }
+
+    candidates.push({
+      profile,
+      stage: count + 1,
+      daysSinceLastContact,
+    });
+
+  }
+
+  return candidates;
+}
+
+// Record that a follow-up was sent — saves to profile and chatLog for seamless continuation
+export function recordFollowUpSent(senderId: string, message: string, stage: number): void {
+  const profile = getCustomerProfile(senderId);
+  profile.followUpCount = (profile.followUpCount || 0) + 1;
+  profile.lastFollowUpTime = Date.now();
+  if (!profile.followUpHistory) profile.followUpHistory = [];
+  profile.followUpHistory.push({
+    stage,
+    message: message.trim(),
+    sentAt: Date.now(),
+  });
+
+  // Append to chatLog so regular chatbot continues context seamlessly
+  appendChatMessage(senderId, "model", message.trim(), false);
+  saveMemory();
+}
+
+// Build LLM prompt to generate a unique, personal, doctor-style follow-up message
+export function buildPersonalizedFollowUpPrompt(
+  candidate: FollowUpCandidate,
+  doctorName: string = "হাকিম রিয়াজুল করিম",
+  pharmacyName: string = "গ্রীন হেলথ ইউনানী ফার্মেসী"
+): string {
+  const { profile, stage, daysSinceLastContact } = candidate;
+
+  const symptomStr =
+    profile.symptoms && profile.symptoms.length > 0
+      ? profile.symptoms.join(", ")
+      : profile.productDiscussed
+      ? `${profile.productDiscussed}-এর কোর্স সম্পর্কিত পরামর্শ`
+      : "শারীরিক সুস্থতার পরামর্শ";
+
+  const patientFirstName = (profile.name || "ভাইয়া").split(" ")[0];
+
+  return `
+You are ${doctorName} (হাকিম রিয়াজুল করিম), Senior Ayurvedic Hakim at ${pharmacyName}, Bangladesh.
+You are personally reaching out to a patient who consulted you ${daysSinceLastContact} days ago, but did not finish their conversation or confirm their order. You remembered them naturally — not through any automated system.
+
+PATIENT'S PERMANENT CLINICAL FILE:
+- Name: ${profile.name || "ভাইয়া"} (first name: ${patientFirstName})
+- Age: ${profile.age ? profile.age + " বছর" : "unknown"}
+- Marital Status: ${profile.maritalStatus || "unknown"}
+- Health Problems/Symptoms: ${symptomStr}
+- Duration: ${profile.duration || "some time"}
+- Product Discussed: ${profile.productDiscussed || "Unani herbal formula"}
+- Follow-up Stage: ${stage} of 3 (${daysSinceLastContact} days since last conversation)
+- Previous follow-ups sent: ${profile.followUpHistory?.length || 0}
+
+YOUR RULES FOR THIS MESSAGE:
+1. ZERO MARKETING LANGUAGE:
+   - NEVER say "প্রিয় গ্রাহক", "স্পেশাল অফার", "অর্ডার করুন", "সীমিত সময়", or any sales template phrase.
+   - The patient MUST feel their personal doctor genuinely remembered them from a real clinical session.
+
+2. TONE — Stage-based variation (generate a UNIQUE message, NOT the same template each time):
+   - Stage 1 (${daysSinceLastContact} days passed, ~3-5 days):
+     Open warmly, mention you were thinking about them, ask if their ${profile.symptoms[0] || "problem"} has improved since you last spoke, and whether they have started any treatment yet. Keep it curious and caring.
+   - Stage 2 (~6-12 days):
+     Open with concern, gently note that problems like theirs tend to worsen if left untreated for too long (nerve weakness and circulation issues compound). Ask how they are feeling today and if they need guidance to begin treatment.
+   - Stage 3 (~13-30 days):
+     Open with a warm hello, mention you have not heard from them in a while and wanted to make sure they are okay. Tell them your door (inbox) is always open for free personal advice, no pressure.
+
+3. MUST INCLUDE — Natural personalisation:
+   - Use their first name (${patientFirstName}) naturally in the greeting.
+   - Reference their specific symptom or product discussed (${symptomStr}) — NOT generically.
+
+4. LENGTH & FORMAT:
+   - Maximum 3 sentences total.
+   - Plain, natural spoken Bengali — like a caring doctor texting from their personal phone.
+   - NO asterisks, bold, markdown, emojis, or hashtags.
+   - NO sentence like "আমি আপনাকে ফলোআপ করছি" or anything that reveals this is automated.
+
+Write ONLY the Bengali follow-up message now:
 `.trim();
 }
