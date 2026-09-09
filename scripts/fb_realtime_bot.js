@@ -776,7 +776,7 @@ async function sendFacebookImage(recipientId, imageFileOrPath, pageAccessToken =
 async function sendFacebookVoiceNote(recipientId, text, pageAccessToken = PAGE_TOKEN) {
   const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || "sk_b704126ae6ecca01f041a6505e4e7a695f40df803a4f8bd3";
   const rawVoiceId = process.env.ELEVENLABS_VOICE_ID;
-  const ELEVENLABS_VOICE_ID = (rawVoiceId && rawVoiceId !== "FhOnCtjmaAIRIS1Dg2bk" && rawVoiceId !== "TX3LPaxmHKxFdv7VOQHJ") ? rawVoiceId : "2RikWi4odb2uhZQb9waV";
+  const ELEVENLABS_VOICE_ID = (rawVoiceId && rawVoiceId !== "FhOnCtjmaAIRIS1Dg2bk" && rawVoiceId !== "TX3LPaxmHKxFdv7VOQHJ" && rawVoiceId !== "2RikWi4odb2uhZQb9waV") ? rawVoiceId : "UvaBYZVczBD1eq5jTquX";
 
   if (!ELEVENLABS_API_KEY) return null;
 
@@ -794,7 +794,7 @@ async function sendFacebookVoiceNote(recipientId, text, pageAccessToken = PAGE_T
       .replace(/রিসিভ ঠিকানা\s*=/gi, "রিসিভ ঠিকানা,")
       .replace(/নাম্বার\s*=/gi, "মোবাইল নাম্বার")
       .replace(/=/g, " ");
-    console.log(`[FB_BOT_VOICE] Generating voice note with Voice ID: ${ELEVENLABS_VOICE_ID}`);
+    console.log(`[FB_BOT_VOICE] Generating authentic Bangladeshi voice note with Voice ID: ${ELEVENLABS_VOICE_ID}`);
     const ttsUrl = `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`;
     let ttsRes = await fetch(ttsUrl, {
       method: "POST",
@@ -806,9 +806,9 @@ async function sendFacebookVoiceNote(recipientId, text, pageAccessToken = PAGE_T
         text: cleanText,
         model_id: "eleven_multilingual_v2",
         voice_settings: {
-          stability: 0.50,
-          similarity_boost: 0.80,
-          style: 0.0,
+          stability: 0.42,
+          similarity_boost: 0.88,
+          style: 0.12,
           use_speaker_boost: true
         }
       })
@@ -826,9 +826,9 @@ async function sendFacebookVoiceNote(recipientId, text, pageAccessToken = PAGE_T
           text: cleanText,
           model_id: "eleven_flash_v2_5",
           voice_settings: {
-            stability: 0.50,
-            similarity_boost: 0.80,
-            style: 0.0,
+            stability: 0.42,
+            similarity_boost: 0.88,
+            style: 0.12,
             use_speaker_boost: true
           }
         })

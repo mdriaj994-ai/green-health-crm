@@ -204,9 +204,40 @@ async function flushSenderEvent(senderId: string) {
 
     // ── Voice Mode & Voice Request Logic ──
     const { isVoiceMode, setVoiceMode, isOnlyVoiceRequest, isVoiceRequested, isTextModeRequested } = await import("@/lib/voice-mode");
-    const { getCustomerProfile } = await import("@/lib/customer-memory");
+    const { getCustomerProfile, updateCustomerProfile } = await import("@/lib/customer-memory");
 
     const custProfile = getCustomerProfile(senderId);
+
+    // Resolve Customer Real Name from Contact, Profile, or Facebook Graph API
+    let resolvedCustomerName = (custProfile?.name && custProfile.name !== "Customer" && custProfile.name !== "কাস্টমার") ? custProfile.name : "";
+    if (!resolvedCustomerName) {
+      try {
+        const { prisma } = await import("@/lib/prisma");
+        const contact = await prisma.contact.findFirst({
+          where: { platformUserId: senderId, platform: "MESSENGER" },
+        });
+        if (contact?.name && contact.name !== "Customer" && contact.name !== "কাস্টমার") {
+          resolvedCustomerName = contact.name;
+        }
+      } catch {}
+
+      if (!resolvedCustomerName && effectiveToken) {
+        try {
+          const fbUserRes = await fetch(`https://graph.facebook.com/v19.0/${senderId}?fields=first_name,last_name,name&access_token=${effectiveToken}`);
+          if (fbUserRes.ok) {
+            const fbUser = await fbUserRes.json();
+            if (fbUser && fbUser.name) {
+              resolvedCustomerName = fbUser.name;
+            }
+          }
+        } catch {}
+      }
+
+      if (resolvedCustomerName) {
+        updateCustomerProfile(senderId, { name: resolvedCustomerName });
+      }
+    }
+
     const lastMsgWasVoice = chatHistory && chatHistory.length > 0 &&
       chatHistory.slice().reverse().find((m: any) => m.sender === "AGENT")?.text?.includes("[ভয়েস");
 
@@ -265,6 +296,7 @@ async function flushSenderEvent(senderId: string) {
       imageUrl: imageUrl || null,
       chatHistory,
       senderId,
+      customerName: resolvedCustomerName || undefined,
     });
 
     if (replyText && effectiveToken) {
@@ -731,7 +763,7 @@ async function sendMessengerImage(recipientId: string, imageFileOrPath: string, 
 async function sendMessengerVoiceNote(recipientId: string, text: string, accessToken: string): Promise<string | null> {
   const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || "sk_b704126ae6ecca01f041a6505e4e7a695f40df803a4f8bd3";
   const rawVoiceId = process.env.ELEVENLABS_VOICE_ID;
-  const ELEVENLABS_VOICE_ID = (rawVoiceId && rawVoiceId !== "FhOnCtjmaAIRIS1Dg2bk" && rawVoiceId !== "TX3LPaxmHKxFdv7VOQHJ") ? rawVoiceId : "2RikWi4odb2uhZQb9waV";
+  const ELEVENLABS_VOICE_ID = (rawVoiceId && rawVoiceId !== "FhOnCtjmaAIRIS1Dg2bk" && rawVoiceId !== "TX3LPaxmHKxFdv7VOQHJ" && rawVoiceId !== "2RikWi4odb2uhZQb9waV") ? rawVoiceId : "UvaBYZVczBD1eq5jTquX";
 
   if (!ELEVENLABS_API_KEY) return null;
 
@@ -749,7 +781,7 @@ async function sendMessengerVoiceNote(recipientId: string, text: string, accessT
       .replace(/রিসিভ ঠিকানা\s*=/gi, "রিসিভ ঠিকানা,")
       .replace(/নাম্বার\s*=/gi, "মোবাইল নাম্বার")
       .replace(/=/g, " ");
-    console.log(`[FB_VOICE_NOTE] Generating voice note with Voice ID: ${ELEVENLABS_VOICE_ID}`);
+    console.log(`[FB_VOICE_NOTE] Generating authentic Bangladeshi voice note with Voice ID: ${ELEVENLABS_VOICE_ID}`);
     const ttsUrl = `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`;
     let ttsRes = await fetch(ttsUrl, {
       method: "POST",
@@ -761,9 +793,9 @@ async function sendMessengerVoiceNote(recipientId: string, text: string, accessT
         text: cleanText,
         model_id: "eleven_multilingual_v2",
         voice_settings: {
-          stability: 0.50,
-          similarity_boost: 0.80,
-          style: 0.0,
+          stability: 0.42,
+          similarity_boost: 0.88,
+          style: 0.12,
           use_speaker_boost: true
         }
       })
@@ -781,9 +813,9 @@ async function sendMessengerVoiceNote(recipientId: string, text: string, accessT
           text: cleanText,
           model_id: "eleven_flash_v2_5",
           voice_settings: {
-            stability: 0.50,
-            similarity_boost: 0.80,
-            style: 0.0,
+            stability: 0.42,
+            similarity_boost: 0.88,
+            style: 0.12,
             use_speaker_boost: true
           }
         })

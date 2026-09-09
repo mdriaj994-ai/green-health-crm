@@ -1,3 +1,5 @@
+// src/lib/customer-memory.ts
+// 24/7 Permanent Long-term Customer Memory & Clinical Profile Engine for Next.js Webhook & Bot
 import fs from "fs";
 import path from "path";
 
@@ -19,15 +21,22 @@ export interface CustomerProfile {
   name: string;
   age: string;
   maritalStatus: string;
+  profession?: string;
   symptoms: string[];
   duration: string;
-  productDiscussed: string;
-  productSl: string;
-  orderStatus: "inquiry" | "interested" | "order_placed" | "delivered";
+  productDiscussed: string;        // last product discussed
+  productsDiscussedAll: string[];  // ALL products ever discussed
+  orderStatus: "inquiry" | "interested" | "order_placed" | "delivered" | "repeat_customer";
+  ordersPlaced: any[];             // history of all orders confirmed
   phone: string;
   district: string;
   thana: string;
   address: string;
+  mentionedLocations: string[];
+  allHealthKeywords: string[];
+  budgetMentioned: string[];
+  extraFacts: string[];
+  sessionSummaries: { time: number; summary: string }[];
   lastVoiceTranscript: string;
   chatLog: ChatMessageEntry[];
   firstContact: number;
@@ -41,19 +50,35 @@ export interface CustomerProfile {
 
 export interface FollowUpCandidate {
   profile: CustomerProfile;
-  stage: number; // 1 = ~3 days, 2 = ~7 days, 3 = 14+ days
+  stage: number;
   daysSinceLastContact: number;
 }
 
-const MEMORY_FILE = path.join(process.cwd(), "data", "customer_memory.json");
+function getDataDir(): string {
+  const candidates = [
+    path.resolve(process.cwd(), "data"),
+    path.resolve(__dirname, "..", "..", "data"),
+    path.resolve(__dirname, "..", "data"),
+    "/app/data"
+  ];
+  for (const c of candidates) {
+    if (fs.existsSync(c)) return c;
+  }
+  const dir = path.resolve(process.cwd(), "data");
+  try { if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true }); } catch {}
+  return dir;
+}
+
+const MEMORY_FILE = path.join(getDataDir(), "customer_memory.json");
 const memoryCache = new Map<string, CustomerProfile>();
 let isLoaded = false;
 
 function loadMemory(): void {
   if (isLoaded) return;
   try {
-    if (fs.existsSync(MEMORY_FILE)) {
-      const raw = fs.readFileSync(MEMORY_FILE, "utf-8");
+    const memPath = path.join(getDataDir(), "customer_memory.json");
+    if (fs.existsSync(memPath)) {
+      const raw = fs.readFileSync(memPath, "utf-8");
       const parsed = JSON.parse(raw);
       for (const [id, prof] of Object.entries(parsed)) {
         memoryCache.set(String(id), prof as CustomerProfile);
@@ -71,9 +96,10 @@ export function saveMemory(): void {
     for (const [id, prof] of memoryCache.entries()) {
       obj[id] = prof;
     }
-    const dir = path.dirname(MEMORY_FILE);
+    const memPath = path.join(getDataDir(), "customer_memory.json");
+    const dir = path.dirname(memPath);
     if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
-    fs.writeFileSync(MEMORY_FILE, JSON.stringify(obj, null, 2), "utf-8");
+    fs.writeFileSync(memPath, JSON.stringify(obj, null, 2), "utf-8");
   } catch (err: any) {
     console.warn("[CUSTOMER_MEMORY_SAVE_WARN]", err.message);
   }
@@ -88,29 +114,35 @@ export function getCustomerProfile(senderId: string, defaultName: string = ""): 
       name: defaultName || "",
       age: "",
       maritalStatus: "",
+      profession: "",
       symptoms: [],
       duration: "",
       productDiscussed: "",
-      productSl: "",
+      productsDiscussedAll: [],
       orderStatus: "inquiry",
+      ordersPlaced: [],
       phone: "",
       district: "",
       thana: "",
       address: "",
+      mentionedLocations: [],
+      allHealthKeywords: [],
+      budgetMentioned: [],
+      extraFacts: [],
+      sessionSummaries: [],
       lastVoiceTranscript: "",
       chatLog: [],
       firstContact: Date.now(),
       lastContact: Date.now(),
       totalMessages: 0,
-      followUpCount: 0,
-      followUpHistory: [],
+      prefersVoice: false,
     };
     memoryCache.set(idStr, newProfile);
     saveMemory();
     return newProfile;
   }
   const prof = memoryCache.get(idStr)!;
-  if (defaultName && (!prof.name || prof.name === "কাস্টমার" || prof.name === "Customer")) {
+  if (defaultName && (!prof.name || prof.name === "Customer" || prof.name === "কাস্টমার")) {
     prof.name = defaultName;
   }
   return prof;
@@ -124,155 +156,192 @@ export function updateCustomerProfile(senderId: string, updates: Partial<Custome
   return profile;
 }
 
-// Convert English numerals to Bengali
-function toBengaliNumerals(str: string): string {
+function toBengaliNumerals(str: string | number): string {
   const bDigits = ["০", "১", "২", "৩", "৪", "৫", "৬", "৭", "৮", "৯"];
-  return str.replace(/\d/g, (d) => bDigits[parseInt(d, 10)] || d);
+  return String(str).replace(/\d/g, (d) => bDigits[parseInt(d, 10)] || d);
 }
 
-// Automatically extract clinical facts, demographics and order details from messages
 export function extractCustomerFacts(senderId: string, text: string, senderName?: string): CustomerProfile {
   const profile = getCustomerProfile(senderId, senderName);
   if (!text) return profile;
 
   profile.totalMessages = (profile.totalMessages || 0) + 1;
   profile.lastContact = Date.now();
-
   const clean = text.trim();
 
-  // 1. Name extraction
-  if (senderName && (!profile.name || profile.name === "কাস্টমার" || profile.name === "Customer" || /e\s*ki\s*jano|ki\s*jano|কি\s*জানো/i.test(profile.name))) {
+  // Ensure all arrays are initialized
+  if (!profile.symptoms)             profile.symptoms = [];
+  if (!profile.productsDiscussedAll) profile.productsDiscussedAll = [];
+  if (!profile.ordersPlaced)         profile.ordersPlaced = [];
+  if (!profile.sessionSummaries)     profile.sessionSummaries = [];
+  if (!profile.extraFacts)           profile.extraFacts = [];
+  if (!profile.mentionedLocations)   profile.mentionedLocations = [];
+  if (!profile.allHealthKeywords)    profile.allHealthKeywords = [];
+  if (!profile.budgetMentioned)      profile.budgetMentioned = [];
+
+  // 1. NAME
+  if (senderName && (!profile.name || profile.name === "Customer" || /e\s*ki\s*jano|ki\s*jano/i.test(profile.name))) {
     profile.name = senderName;
   }
-
-  // Detect if customer is asking a question about their name (NEVER extract questions as names!)
-  const isAskingName = /(?:name|nam|নাম)\s*(?:ki|konta|koto|কি|কী|জানো|jano|bolen|bolun|বলুন|বলো|জানেন)/i.test(clean) ||
-                       /(?:who\s*am\s*i|amar\s*nam|আমার\s*নাম)\s*[?]/i.test(clean);
-
+  const isAskingName = /(?:name|nam)\s*(?:ki|konta|jano|bolen)/i.test(clean);
   if (!isAskingName) {
-    const nameMatch = clean.match(/(?:আমার\s*নাম\s*(?:হলো|হচ্ছে|হবে|is)?|my\s*name\s*is|\bnam\s*[:=]|\bনাম\s*[:=])\s*([A-Za-z\u0980-\u09FF\s]{2,25})/i);
-    if (nameMatch && nameMatch[1]) {
-      const n = nameMatch[1].trim();
-      if (n.length >= 2 && !/^(কাস্টমার|ভাই|doctor|hakim|ki\b|jano\b|e\s*ki|কি\b|কী\b)/i.test(n)) {
-        profile.name = n;
-      }
+    const nm = clean.match(/(?:my\s*name\s*is|\bnam\s*[:=])\s*([A-Za-z\u0980-\u09FF\s]{2,25})/i);
+    if (nm && nm[1]) {
+      const n = nm[1].trim();
+      if (n.length >= 2 && !/^(doctor|hakim|ki|jano)/i.test(n)) profile.name = n;
     }
   }
-
-  // Safety sanitization: remove accidental question phrases from profile name
-  if (profile.name && (/e\s*ki\s*jano|ki\s*jano|কি\s*জানো|নাম\s*কি/i.test(profile.name) || profile.name.length < 2)) {
+  if (profile.name && (/e\s*ki\s*jano|ki\s*jano/i.test(profile.name) || profile.name.length < 2)) {
     profile.name = senderName || "";
   }
 
-  // 2. Age extraction
+  // 2. AGE
   if (!profile.age) {
-    const ageMatch =
-      clean.match(/(?:আমার\s*)?(?:বয়স|boyos|bos|age)\s*(?:হলো|হবে|holo|hobe)?\s*[:=]?\s*([০-৯0-9]{2})/i) ||
-      clean.match(/([০-৯0-9]{2})\s*(?:বছর|bochor|years?)/i);
-    if (ageMatch && ageMatch[1]) {
-      profile.age = toBengaliNumerals(ageMatch[1]);
+    const ageMatch = clean.match(/(?:age|বয়স|boys|boyos|bochor|বছর)\s*[:=]?\s*(\d{2})|(\d{2})\s*(?:years?|bochor|বছর|yr)/i);
+    if (ageMatch) {
+      const num = parseInt(ageMatch[1] || ageMatch[2], 10);
+      if (num >= 15 && num <= 85) profile.age = String(num);
     } else {
-      const directNum = clean.match(/^\s*([০-৯0-9]{2})\s*$/);
-      if (directNum && directNum[1]) {
-        const val = parseInt(directNum[1].replace(/[০-৯]/g, (d) => "০১২৩৪৫৬৭৮৯".indexOf(d).toString()), 10);
-        if (val >= 18 && val <= 80) {
-          profile.age = toBengaliNumerals(directNum[1]);
-        }
+      const directNum = clean.match(/\b(1[6-9]|[2-6]\d|7[0-5])\b/);
+      if (directNum && /bochor|years?|boyos|boish|বছর/i.test(clean)) {
+        profile.age = directNum[1];
       }
     }
   }
 
-  // 3. Marital status extraction
+  // 3. MARITAL STATUS
   if (!profile.maritalStatus) {
-    if (/(?:আমি\s*)?অবিবাহিত|obibahito|unmarried|single|বিয়ে\s*করি\s*নাই|বিয়ে\s*করি\s*নি/i.test(clean)) {
-      profile.maritalStatus = "অবিবাহিত";
-    } else if (/(?:আমি\s*)?বিবাহিত|bibahito|married|বিয়ে\s*করেছি|বিয়ে\s*করছি/i.test(clean)) {
-      profile.maritalStatus = "বিবাহিত";
+    if (/unmarried|অবিবাহিত|single|biye\s*kori\s*ni|বিয়া\s*করি\s*নাই/i.test(clean)) {
+      profile.maritalStatus = "অবিবাহিত (Unmarried)";
+    } else if (/\bmarried\b|বিবাহিত|biye\s*korechi|সংসার|স্ত্রী|ওয়াইফ|wife|bou/i.test(clean)) {
+      profile.maritalStatus = "বিবাহিত (Married)";
     }
   }
 
-  // 4. Symptoms extraction
-  const symptomKeywords: Array<{ regex: RegExp; label: string }> = [
-    { regex: /druto\s*birjopat|দ্রুত\s*বীর্যপাত|বীর্য\s*পাতলা|birjo\s*patla|taratari\s*pore|তাড়াতাড়ি\s*পড়ে|দ্রুত\s*পড়ে/i, label: "দ্রুত বীর্যপাত ও বীর্য পাতলা" },
-    { regex: /lingo\s*sithil|লিঙ্গ\s*শিথিল|দুর্বল|durbol|naram|নরম|উত্থান\s*হয়\s*না|utthan|rokto\s*chole\s*na/i, label: "লিঙ্গ শিথিলতা ও দুর্বল উত্থান" },
-    { regex: /timing\s*kom|টাইমিং\s*কম|টাইম\s*পাই\s*না|সময়\s*কম|shomoy\s*kom|বেশি\s*সময়\s*থাকতে\s*পারি\s*না/i, label: "সহবাসে সময় স্বল্পতা (কম টাইমিং)" },
-    { regex: /sopnodosh|স্বপ্নদোষ|khoy|ক্ষয়\s*রোগ|dhatu|ধাতু\s*দুর্বলতা|প্রস্রাবে\s*ধাতু/i, label: "অতিরিক্ত স্বপ্নদোষ ও ধাতু ক্ষয়" },
-    { regex: /iccha\s*kom|ইচ্ছা\s*কম|রুচি\s*নাই|উত্তেজনা\s*আসে\s*না|sexual\s*desire/i, label: "যৌন আগ্রহ ও উত্তেজনার অভাব" },
-    { regex: /choto|ছোট|bika|বাঁকা|আগামোটা\s*গোড়া\s*চিকন|agagora/i, label: "লিঙ্গের গঠনগত দুর্বলতা ও শিথিলতা" },
+  // 4. COMPREHENSIVE HEALTH SYMPTOMS (23 conditions)
+  const symptomRules: [RegExp, string][] = [
+    [/druto\s*paton|shighro\s*poton|শীঘ্রপতন|দ্রুত\s*পতন|timing\s*kom|time\s*kom|time\s*pa[yi]|বেশি\s*সময়\s*থাকে\s*না/i, "দ্রুত বীর্যপাত (Premature Ejaculation)"],
+    [/rokto\s*chalon|shokto\s*hoy\s*na|daray\s*na|naram|shithil|শক্তি\s*পাই\s*না|দাঁড়ায়\s*না|নরম\s*হয়ে\s*থাকে|উত্থান/i, "উত্থানজনিত দুর্বলতা (Erectile Dysfunction)"],
+    [/patla\s*birjo|birjo\s*patla|বীর্য\s*পাতলা|pani\s*moto|পাতলা\s*পানি|বীর্য\s*ঘন|semen\s*thin/i, "বীর্য পাতলা ও শুক্রাণুর ঘাটতি (Low Semen Density)"],
+    [/hater\s*kaj|hothat\s*kore|hastomaithun|হস্তমৈথুন|হাত\s*মার|hater\s*obves|khoti\s*koresi/i, "অতিরিক্ত হস্তমৈথুনের ক্ষতি (Masturbation Damage)"],
+    [/lingo\s*choto|chikon|bata|বেঁকে\s*গেছে|ছোট\s*হয়ে|আকার\s*ছোট|চিকন\s*হয়ে/i, "লিঙ্গের শিথিলতা ও সংকোচন (Penile Tissue Shrinkage)"],
+    [/ghumer\s*moddhe|shopnodosh|স্বপ্নদোষ|nightfall|ratre\s*pore\s*jay/i, "অতিরিক্ত স্বপ্নদোষ (Frequent Nightfall)"],
+    [/prosrab|peshab|jwalapora|jola|প্রস্রাব|পেশাবে\s*জ্বালাপোড়া|khoy\s*rog|ক্ষয়রোগ/i, "প্রস্রাবে জ্বালাপোড়া ও ক্ষয়রোগ (Urine Irritation)"],
+    [/mon\s*bhalo\s*nei|agroho\s*nei|icchye\s*kore\s*na|উত্তেজনা\s*নেই|মুড\s*নেই|desire\s*low/i, "যৌন আকাঙ্ক্ষার ঘাটতি (Low Libido)"],
+    [/sorir\s*durbol|shorir\s*durbol|durbolota|দুর্বলতা|shorir\s*khape|clash\s*lagar|energy\s*nei/i, "শারীরিক দুর্বলতা ও ক্লান্তি (General Physical Fatigue)"],
+    [/komor\s*betha|komor\s*batha|merudondo|কোমর\s*ব্যথা|mাজা\s*ব্যথা|back\s*pain/i, "কোমর ও স্নায়ুবিক ব্যথা (Lower Back / Nerve Pain)"],
+    [/diabetes|diabetic|shugar|ডায়াবেটিস|সুগার/i, "ডায়াবেটিসজনিত দুর্বলতা (Diabetic Sexual Weakness)"],
+    [/gastric|gas|acidity|গ্যাস|গ্যাস্ট্রিক|buk\s*jola/i, "গ্যাস্ট্রিকের সমস্যা (Gastric/Acidity)"],
+    [/pre-ejaculation|pani\s*ber\s*hoy|kotha\s*bollei\s*pani|উত্তেজিত\s*হলেই\s*পানি/i, "উত্তেজনায় আগাম পানি আসার সমস্যা (Pre-cum Discharge)"],
+    [/second\s*bar|ditio\s*bar|2nd\s*time|আবার\s*করতে\s*পারি\s*না|একবারের\s*পর/i, "পুনরায় সক্ষমতা অর্জনে অক্ষমতা (Inability to Re-erect)"],
+    [/chinta|tension|depression|ভয়\s*লাগে|উদ্বেগ|মানসিক\s*চাপ/i, "মানসিক চাপ ও ভীতি (Psychological Anxiety)"],
+    [/testosterone|hormone|হরমোন\s*কম|টেস্টোস্টেরন/i, "হরমোন বা টেস্টোস্টেরন ঘাটতি (Low Testosterone)"],
+    [/baccha\s*hochhe\s*na|infertility|shontan|সন্তান\s*হচ্ছে\s*না|নিঃসন্তান/i, "সন্তান ধারণে জটিলতা (Infertility Concern)"],
+    [/rattire\s*ghumer\s*shomossha|insomnia|ঘুম\s*হয়\s*না|অনিদ্রা/i, "অনিদ্রা ও অস্থিরতা (Insomnia)"],
+    [/bichi\s*betha|testicle|অন্ডকোষ\s*ব্যথা|বিচি\s*ছোট/i, "অণ্ডকোষের ব্যথা বা সমস্যা (Testicle Pain)"],
+    [/biman\s*chalao|drive\s*kori|night\s*shift|রাত\s*জাগা/i, "রাত জাগা ও দীর্ঘ শিফটের ক্লান্তি (Night Shift Exhaustion)"],
+    [/bideshe\s*thaki|probashi|সৌদি|দুবাই|মালয়েশিয়া|প্রবাসী/i, "প্রবাসী জীবনের মানসিক ও শারীরিক ধকল (Expatriate Stress)"],
+    [/dhompan|cigarette|shisa|ধূমপান\s*করি/i, "ধূমপানজনিত রক্তনালীর সংকোচন (Smoking-induced Constriction)"],
+    [/osudh\s*kheye|viagra|one\s*time|ওয়ান\s*টাইম|কেমিক্যালের\s*ক্ষতি/i, "ওয়ান-টাইম ওষুধের পার্শ্বপ্রতিক্রিয়া (One-Time Chemical Damage)"]
   ];
 
-  for (const { regex, label } of symptomKeywords) {
-    if (regex.test(clean) && !profile.symptoms.includes(label)) {
+  for (const [pattern, label] of symptomRules) {
+    if (pattern.test(clean) && !profile.symptoms.includes(label)) {
       profile.symptoms.push(label);
     }
   }
 
-  // 5. Duration of problem (e.g. "২ বছর ধরে", "৬ মাস যাবৎ")
+  // 5. DURATION
   if (!profile.duration) {
-    const durMatch = clean.match(
-      /(?:গত\s*)?([০-৯0-9 এক দুই তিন চার পাঁচ ছয়]+)\s*(?:বছর|মাস|দিন|year|month|সপ্তাহ)\s*(?:ধরে|যাবৎ|jabot|হলো|theke|থেকে)/i
-    );
-    if (durMatch && durMatch[0]) {
-      profile.duration = durMatch[0].trim();
+    const durMatch = clean.match(/(\d+|[এক|দুই|তিন|চার|পাঁচ|ছয়|সাত|আট|দশ]+)\s*(?:bochor|mas|days?|বছর|মাস|দিন|year|month)/i);
+    if (durMatch) profile.duration = durMatch[0].trim();
+    else if (/onk\s*din|onek\s*din|অনেক\s*দিন|one\s*year|2\s*year|3\s*year|kotodin/i.test(clean)) {
+      const dm = clean.match(/(?:pray|onk|onek|প্রায়)?\s*([0-9]+\s*(?:bochor|mas|year|month|বছর|মাস))/i);
+      if (dm) profile.duration = dm[1].trim();
     }
   }
 
-  // 6. Phone number extraction (Bangladeshi mobile)
-  const phoneMatch = clean.match(/(?:\+?880|0)?1[3-9]\d{8}\b/);
-  if (phoneMatch && phoneMatch[0]) {
-    profile.phone = phoneMatch[0].replace(/^\+?88/, "");
-    profile.orderStatus = "interested";
+  // 6. PRODUCTS DISCUSSED
+  const productPatterns: [RegExp, string][] = [
+    [/amber|অম্বর|অম্ভর/i, "AMBER Premium (অম্বার)"],
+    [/majum|মাজুন|salajeet|ফালেজিদ|সালাজিৎ/i, "মাজুন ও সালাজিৎ কোর্স"],
+    [/kastoori|কস্তুরী|গোল্ড|gold/i, "কস্তুরী গোল্ড স্পেশাল"],
+    [/oil|tel|মালিশ|ম্যাসেজ|ট্রিটমেন্ট\s*তেল/i, "হার্বাল ম্যাসেজ অয়েল"],
+    [/combo|ফুল\s*কোর্স|কম্বো|সম্পূর্ণ\s*কোর্স/i, "১ মাসের স্পেশাল কম্বো কোর্স"],
+  ];
+  for (const [pat, pName] of productPatterns) {
+    if (pat.test(clean)) {
+      profile.productDiscussed = pName;
+      if (!profile.productsDiscussedAll.includes(pName)) {
+        profile.productsDiscussedAll.push(pName);
+      }
+    }
   }
 
-  // 7. Order Form / Address parsing
-  if (/নাম\s*=|জেলা\s*=|থানা\s*=|রিসিভ ঠিকানা\s*=|নাম্বার\s*=/i.test(clean)) {
+  // 7. PHONE NUMBER
+  const phoneMatch = clean.match(/(?:\+?8801|01)[3-9]\d{8}/);
+  if (phoneMatch) {
+    profile.phone = phoneMatch[0];
+    if (profile.orderStatus === "inquiry") profile.orderStatus = "interested";
+  }
+
+  // 8. ORDER CONFIRMATION
+  const hasOrderKeywords = /(?:confirm|order|অর্ডার|পাঠিয়ে\s*দিন|পাঠান|নিব|কুরিয়ার|ঠিকানা\s*দিসি|বুক\s*করুন)/i.test(clean);
+  const hasFullDetails = Boolean(profile.phone) && /(?:জেলা|থানা|গ্রাম|রোড|ঢাকা|চট্টগ্রাম|বাসা|বাড়ি|ঠিকানা)/i.test(clean);
+  if ((hasOrderKeywords && Boolean(profile.phone)) || hasFullDetails) {
     profile.orderStatus = "order_placed";
-    const parseKey = (key: string): string => {
-      const reg = new RegExp(`${key}\\s*[:=]\\s*([^\\n,।]+)`, "i");
-      const m = clean.match(reg);
-      return m && m[1] ? m[1].trim() : "";
+    const orderSnapshot = {
+      date: new Date().toISOString(),
+      product: profile.productDiscussed || "AMBER Premium",
+      phone: profile.phone,
+      district: profile.district || "",
+      address: profile.address || "",
     };
-    const fName = parseKey("নাম");
-    const fDist = parseKey("জেলা");
-    const fThana = parseKey("থানা");
-    const fAddr = parseKey("রিসিভ ঠিকানা") || parseKey("ঠিকানা");
-    const fNum = parseKey("নাম্বার") || parseKey("মোবাইল");
-
-    if (fName && fName.length > 2) profile.name = fName;
-    if (fDist) profile.district = fDist;
-    if (fThana) profile.thana = fThana;
-    if (fAddr) profile.address = fAddr;
-    if (fNum) profile.phone = fNum;
+    if (!profile.ordersPlaced.some((o: any) => o.phone === orderSnapshot.phone && o.product === orderSnapshot.product)) {
+      profile.ordersPlaced.push(orderSnapshot);
+    }
   }
 
-  // 8. Product discussion detection
-  if (/amber|ambar|আম্বার|অম্বর|अंबर/i.test(clean)) {
-    profile.productDiscussed = "AMBER Premium (অম্বর প্রিমিয়াম)";
-    profile.productSl = "19";
-  } else if (/soul\s*mate|সোল\s*মেট/i.test(clean)) {
-    profile.productDiscussed = "সোল মেট (Soul Mate)";
-    profile.productSl = "39";
-  } else if (/black\s*ginseng|জিনসেং/i.test(clean)) {
-    profile.productDiscussed = "Black Ginseng (ব্ল্যাক জিনসেং)";
-    profile.productSl = "6";
-  } else if (/black\s*velvet|ভেলভেট/i.test(clean)) {
-    profile.productDiscussed = "Men's Black Velvet (ব্ল্যাক ভেলভেট)";
-    profile.productSl = "18";
+  // 9. LOCATION
+  const lm = clean.match(/\b(dhaka|chittagong|sylhet|rajshahi|khulna|barishal|comilla|mymensingh|rangpur|noakhali|feni|gazipur|narayanganj|bogura|tangail|faridpur|jashore|kushtia|pabna|sirajganj|dinajpur|cox's\s*bazar)\b/i);
+  if (lm) {
+    const loc = lm[0];
+    if (!profile.mentionedLocations.includes(loc)) profile.mentionedLocations.push(loc);
+    if (!profile.district) profile.district = loc;
+  }
+
+  // 10. PROFESSION
+  if (!profile.profession) {
+    if (/farmer|krishok|chashibadi/i.test(clean))                   profile.profession = "Farmer";
+    else if (/driver|গাড়ি\s*চালাই/i.test(clean))                    profile.profession = "Driver";
+    else if (/teacher|shikkhok|শিক্ষক/i.test(clean))                profile.profession = "Teacher";
+    else if (/business|byapari|ব্যবসা|দোকান/i.test(clean))          profile.profession = "Business";
+    else if (/garments|গার্মেন্টস/i.test(clean))                    profile.profession = "Garments";
+    else if (/probashi|malaysia|saudi|dubai|abroad|প্রবাসী/i.test(clean)) profile.profession = "Probashi";
+    else if (/student|ছাত্র|পড়াশোনা/i.test(clean))                  profile.profession = "Student";
+    else if (/service|chakri|govt|চাকরি/i.test(clean))              profile.profession = "Service";
+  }
+
+  // 11. BUDGET
+  const bm = clean.match(/budget\s*([0-9,]+)/i);
+  if (bm) profile.budgetMentioned.push(bm[1] + " taka");
+
+  // 12. EXTRA FACTS
+  if (/aage\s*kheye|before\s*use|try\s*koresi|onek\s*osud/i.test(clean) && !profile.extraFacts.includes("tried treatment before")) profile.extraFacts.push("tried treatment before");
+  if (/taratari|urgent|joruri|asap/i.test(clean) && !profile.extraFacts.includes("wants urgent solution")) profile.extraFacts.push("wants urgent solution");
+  if (/dam\s*beshi|costly|sosta|kom\s*dame/i.test(clean) && !profile.extraFacts.includes("price sensitive")) profile.extraFacts.push("price sensitive");
+  if (/abar\s*nite|reorder|আবার\s*নিব/i.test(clean) && !profile.extraFacts.includes("wants repeat order")) {
+    profile.extraFacts.push("wants repeat order");
+    if (profile.orderStatus !== "order_placed") profile.orderStatus = "repeat_customer";
   }
 
   saveMemory();
   return profile;
 }
 
-// Append a message to customer's permanent multi-turn chatLog
-export function appendChatMessage(
-  senderId: string,
-  role: "user" | "model",
-  text: string,
-  isVoice: boolean = false
-): void {
-  const profile = getCustomerProfile(senderId);
+export function appendChatMessage(senderId: string, role: "user" | "model", text: string, isVoice: boolean = false): void {
   if (!text || text.trim().length === 0) return;
+  const profile = getCustomerProfile(senderId);
 
   if (role === "model" && isVoice) {
     profile.lastVoiceTranscript = text.trim();
@@ -282,49 +351,74 @@ export function appendChatMessage(
   profile.chatLog.push({
     role,
     text: text.trim(),
-    isVoice,
+    isVoice: !!isVoice,
     time: Date.now(),
   });
 
-  // Keep up to 40 recent multi-turn messages for deep history
-  if (profile.chatLog.length > 40) {
-    profile.chatLog = profile.chatLog.slice(-40);
+  if (profile.chatLog.length > 60) {
+    const oldest = profile.chatLog.slice(0, profile.chatLog.length - 60);
+    if (oldest.length > 0) {
+      if (!profile.sessionSummaries) profile.sessionSummaries = [];
+      const summary = oldest.slice(-5).map(m => `${m.role === "user" ? "কাস্টমার" : "হাকিম"}: ${m.text.substring(0, 80)}`).join(" | ");
+      profile.sessionSummaries.push({ time: Date.now(), summary });
+      if (profile.sessionSummaries.length > 10) profile.sessionSummaries = profile.sessionSummaries.slice(-10);
+    }
+    profile.chatLog = profile.chatLog.slice(-60);
   }
 
   profile.lastContact = Date.now();
   saveMemory();
 }
 
-// Build permanent Customer Memory context for the AI prompt
 export function buildCustomerMemoryPrompt(senderId: string, fallbackName?: string): string {
   const profile = getCustomerProfile(senderId, fallbackName);
+  const symptomStr  = profile.symptoms && profile.symptoms.length > 0 ? profile.symptoms.join(", ") : "not mentioned";
+  const addressStr  = [profile.district, profile.thana, profile.address].filter(Boolean).join(", ");
+  const allProducts = profile.productsDiscussedAll && profile.productsDiscussedAll.length > 0 ? profile.productsDiscussedAll.join(", ") : (profile.productDiscussed || "none");
+  const extraStr    = profile.extraFacts && profile.extraFacts.length > 0 ? profile.extraFacts.join(", ") : "none";
+  const locStr      = profile.mentionedLocations && profile.mentionedLocations.length > 0 ? profile.mentionedLocations.join(", ") : "";
+  const ordersCount = profile.ordersPlaced ? profile.ordersPlaced.length : 0;
+  const sessionCtx  = profile.sessionSummaries && profile.sessionSummaries.length > 0 ? profile.sessionSummaries.slice(-2).map((s) => s.summary).join(" || ") : "";
+  const orderLabel  = profile.orderStatus === "order_placed" ? ("Order confirmed (total " + ordersCount + ")")
+                    : profile.orderStatus === "repeat_customer" ? "Wants repeat order"
+                    : profile.orderStatus === "interested" ? "Interested (gave phone)"
+                    : "Consulting";
 
-  const symptomStr = profile.symptoms && profile.symptoms.length > 0
-    ? profile.symptoms.join(", ")
-    : "এখনও নির্দিষ্ট করেননি";
-  const addressStr = [profile.district, profile.thana, profile.address].filter(Boolean).join(", ");
+  const parts = [
+    "=== COMPLETE CUSTOMER MEMORY (PERMANENT) ===",
+    "ID: " + profile.senderId,
+    "Name: " + (profile.name || fallbackName || "ভাইয়া"),
+    "Age: " + (profile.age ? profile.age + " bochor" : "not known"),
+    "Marital: " + (profile.maritalStatus || "not known"),
+    "Profession: " + (profile.profession || "not known"),
+    "Location: " + (locStr || addressStr || "not known"),
+    "Full address: " + (addressStr || "not given"),
+    "Phone: " + (profile.phone || "not given"),
+    "Health problems: " + symptomStr,
+    "Duration of illness: " + (profile.duration || "not known"),
+    "All products discussed: " + allProducts,
+    "Current order status: " + orderLabel,
+    "Previous orders count: " + ordersCount,
+    "Extra patient facts: " + extraStr,
+    "Last voice doctor said: " + (profile.lastVoiceTranscript ? '"' + profile.lastVoiceTranscript + '"' : "none"),
+  ];
 
-  return `
-=== 🧠 PERMANENT CUSTOMER CLINICAL MEMORY (কাস্টমারের আজীবনের মেমরি) ===
-কাস্টমার আইডি: ${profile.senderId}
-কাস্টমারের নাম: ${profile.name || fallbackName || "সম্মানিত ভাইয়া"}
-বয়স: ${profile.age ? profile.age + " বছর" : "এখনও জানা যায়নি"}
-বৈবাহিক অবস্থা: ${profile.maritalStatus || "এখনও জানা যায়নি"}
-শারীরিক সমস্যা: ${symptomStr}
-সমস্যার স্থায়িত্ব/মেয়াদ: ${profile.duration || "অজানা"}
-আলোচিত প্রোডাক্ট: ${profile.productDiscussed || "প্রাকৃতিক কোর্স"}
-অর্ডার অবস্থা: ${profile.orderStatus === "order_placed" ? "অর্ডার তথ্য দেওয়া হয়েছে" : profile.orderStatus === "interested" ? "আগ্রহী (ফোন দিয়েছেন)" : "পরামর্শ চলমান"}
-সংরক্ষিত ফোন: ${profile.phone || "দেওয়া হয়নি"}
-সংরক্ষিত ঠিকানা: ${addressStr || "দেওয়া হয়নি"}
-গত ভয়েস নোটে ডাক্তার যা বলেছিলেন: ${profile.lastVoiceTranscript ? `"${profile.lastVoiceTranscript}"` : "কোনো ভয়েস পাঠানো হয়নি"}
-======================================================================
-⚠️ মেমরি গাইডলাইন (CRITICAL):
-1. কাস্টমার যদি ইতিমধ্যে বয়স (${profile.age || "নেই"}), বৈবাহিক অবস্থা (${profile.maritalStatus || "নেই"}) বা সমস্যা জানিয়ে থাকেন, তবে দ্বিতীয়বার কখনোই তা জানতে চাইবেন না!
-2. কাস্টমার পূর্ববর্তী মেসেজে যে তথ্য দিয়েছে তা এই মেমরিতে সংরক্ষিত আছে। তার অতীতের কথার ধারাবাহিকতা বজায় রেখে সম্মান ও আন্তরিকতার সাথে উত্তর দিন।
-`.trim();
+  if (sessionCtx) {
+    parts.push("Past sessions context: " + sessionCtx);
+  }
+
+  parts.push(
+    "=============================================",
+    "CRITICAL MEMORY MANDATES FOR THIS REPLY:",
+    "1. ABSOLUTE BAN ON RE-ASKING: Do NOT ask for age (" + (profile.age || "none") + "), marital status (" + (profile.maritalStatus || "none") + "), or symptoms (" + symptomStr + ") if already listed above!",
+    "2. CUSTOMER NAME RECALL: The customer's real name is: '" + (profile.name || fallbackName || "") + "'. If the customer asks 'amar name ki?', 'আমার নাম কি জানো?' -> State their real name with full confidence: 'জি ভাইয়া, আপনার নাম " + (profile.name || fallbackName || "ভাইয়া") + "।'",
+    "3. PERSONAL CONTINUITY: Talk as their dedicated personal doctor who remembers their entire medical history and previous chats.",
+    "4. AUTHENTIC BANGLADESHI TONE: Speak in natural, respectful Bangladeshi male tone ('জি ভাইয়া', 'আসসালামু আলাইকুম'). NEVER use Kolkata or Indian Bengali words ('জল', 'দাদা')."
+  );
+
+  return parts.join("\n");
 }
 
-// Get recent chat history as formatted strings for LLM prompt
 export function getRecentChatHistory(senderId: string, limit: number = 15): string[] {
   const profile = getCustomerProfile(senderId);
   if (!profile.chatLog || profile.chatLog.length === 0) return [];
@@ -335,24 +429,17 @@ export function getRecentChatHistory(senderId: string, limit: number = 15): stri
   });
 }
 
-// ── Smart Follow-up Engine ────────────────────────────────────────────────────
-
-// Identify customers who discussed products/symptoms but haven't ordered yet
 export function getEligibleFollowUpCandidates(minHours: number = 72): FollowUpCandidate[] {
   loadMemory();
   const now = Date.now();
   const candidates: FollowUpCandidate[] = [];
 
   for (const profile of memoryCache.values()) {
-    // Skip if order already placed or delivered
     if (profile.orderStatus === "order_placed" || profile.orderStatus === "delivered") continue;
-
-    // Skip if customer never discussed symptoms or a product
     const hasSymptoms = profile.symptoms && profile.symptoms.length > 0;
     const hasProduct = !!profile.productDiscussed;
     if (!hasSymptoms && !hasProduct) continue;
 
-    // Max 3 follow-ups per customer (doctor dignity — no spam)
     const count = profile.followUpCount || 0;
     if (count >= 3) continue;
 
@@ -360,10 +447,8 @@ export function getEligibleFollowUpCandidates(minHours: number = 72): FollowUpCa
     const hoursSinceContact = msSinceContact / (1000 * 60 * 60);
     const daysSinceLastContact = Math.max(1, Math.floor(hoursSinceContact / 24));
 
-    // Must be inactive for at least minHours
     if (hoursSinceContact < minHours) continue;
 
-    // Must wait at least 72 hours between follow-ups
     if (profile.lastFollowUpTime) {
       const hoursSinceLastFollowUp = (now - profile.lastFollowUpTime) / (1000 * 60 * 60);
       if (hoursSinceLastFollowUp < 72) continue;
@@ -374,30 +459,25 @@ export function getEligibleFollowUpCandidates(minHours: number = 72): FollowUpCa
       stage: count + 1,
       daysSinceLastContact,
     });
-
   }
 
   return candidates;
 }
 
-// Record that a follow-up was sent — saves to profile and chatLog for seamless continuation
-export function recordFollowUpSent(senderId: string, message: string, stage: number): void {
+export function recordFollowUpSent(senderId: string, followUpMessage: string, stage: number): void {
   const profile = getCustomerProfile(senderId);
   profile.followUpCount = (profile.followUpCount || 0) + 1;
   profile.lastFollowUpTime = Date.now();
   if (!profile.followUpHistory) profile.followUpHistory = [];
   profile.followUpHistory.push({
     stage,
-    message: message.trim(),
+    message: followUpMessage,
     sentAt: Date.now(),
   });
-
-  // Append to chatLog so regular chatbot continues context seamlessly
-  appendChatMessage(senderId, "model", message.trim(), false);
+  appendChatMessage(senderId, "model", followUpMessage, false);
   saveMemory();
 }
 
-// Build LLM prompt to generate a unique, personal, doctor-style follow-up message
 export function buildPersonalizedFollowUpPrompt(
   candidate: FollowUpCandidate,
   doctorName: string = "হাকিম রিয়াজুল করিম",
@@ -416,41 +496,16 @@ export function buildPersonalizedFollowUpPrompt(
 
   return `
 You are ${doctorName} (হাকিম রিয়াজুল করিম), Senior Ayurvedic Hakim at ${pharmacyName}, Bangladesh.
-You are personally reaching out to a patient who consulted you ${daysSinceLastContact} days ago, but did not finish their conversation or confirm their order. You remembered them naturally — not through any automated system.
-
-PATIENT'S PERMANENT CLINICAL FILE:
-- Name: ${profile.name || "ভাইয়া"} (first name: ${patientFirstName})
+You are personally reaching out to a patient who consulted you ${daysSinceLastContact} days ago.
+PATIENT FILE:
+- Name: ${profile.name || "ভাইয়া"}
 - Age: ${profile.age ? profile.age + " বছর" : "unknown"}
-- Marital Status: ${profile.maritalStatus || "unknown"}
-- Health Problems/Symptoms: ${symptomStr}
-- Duration: ${profile.duration || "some time"}
-- Product Discussed: ${profile.productDiscussed || "Unani herbal formula"}
-- Follow-up Stage: ${stage} of 3 (${daysSinceLastContact} days since last conversation)
-- Previous follow-ups sent: ${profile.followUpHistory?.length || 0}
+- Problem: ${symptomStr}
+- Product: ${profile.productDiscussed || "Unani herbal formula"}
 
-YOUR RULES FOR THIS MESSAGE:
-1. ZERO MARKETING LANGUAGE:
-   - NEVER say "প্রিয় গ্রাহক", "স্পেশাল অফার", "অর্ডার করুন", "সীমিত সময়", or any sales template phrase.
-   - The patient MUST feel their personal doctor genuinely remembered them from a real clinical session.
-
-2. TONE — Stage-based variation (generate a UNIQUE message, NOT the same template each time):
-   - Stage 1 (${daysSinceLastContact} days passed, ~3-5 days):
-     Open warmly, mention you were thinking about them, ask if their ${profile.symptoms[0] || "problem"} has improved since you last spoke, and whether they have started any treatment yet. Keep it curious and caring.
-   - Stage 2 (~6-12 days):
-     Open with concern, gently note that problems like theirs tend to worsen if left untreated for too long (nerve weakness and circulation issues compound). Ask how they are feeling today and if they need guidance to begin treatment.
-   - Stage 3 (~13-30 days):
-     Open with a warm hello, mention you have not heard from them in a while and wanted to make sure they are okay. Tell them your door (inbox) is always open for free personal advice, no pressure.
-
-3. MUST INCLUDE — Natural personalisation:
-   - Use their first name (${patientFirstName}) naturally in the greeting.
-   - Reference their specific symptom or product discussed (${symptomStr}) — NOT generically.
-
-4. LENGTH & FORMAT:
-   - Maximum 3 sentences total.
-   - Plain, natural spoken Bengali — like a caring doctor texting from their personal phone.
-   - NO asterisks, bold, markdown, emojis, or hashtags.
-   - NO sentence like "আমি আপনাকে ফলোআপ করছি" or anything that reveals this is automated.
-
-Write ONLY the Bengali follow-up message now:
+RULES:
+1. Zero marketing / NO templates.
+2. Natural Bangladeshi caring brotherly doctor tone.
+3. Max 2-3 sentences.
 `.trim();
 }

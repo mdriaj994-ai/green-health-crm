@@ -1,6 +1,6 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
 import { MergedProduct, findProductInDB, buildProductAIContext } from "./product-db";
-import { buildCustomerMemoryPrompt, extractCustomerFacts, appendChatMessage } from "./customer-memory";
+import { buildCustomerMemoryPrompt, extractCustomerFacts, appendChatMessage, getCustomerProfile, getRecentChatHistory } from "./customer-memory";
 import fs from "fs";
 import path from "path";
 
@@ -154,6 +154,12 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
         Reply naturally and politely: "জি না ভাইয়া, আপনার শুভ নামটি তো এখনো জানা হয়নি। আপনার নামটি যদি বলতেন, খুব ভালো লাগত।"
       * STRICT BAN: ABSOLUTELY NEVER hallucinate or guess a name like "e ki jano" or take parts of their question as their name!
 
+14. AUTHENTIC BANGLADESHI MALE DOCTOR TONE & ACCENT (খাঁটি বাংলাদেশি কথ্য ও উচ্চারণ ভঙ্গি):
+    - Speak strictly in authentic Bangladeshi conversational standard (বাংলাদেশি প্রমিত ও আন্তরিক কথ্য ভঙ্গি).
+    - NEVER use Kolkata/Indian Bengali words, idioms, or tone (strictly NO "জল", "দাদা", "আজ্ঞে", "নমস্কার", "কোলকাতা কথ্য টান").
+    - Use natural Bangladeshi brotherly expressions: "জি ভাইয়া", "আসসালামু আলাইকুম", "ইনশাআল্লাহ", "আল্লাহর রহমতে", "কোনো চিন্তা করবেন না", "কুরিয়ার ম্যানের সামনে পার্সেল খুলে দেখে টাকা দিবেন", "ক্যাশ অন ডেলিভারি"।
+    - Speak with genuine warmth, authority, and empathy like a trusted Bangladeshi elder brother / Hakim.
+
 ${customerMemoryPrompt ? `\n${customerMemoryPrompt}\n` : ""}
 ${liveProductContext ? `\n--- LIVE DASHBOARD DATA FOR THIS INQUIRY ---\n${liveProductContext}\n-------------------------------------------\n` : ""}
 
@@ -169,10 +175,12 @@ export async function generateAutoReply(
   options: AIContextOptions = {}
 ): Promise<string> {
   const effectiveMessage = incomingMessage?.trim() || "";
+  const profile = options.senderId ? getCustomerProfile(options.senderId, options.customerName) : null;
+  const effectiveCustomerName = options.customerName || profile?.name || "";
 
   // Extract facts & update permanent customer profile if senderId is present
   if (options.senderId) {
-    extractCustomerFacts(options.senderId, effectiveMessage, options.customerName);
+    extractCustomerFacts(options.senderId, effectiveMessage, effectiveCustomerName);
     appendChatMessage(options.senderId, "user", effectiveMessage);
   }
 
@@ -191,13 +199,18 @@ export async function generateAutoReply(
 
   const detectedLang = detectLanguage(effectiveMessage);
 
-  // Format multi-turn conversation history
-  const historyText = options.chatHistory && options.chatHistory.length > 0
-    ? `Previous Multi-Turn Conversation History (পূর্ববর্তী বার্তালাপ):\n` +
-      options.chatHistory.map(m => `${m.sender === "AGENT" ? "হাকিম রিয়াজুল করিম (ডাক্তার)" : (options.customerName || "কাস্টমার")}: "${m.text}"`).join("\n") +
-      `\n\n`
+  // Format multi-turn conversation history (with fallback to persistent customer memory)
+  let historyLines: string[] = [];
+  if (options.chatHistory && options.chatHistory.length > 0) {
+    historyLines = options.chatHistory.map(m => `${m.sender === "AGENT" ? "হাকিম রিয়াজুল করিম (ডাক্তার)" : (effectiveCustomerName || "কাস্টমার")}: "${m.text}"`);
+  } else if (options.senderId) {
+    historyLines = getRecentChatHistory(options.senderId, 12);
+  }
+
+  const historyText = historyLines.length > 0
+    ? `Previous Multi-Turn Conversation History (পূর্ববর্তী বার্তালাপ):\n${historyLines.join("\n")}\n\n`
     : "";
-  const userPrompt = `${historyText}Customer (${options.customerName || "Customer"}): "${effectiveMessage}"\nReply:`;
+  const userPrompt = `${historyText}Customer (${effectiveCustomerName || "Customer"}): "${effectiveMessage}"\nReply:`;
 
   // Try available models in order
   for (const modelName of PRIMARY_MODELS) {
