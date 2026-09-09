@@ -27,17 +27,34 @@ function loadMemory() {
   isLoaded = true;
 }
 
+function saveCustomerDossier(profile) {
+  try {
+    const custDir = path.join(DATA_DIR, "customers");
+    if (!fs.existsSync(custDir)) fs.mkdirSync(custDir, { recursive: true });
+    const filename = `${profile.senderId}.json`;
+    fs.writeFileSync(path.join(custDir, filename), JSON.stringify(profile, null, 2), "utf-8");
+  } catch (err) {
+    console.warn("[CUSTOMER_DOSSIER_SAVE_WARN]", err.message);
+  }
+}
+
 function saveMemory() {
   try {
     const obj = {};
     for (const [id, prof] of memoryCache.entries()) {
       obj[id] = prof;
+      saveCustomerDossier(prof);
     }
     // DATA_DIR already guaranteed at module load
     fs.writeFileSync(MEMORY_FILE, JSON.stringify(obj, null, 2), "utf-8");
   } catch (err) {
     console.warn("[CUSTOMER_MEMORY_SAVE_WARN]", err.message, "| Path:", MEMORY_FILE);
   }
+}
+
+function getAllCustomerProfiles() {
+  if (!isLoaded) loadMemory();
+  return Array.from(memoryCache.values()).sort((a, b) => (b.lastContact || 0) - (a.lastContact || 0));
 }
 
 function getCustomerProfile(senderId, defaultName = "") {
@@ -91,6 +108,105 @@ function toBengaliNumerals(str) {
   return String(str).replace(/\d/g, (d) => bDigits[parseInt(d, 10)] || d);
 }
 
+// ── Dynamic Customer Commitment & Follow-up Time Parser ──────────────────────
+function parseDeferredCommitment(text) {
+  if (!text) return null;
+  const clean = text.toLowerCase().trim();
+  const now = Date.now();
+
+  if (/(নিতে\s*চাই\s*না|দরকার\s*নেই|ক্যান্সেল|cancel|অর্ডার\s*করেছি|টাকা\s*নাই\s*আর\s*মেসেজ\s*দিয়েন\s*না)/i.test(clean)) {
+    return null;
+  }
+
+  // 1. "X ঘন্টা পর" / "X hour por"
+  const hourMatch = clean.match(/(\d+|এক|দুই|তিন|চার|পাঁচ|ছয়|সাত|আট|দশ)\s*(?:ঘন্টা|ঘণ্টা|ghonta|hour|hr)\s*(?:পর|por|bade)/i);
+  if (hourMatch) {
+    let hours = 2;
+    const rawVal = hourMatch[1];
+    const wordMap = { "এক": 1, "দুই": 2, "তিন": 3, "চার": 4, "পাঁচ": 5, "ছয়": 6, "সাত": 7, "আট": 8, "দশ": 10 };
+    if (wordMap[rawVal]) hours = wordMap[rawVal];
+    else if (!isNaN(parseInt(rawVal, 10))) hours = parseInt(rawVal, 10);
+    hours = Math.min(24, Math.max(1, hours));
+    return {
+      scheduledAt: now + (hours * 60 * 60 * 1000),
+      reason: `${hours} ঘণ্টা পর যোগাযোগ করার কথা বলেছেন`,
+      promiseText: text.trim()
+    };
+  }
+
+  // 2. "পরে অর্ডার করব" / "পরে নিব" / "পরে জানাচ্ছি" / "পরে কথা বলব" / "পরে জানাব" -> 4 to 5 hours (4.5h)
+  if (/(পরে\s*অর্ডার|পরে\s*নিব|পরে\s*নেব|পরে\s*জানাব|পরে\s*জানাচ্ছি|পরে\s*কথা|পরে\s*নক|pore\s*order|pore\s*nibo|pore\s*janabo|pore\s*kotha|pore\s*nok|free\s*hoye|ফ্রি\s*হয়ে|একটু\s*ব্যস্ত|busy\s*asi|পরে\s*বলব|pore\s*bolbo)/i.test(clean)) {
+    return {
+      scheduledAt: now + (4.5 * 60 * 60 * 1000),
+      reason: "পরে ফ্রি হয়ে জানাবেন বা অর্ডার করবেন বলেছেন",
+      promiseText: text.trim()
+    };
+  }
+
+  // 3. "কাল সকালে" / "কালকে সকালে" / "সকালে জানাব" -> Next day morning 10:30 AM
+  if (/(কাল\s*সকালে|কালকে\s*সকালে|আগামীকাল\s*সকালে|সকালে\s*জানাব|সকালে\s*অর্ডার|kal\s*sokale|kalke\s*sokale|sokale\s*janabo)/i.test(clean)) {
+    const nextMorning = new Date();
+    nextMorning.setDate(nextMorning.getDate() + 1);
+    nextMorning.setHours(10, 30, 0, 0);
+    return {
+      scheduledAt: nextMorning.getTime(),
+      reason: "কাল সকালে অর্ডার কনফার্ম করবেন বলেছেন",
+      promiseText: text.trim()
+    };
+  }
+
+  // 4. "কাল বিকেলে" / "কাল দুপুরে" / "কাল রাতে" / "কালকে" / "কাল জানাব" -> Next day afternoon/evening
+  if (/(কাল\s*বিকেলে|কাল\s*দুপুরে|কাল\s*রাতে|কালকে\s*জানাব|কাল\s*অর্ডার|kalke\s*order|kal\s*janabo|kalke\s*janabo)/i.test(clean)) {
+    const nextDay = new Date();
+    nextDay.setDate(nextDay.getDate() + 1);
+    if (/রাতে|rate/i.test(clean)) nextDay.setHours(20, 30, 0, 0);
+    else nextDay.setHours(15, 0, 0, 0);
+    return {
+      scheduledAt: nextDay.getTime(),
+      reason: "কালকে যোগাযোগ করবেন বলেছেন",
+      promiseText: text.trim()
+    };
+  }
+
+  // 5. "২ দিন পর" / "পরশু" / "পরশু দিন" -> 48 hours later
+  if (/(২\s*দিন\s*পর|2\s*din\s*por|dui\s*din\s*por|দুই\s*দিন\s*পর|পরশু|porshu)/i.test(clean)) {
+    return {
+      scheduledAt: now + (48 * 60 * 60 * 1000),
+      reason: "২ দিন পর যোগাযোগ করবেন বলেছেন",
+      promiseText: text.trim()
+    };
+  }
+
+  // 6. "৩ দিন পর" / "কয়েক দিন পর" -> 72 hours later
+  if (/(৩\s*দিন\s*পর|3\s*din\s*por|tin\s*din\s*por|তিন\s*দিন\s*পর|কয়েক\s*দিন\s*পর|koyek\s*din\s*por)/i.test(clean)) {
+    return {
+      scheduledAt: now + (72 * 60 * 60 * 1000),
+      reason: "কয়েক দিন পর অর্ডার করতে চেয়েছেন",
+      promiseText: text.trim()
+    };
+  }
+
+  // 7. "বেতন পেলে" / "১ তারিখে" / "১০ তারিখে" / "মাস শেষে"
+  if (/(বেতন\s*পেলে|বেতন\s*পাব|salary\s*peye|মাস\s*শেষে|১\s*তারিখে|1\s*tarikh|১০\s*তারিখে|10\s*tarikh)/i.test(clean)) {
+    const futureDate = new Date();
+    if (futureDate.getDate() > 25) {
+      futureDate.setMonth(futureDate.getMonth() + 1);
+      futureDate.setDate(1);
+      futureDate.setHours(11, 0, 0, 0);
+    } else {
+      futureDate.setDate(futureDate.getDate() + 5);
+      futureDate.setHours(11, 0, 0, 0);
+    }
+    return {
+      scheduledAt: futureDate.getTime(),
+      reason: "বেতন পেলে বা নির্দিষ্ট তারিখে অর্ডার করবেন বলেছেন",
+      promiseText: text.trim()
+    };
+  }
+
+  return null;
+}
+
 function extractCustomerFacts(senderId, text, senderName) {
   const profile = getCustomerProfile(senderId, senderName);
   if (!text) return profile;
@@ -98,6 +214,20 @@ function extractCustomerFacts(senderId, text, senderName) {
   profile.totalMessages = (profile.totalMessages || 0) + 1;
   profile.lastContact = Date.now();
   const clean = text.trim();
+
+  // Dynamic commitment parsing for automated intelligent follow-up
+  const commitment = parseDeferredCommitment(clean);
+  if (commitment) {
+    profile.scheduledFollowUpAt = commitment.scheduledAt;
+    profile.followUpReason = commitment.reason;
+    profile.followUpPromiseText = commitment.promiseText;
+    profile.followUpStatus = "pending";
+    console.log(`[FOLLOWUP_SCHEDULED] ${profile.name || senderId}: ${commitment.reason} (At: ${new Date(commitment.scheduledAt).toLocaleString()})`);
+  } else if (/(নিতে\s*চাই|অর্ডার\s*করব|ঠিকানা|নাম্বার|কুরিয়ার)/i.test(clean) && !/(পরে|কাল)/i.test(clean)) {
+    if (profile.followUpStatus === "pending") {
+      profile.followUpStatus = "cancelled";
+    }
+  }
 
   // Init missing array fields
   if (!profile.symptoms)             profile.symptoms = [];
