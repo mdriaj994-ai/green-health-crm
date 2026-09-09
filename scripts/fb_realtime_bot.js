@@ -1002,6 +1002,32 @@ async function fetchConversations(pageId = PAGE_ID, pageAccessToken = PAGE_TOKEN
   return data.data || [];
 }
 
+// ── Save Bot Reply Directly to SQLite DB (so it displays in Dashboard) ───────
+function recordOutgoingBotMessageInDb(senderId, replyText, isVoice = false) {
+  try {
+    const dbPath = path.join(process.cwd(), "prisma", "social_inbox.db");
+    if (!fs.existsSync(dbPath)) return;
+    const db = new Database(dbPath);
+    let contact = db.prepare('SELECT id FROM "Contact" WHERE platformUserId = ?').get(String(senderId));
+    if (contact) {
+      let conv = db.prepare('SELECT id FROM "Conversation" WHERE contactId = ? ORDER BY updatedAt DESC LIMIT 1').get(contact.id);
+      if (conv) {
+        const msgId = require('crypto').randomUUID();
+        const now = new Date().toISOString();
+        const content = isVoice ? `[ভয়েস মেসেজ] ${replyText}` : replyText;
+        db.prepare(`
+          INSERT INTO "Message" (id, content, "messageType", "senderType", "isRead", "createdAt", "conversationId")
+          VALUES (?, ?, 'TEXT', 'BOT', 1, ?, ?)
+        `).run(msgId, content, now, conv.id);
+        db.prepare(`UPDATE "Conversation" SET "lastMessageAt" = ?, "updatedAt" = ? WHERE id = ?`).run(now, now, conv.id);
+      }
+    }
+    db.close();
+  } catch (err) {
+    console.warn("[FB_BOT_DB_RECORD_ERR]", err.message);
+  }
+}
+
 // ── Main Multi-Page Polling Loop ─────────────────────────────────────────────
 let isPolling = false;
 
@@ -1107,13 +1133,16 @@ async function pollOnce() {
               const sentVoice = await sendFacebookVoiceNote(senderId, replyText, page.accessToken);
               if (sentVoice) {
                 customerMemory.appendChatMessage(senderId, "model", replyText, true);
+                recordOutgoingBotMessageInDb(senderId, replyText, true);
               } else {
                 // Fallback to text if voice note generation failed
                 await sendFacebookMessage(senderId, replyText, page.accessToken);
+                recordOutgoingBotMessageInDb(senderId, replyText, false);
               }
             } else {
               const sendResult = await sendFacebookMessage(senderId, replyText, page.accessToken);
               console.log(`[FB_BOT] 🚀 [${page.pageName}] SENT [${sendResult.status}]:`, sendResult.data?.message_id || sendResult.data);
+              recordOutgoingBotMessageInDb(senderId, replyText, false);
             }
 
             saveProcessedId(lastMsg.id); // Persist to file once successfully attempted
