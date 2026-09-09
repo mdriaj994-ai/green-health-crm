@@ -10,7 +10,7 @@ const execAsync = promisify(exec);
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || "sk_b704126ae6ecca01f041a6505e4e7a695f40df803a4f8bd3";
 const rawVoiceId = process.env.ELEVENLABS_VOICE_ID;
-const ELEVENLABS_VOICE_ID = (rawVoiceId && rawVoiceId !== "FhOnCtjmaAIRIS1Dg2bk" && rawVoiceId !== "TX3LPaxmHKxFdv7VOQHJ") ? rawVoiceId : "2RikWi4odb2uhZQb9waV";
+const ELEVENLABS_VOICE_ID = (rawVoiceId && rawVoiceId !== "2RikWi4odb2uhZQb9waV" && rawVoiceId !== "UvaBYZVczBD1eq5jTquX" && rawVoiceId !== "FhOnCtjmaAIRIS1Dg2bk" && rawVoiceId !== "TX3LPaxmHKxFdv7VOQHJ") ? rawVoiceId : "nsJQzXf7dXyDnOFqO3uX";
 
 // Gemini TTS voices: Aoede (female, warm), Charon (male, deep), Fenrir (male, strong), Kore (female, clear), Puck (male, upbeat)
 const GEMINI_VOICE = process.env.GEMINI_TTS_VOICE || "Algieba"; // Smooth, lower pitch - perfect for customer support
@@ -27,8 +27,16 @@ function prepareBangladeshiTTSAudioText(rawText: string): string {
     .replace(/re[aj]aul/gi, "রিয়াজুল")
     .replace(/\bদেবেন\b/g, "দিবেন")
     .replace(/\bনেবেন\b/g, "নিবেন")
+    .replace(/\bচাচ্ছেন\b/g, "চান")
+    .replace(/\bকরেছেন\b/g, "করছেন")
+    .replace(/\bবলেছেন\b/g, "বলছেন")
+    .replace(/\bখাবেন\b/g, "খাইবেন")
     .replace(/\bজল\b/g, "পানি")
-    .replace(/\bদাদা\b/g, "ভাইয়া")
+    .replace(/\bদাদা\b/g, "ভাইয়া")
+    .replace(/\bআপনাকে\b/g, "আপনাকে")
+    .replace(/\bতাহলে\b/g, "তাহলে")
+    .replace(/\bএখানে\b/g, "এইখানে")
+    .replace(/\bসেখানে\b/g, "সেইখানে")
     .replace(/নাম\s*=/gi, "নাম, ")
     .replace(/জেলা\s*=/gi, "জেলা, ")
     .replace(/থানা\s*=/gi, "থানা, ")
@@ -50,10 +58,19 @@ function prepareBangladeshiTTSAudioText(rawText: string): string {
   t = t
     .replace(/জি\s*ভাইয়া(?![,\s]*[,])/gi, "জি ভাইয়া, ")
     .replace(/রিয়াজুল\s*করিম\s*বলছি(?![,\s]*[,।])/gi, "রিয়াজুল করিম বলছি। ")
-    .replace(/ইনশাআল্লাহ(?![,\s]*[,])/gi, "ইনশাআল্লাহ, ")
+    .replace(/ইনশাআল্লাহ(?![,\s]*[,।])/gi, "ইনশাআল্লাহ। ")
+    .replace(/আলহামদুলিল্লাহ(?![,\s]*[,।])/gi, "আলহামদুলিল্লাহ, ")
+    .replace(/মাশাআল্লাহ(?![,\s]*[,।])/gi, "মাশাআল্লাহ, ")
     .replace(/আল্লাহর\s*রহমতে(?![,\s]*[,])/gi, "আল্লাহর রহমতে, ")
-    .replace(/কোনো\s*চিন্তা\s*করবেন\s*না(?![,\s]*[,])/gi, "কোনো চিন্তা করবেন না ভাইয়া, ")
+    .replace(/কোনো\s*চিন্তা\s*করবেন\s*না(?![,\s]*[,])/gi, "কোনো চিন্তা করবেন না ভাইয়া, ")
+    .replace(/দেখুন(?![,\s]*[,])/gi, "দেখুন, ")
+    .replace(/বুঝলেন(?![,\s]*[?।])/gi, "বুঝলেন ভাইয়া? ")
+    .replace(/ঠিক\s*আছে(?![,\s]*[,।?])/gi, "ঠিক আছে, ")
+    .replace(/\s+তাইলে\s+/g, ", তাইলে ")
+    .replace(/\s+কিন্তু\s+/g, ", কিন্তু ")
+    .replace(/\s+তবে\s+/g, ", তবে ")
     .replace(/,\s*,+/g, ",")
+    .replace(/\.\s*\./g, ".")
     .replace(/\s+/g, " ")
     .trim();
 
@@ -63,10 +80,15 @@ function prepareBangladeshiTTSAudioText(rawText: string): string {
 async function generateWithElevenLabsTTS(text: string, filePath: string, voiceId: string = ELEVENLABS_VOICE_ID): Promise<boolean> {
   if (!ELEVENLABS_API_KEY) return false;
   try {
-    const activeVoice = (voiceId === "FhOnCtjmaAIRIS1Dg2bk" || voiceId === "TX3LPaxmHKxFdv7VOQHJ") ? "2RikWi4odb2uhZQb9waV" : voiceId;
+    const activeVoice = voiceId || ELEVENLABS_VOICE_ID;
     const cleanText = prepareBangladeshiTTSAudioText(text);
     console.log(`[ELEVENLABS_TTS] Generating audio with Voice ID: ${activeVoice} | Text: "${cleanText.slice(0, 60)}..."`);
     const url = `https://api.elevenlabs.io/v1/text-to-speech/${activeVoice}`;
+    // Generation 1: My Bangla Voice 1 + Eleven v3 with stability 0.5
+    const BD_VOICE_SETTINGS = {
+      stability: 0.50
+    };
+
     let res = await fetch(url, {
       method: "POST",
       headers: {
@@ -75,18 +97,13 @@ async function generateWithElevenLabsTTS(text: string, filePath: string, voiceId
       },
       body: JSON.stringify({
         text: cleanText,
-        model_id: "eleven_multilingual_v2",
-        voice_settings: {
-          stability: 0.40,
-          similarity_boost: 0.82,
-          style: 0.15,
-          use_speaker_boost: true
-        }
+        model_id: "eleven_v3",
+        voice_settings: BD_VOICE_SETTINGS
       })
     });
 
     if (!res.ok) {
-      console.warn(`[ELEVENLABS_TTS_RETRY] Retrying with eleven_flash_v2_5`);
+      console.warn(`[ELEVENLABS_TTS_RETRY] Retrying with eleven_turbo_v2_5`);
       res = await fetch(url, {
         method: "POST",
         headers: {
@@ -95,11 +112,11 @@ async function generateWithElevenLabsTTS(text: string, filePath: string, voiceId
         },
         body: JSON.stringify({
           text: cleanText,
-          model_id: "eleven_flash_v2_5",
+          model_id: "eleven_turbo_v2_5",
           voice_settings: {
-            stability: 0.40,
-            similarity_boost: 0.82,
-            style: 0.15,
+            stability: 0.50,
+            similarity_boost: 0.90,
+            style: 0.0,
             use_speaker_boost: true
           }
         })

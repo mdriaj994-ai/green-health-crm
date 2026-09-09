@@ -771,12 +771,20 @@ function prepareBangladeshiTTSAudioText(rawText: string): string {
     .replace(/re[aj]aul\s*karim/gi, "রিয়াজুল করিম")
     .replace(/re[aj]aul/gi, "রিয়াজুল");
 
-  // 2. Convert Indian/Kolkata forms to authentic Bangladeshi verbal forms
+  // 2. Convert Indian/Kolkata forms → authentic Bangladeshi spoken forms
   t = t
     .replace(/\bদেবেন\b/g, "দিবেন")
     .replace(/\bনেবেন\b/g, "নিবেন")
+    .replace(/\bকরেছেন\b/g, "করছেন")
+    .replace(/\bবলেছেন\b/g, "বলছেন")
+    .replace(/\bখাবেন\b/g, "খাইবেন")
     .replace(/\bজল\b/g, "পানি")
-    .replace(/\bদাদা\b/g, "ভাইয়া");
+    .replace(/\bদাদা\b/g, "ভাইয়া")
+    .replace(/\bআপনাকে\b/g, "আপনারে")
+    .replace(/\bতাহলে\b/g, "তাইলে")
+    .replace(/\bএখানে\b/g, "এইখানে")
+    .replace(/\bকোথায়\b/g, "কই")
+    .replace(/\bসেখানে\b/g, "সেইখানে");
 
   // 3. Spoken representations of order forms
   t = t
@@ -787,9 +795,9 @@ function prepareBangladeshiTTSAudioText(rawText: string): string {
     .replace(/নাম্বার\s*=/gi, "মোবাইল নাম্বার, ")
     .replace(/=/g, " ");
 
-  // 4. Convert digits to spoken Bengali words so ElevenLabs speaks native Bengali numbers
+  // 4. Convert digits to spoken Bengali words
   t = t
-    .replace(/২[,.]?৯০০|2[,.]?900/g, "দুই হাজার নয়শত")
+    .replace(/২[,.]?৯০০|2[,.]?900/g, "দুই হাজার নয়শত")
     .replace(/৩[,.]?৫০০|3[,.]?500/g, "তিন হাজার পাঁচশত")
     .replace(/৩[,.]?০০০|3[,.]?000/g, "তিন হাজার")
     .replace(/৪[,.]?৫০০|4[,.]?500/g, "চার হাজার পাঁচশত")
@@ -815,18 +823,59 @@ function prepareBangladeshiTTSAudioText(rawText: string): string {
   return t;
 }
 
-async function sendMessengerVoiceNote(recipientId: string, text: string, accessToken: string): Promise<string | null> {
+function splitTextIntoVoiceChunks(text: string, maxChars: number = 800): string[] {
+  if (!text || text.length <= maxChars) return [text];
+
+  const chunks: string[] = [];
+  const sentences = text.split(/(?<=[।?!.\n])/g);
+  let currentChunk = "";
+
+  for (const sentence of sentences) {
+    const trimmed = sentence.trim();
+    if (!trimmed) continue;
+
+    if ((currentChunk + " " + trimmed).trim().length <= maxChars) {
+      currentChunk = currentChunk ? (currentChunk + " " + trimmed) : trimmed;
+    } else {
+      if (currentChunk) chunks.push(currentChunk);
+      if (trimmed.length > maxChars) {
+        const subParts = trimmed.split(/(?<=[,;])/g);
+        let subChunk = "";
+        for (const part of subParts) {
+          if ((subChunk + " " + part).trim().length <= maxChars) {
+            subChunk = subChunk ? (subChunk + " " + part) : part;
+          } else {
+            if (subChunk) chunks.push(subChunk);
+            subChunk = part;
+          }
+        }
+        if (subChunk) currentChunk = subChunk;
+        else currentChunk = "";
+      } else {
+        currentChunk = trimmed;
+      }
+    }
+  }
+
+  if (currentChunk) chunks.push(currentChunk);
+  return chunks.length > 0 ? chunks : [text];
+}
+
+async function sendSingleVoiceNote(recipientId: string, text: string, accessToken: string): Promise<string | null> {
   const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || "sk_b704126ae6ecca01f041a6505e4e7a695f40df803a4f8bd3";
   const rawVoiceId = process.env.ELEVENLABS_VOICE_ID;
-  const ELEVENLABS_VOICE_ID = (rawVoiceId && rawVoiceId !== "FhOnCtjmaAIRIS1Dg2bk" && rawVoiceId !== "TX3LPaxmHKxFdv7VOQHJ") ? rawVoiceId : "2RikWi4odb2uhZQb9waV";
+  const ELEVENLABS_VOICE_ID = (rawVoiceId && rawVoiceId !== "2RikWi4odb2uhZQb9waV" && rawVoiceId !== "UvaBYZVczBD1eq5jTquX" && rawVoiceId !== "FhOnCtjmaAIRIS1Dg2bk" && rawVoiceId !== "TX3LPaxmHKxFdv7VOQHJ") ? rawVoiceId : "nsJQzXf7dXyDnOFqO3uX";
 
   if (!ELEVENLABS_API_KEY) return null;
 
   try {
-    // 1. Generate audio via ElevenLabs with authentic Bangladeshi prosody & pronunciation
     const cleanText = prepareBangladeshiTTSAudioText(text);
     console.log(`[FB_VOICE_NOTE] Generating Bangladeshi voice note with Voice ID: ${ELEVENLABS_VOICE_ID} | Text: "${cleanText.slice(0, 60)}..."`);
     const ttsUrl = `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`;
+    const BD_VOICE_SETTINGS = {
+      stability: 0.50
+    };
+
     let ttsRes = await fetch(ttsUrl, {
       method: "POST",
       headers: {
@@ -835,18 +884,13 @@ async function sendMessengerVoiceNote(recipientId: string, text: string, accessT
       },
       body: JSON.stringify({
         text: cleanText,
-        model_id: "eleven_multilingual_v2",
-        voice_settings: {
-          stability: 0.40,
-          similarity_boost: 0.82,
-          style: 0.15,
-          use_speaker_boost: true
-        }
+        model_id: "eleven_v3",
+        voice_settings: BD_VOICE_SETTINGS
       })
     });
 
     if (!ttsRes.ok) {
-      console.warn("[VOICE_NOTE_ELEVEN_RETRY] Retrying with eleven_flash_v2_5");
+      console.warn("[VOICE_NOTE_ELEVEN_RETRY] Retrying with eleven_turbo_v2_5");
       ttsRes = await fetch(ttsUrl, {
         method: "POST",
         headers: {
@@ -855,11 +899,11 @@ async function sendMessengerVoiceNote(recipientId: string, text: string, accessT
         },
         body: JSON.stringify({
           text: cleanText,
-          model_id: "eleven_flash_v2_5",
+          model_id: "eleven_turbo_v2_5",
           voice_settings: {
-            stability: 0.40,
-            similarity_boost: 0.82,
-            style: 0.15,
+            stability: 0.50,
+            similarity_boost: 0.90,
+            style: 0.0,
             use_speaker_boost: true
           }
         })
@@ -920,6 +964,23 @@ async function sendMessengerVoiceNote(recipientId: string, text: string, accessT
     console.error("[VOICE_NOTE_ERROR]", err.message);
   }
   return null;
+}
+
+async function sendMessengerVoiceNote(recipientId: string, text: string, accessToken: string): Promise<string | null> {
+  const chunks = splitTextIntoVoiceChunks(text, 800);
+  if (chunks.length > 1) {
+    console.log(`[VOICE_CHUNK] Long voice response (${text.length} chars) split into ${chunks.length} parts for ${recipientId}`);
+  }
+
+  let lastId: string | null = null;
+  for (let i = 0; i < chunks.length; i++) {
+    const chunkText = chunks[i];
+    lastId = await sendSingleVoiceNote(recipientId, chunkText, accessToken);
+    if (i < chunks.length - 1) {
+      await new Promise((r) => setTimeout(r, 1200));
+    }
+  }
+  return lastId;
 }
 
 async function handleFacebookComment(pageId: string, value: any) {

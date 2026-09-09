@@ -816,10 +816,48 @@ function prepareBangladeshiTTSAudioText(rawText) {
   return t;
 }
 
-async function sendFacebookVoiceNote(recipientId, text, pageAccessToken = PAGE_TOKEN) {
+function splitTextIntoVoiceChunks(text, maxChars = 800) {
+  if (!text || text.length <= maxChars) return [text];
+
+  const chunks = [];
+  const sentences = text.split(/(?<=[।?!.\n])/g);
+  let currentChunk = "";
+
+  for (const sentence of sentences) {
+    const trimmed = sentence.trim();
+    if (!trimmed) continue;
+
+    if ((currentChunk + " " + trimmed).trim().length <= maxChars) {
+      currentChunk = currentChunk ? (currentChunk + " " + trimmed) : trimmed;
+    } else {
+      if (currentChunk) chunks.push(currentChunk);
+      if (trimmed.length > maxChars) {
+        const subParts = trimmed.split(/(?<=[,;])/g);
+        let subChunk = "";
+        for (const part of subParts) {
+          if ((subChunk + " " + part).trim().length <= maxChars) {
+            subChunk = subChunk ? (subChunk + " " + part) : part;
+          } else {
+            if (subChunk) chunks.push(subChunk);
+            subChunk = part;
+          }
+        }
+        if (subChunk) currentChunk = subChunk;
+        else currentChunk = "";
+      } else {
+        currentChunk = trimmed;
+      }
+    }
+  }
+
+  if (currentChunk) chunks.push(currentChunk);
+  return chunks.length > 0 ? chunks : [text];
+}
+
+async function sendSingleFacebookVoiceNote(recipientId, text, pageAccessToken = PAGE_TOKEN) {
   const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || "sk_b704126ae6ecca01f041a6505e4e7a695f40df803a4f8bd3";
   const rawVoiceId = process.env.ELEVENLABS_VOICE_ID;
-  const ELEVENLABS_VOICE_ID = (rawVoiceId && rawVoiceId !== "FhOnCtjmaAIRIS1Dg2bk" && rawVoiceId !== "TX3LPaxmHKxFdv7VOQHJ") ? rawVoiceId : "2RikWi4odb2uhZQb9waV";
+  const ELEVENLABS_VOICE_ID = (rawVoiceId && rawVoiceId !== "2RikWi4odb2uhZQb9waV" && rawVoiceId !== "UvaBYZVczBD1eq5jTquX" && rawVoiceId !== "FhOnCtjmaAIRIS1Dg2bk" && rawVoiceId !== "TX3LPaxmHKxFdv7VOQHJ") ? rawVoiceId : "nsJQzXf7dXyDnOFqO3uX";
 
   if (!ELEVENLABS_API_KEY) return null;
 
@@ -835,18 +873,15 @@ async function sendFacebookVoiceNote(recipientId, text, pageAccessToken = PAGE_T
       },
       body: JSON.stringify({
         text: cleanText,
-        model_id: "eleven_multilingual_v2",
+        model_id: "eleven_v3",
         voice_settings: {
-          stability: 0.40,
-          similarity_boost: 0.82,
-          style: 0.15,
-          use_speaker_boost: true
+          stability: 0.50
         }
       })
     });
 
     if (!ttsRes.ok) {
-      console.warn("[FB_BOT_VOICE_RETRY] Retrying with eleven_flash_v2_5");
+      console.warn("[FB_BOT_VOICE_RETRY] Retrying with eleven_turbo_v2_5");
       ttsRes = await fetch(ttsUrl, {
         method: "POST",
         headers: {
@@ -855,11 +890,11 @@ async function sendFacebookVoiceNote(recipientId, text, pageAccessToken = PAGE_T
         },
         body: JSON.stringify({
           text: cleanText,
-          model_id: "eleven_flash_v2_5",
+          model_id: "eleven_turbo_v2_5",
           voice_settings: {
-            stability: 0.40,
-            similarity_boost: 0.82,
-            style: 0.15,
+            stability: 0.50,
+            similarity_boost: 0.90,
+            style: 0.0,
             use_speaker_boost: true
           }
         })
@@ -913,6 +948,23 @@ async function sendFacebookVoiceNote(recipientId, text, pageAccessToken = PAGE_T
     console.error("[FB_BOT_VOICE_ERROR]", err.message);
   }
   return null;
+}
+
+async function sendFacebookVoiceNote(recipientId, text, pageAccessToken = PAGE_TOKEN) {
+  const chunks = splitTextIntoVoiceChunks(text, 800);
+  if (chunks.length > 1) {
+    console.log(`[VOICE_CHUNK] Long voice response (${text.length} chars) split into ${chunks.length} parts for ${recipientId}`);
+  }
+
+  let lastId = null;
+  for (let i = 0; i < chunks.length; i++) {
+    const chunkText = chunks[i];
+    lastId = await sendSingleFacebookVoiceNote(recipientId, chunkText, pageAccessToken);
+    if (i < chunks.length - 1) {
+      await new Promise((r) => setTimeout(r, 1200));
+    }
+  }
+  return lastId;
 }
 
 // ── Fetch Recent Conversations from Facebook ─────────────────────────────────
