@@ -760,28 +760,72 @@ async function sendMessengerImage(recipientId: string, imageFileOrPath: string, 
   return false;
 }
 
+function prepareBangladeshiTTSAudioText(rawText: string): string {
+  if (!rawText) return "";
+  let t = rawText.replace(/[*#_~`>|]/g, "").replace(/\s+/g, " ").trim();
+
+  // 1. Correct Persona Name & Titles
+  t = t
+    .replace(/রেজাউল\s*করিম/gi, "রিয়াজুল করিম")
+    .replace(/রেজাউল/gi, "রিয়াজুল")
+    .replace(/re[aj]aul\s*karim/gi, "রিয়াজুল করিম")
+    .replace(/re[aj]aul/gi, "রিয়াজুল");
+
+  // 2. Convert Indian/Kolkata forms to authentic Bangladeshi verbal forms
+  t = t
+    .replace(/\bদেবেন\b/g, "দিবেন")
+    .replace(/\bনেবেন\b/g, "নিবেন")
+    .replace(/\bজল\b/g, "পানি")
+    .replace(/\bদাদা\b/g, "ভাইয়া");
+
+  // 3. Spoken representations of order forms
+  t = t
+    .replace(/নাম\s*=/gi, "নাম, ")
+    .replace(/জেলা\s*=/gi, "জেলা, ")
+    .replace(/থানা\s*=/gi, "থানা, ")
+    .replace(/রিসিভ ঠিকানা\s*=/gi, "রিসিভ ঠিকানা, ")
+    .replace(/নাম্বার\s*=/gi, "মোবাইল নাম্বার, ")
+    .replace(/=/g, " ");
+
+  // 4. Convert digits to spoken Bengali words so ElevenLabs speaks native Bengali numbers
+  t = t
+    .replace(/২[,.]?৯০০|2[,.]?900/g, "দুই হাজার নয়শত")
+    .replace(/৩[,.]?৫০০|3[,.]?500/g, "তিন হাজার পাঁচশত")
+    .replace(/৩[,.]?০০০|3[,.]?000/g, "তিন হাজার")
+    .replace(/৪[,.]?৫০০|4[,.]?500/g, "চার হাজার পাঁচশত")
+    .replace(/১[,.]?৫০০|1[,.]?500/g, "এক হাজার পাঁচশত")
+    .replace(/১৫০|150/g, "একশত পঞ্চাশ")
+    .replace(/১২০|120/g, "একশত বিশ")
+    .replace(/১০০|100/g, "একশত");
+
+  // 5. Cadence & Rhythm: Ensure natural Bangladeshi pauses (commas)
+  if (!/^(জি|আসসালামু|ওয়ালাইকুম|হ্যালো)/i.test(t)) {
+    t = "জি ভাইয়া, " + t;
+  }
+  t = t
+    .replace(/জি\s*ভাইয়া(?![,\s]*[,])/gi, "জি ভাইয়া, ")
+    .replace(/রিয়াজুল\s*করিম\s*বলছি(?![,\s]*[,।])/gi, "রিয়াজুল করিম বলছি। ")
+    .replace(/ইনশাআল্লাহ(?![,\s]*[,])/gi, "ইনশাআল্লাহ, ")
+    .replace(/আল্লাহর\s*রহমতে(?![,\s]*[,])/gi, "আল্লাহর রহমতে, ")
+    .replace(/কোনো\s*চিন্তা\s*করবেন\s*না(?![,\s]*[,])/gi, "কোনো চিন্তা করবেন না ভাইয়া, ")
+    .replace(/,\s*,+/g, ",")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return t;
+}
+
 async function sendMessengerVoiceNote(recipientId: string, text: string, accessToken: string): Promise<string | null> {
   const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || "sk_b704126ae6ecca01f041a6505e4e7a695f40df803a4f8bd3";
   const rawVoiceId = process.env.ELEVENLABS_VOICE_ID;
-  const ELEVENLABS_VOICE_ID = (rawVoiceId && rawVoiceId !== "FhOnCtjmaAIRIS1Dg2bk" && rawVoiceId !== "TX3LPaxmHKxFdv7VOQHJ" && rawVoiceId !== "2RikWi4odb2uhZQb9waV") ? rawVoiceId : "UvaBYZVczBD1eq5jTquX";
+  const ELEVENLABS_VOICE_ID = (rawVoiceId && rawVoiceId !== "FhOnCtjmaAIRIS1Dg2bk" && rawVoiceId !== "TX3LPaxmHKxFdv7VOQHJ") ? rawVoiceId : "2RikWi4odb2uhZQb9waV";
 
   if (!ELEVENLABS_API_KEY) return null;
 
   try {
-    // 1. Generate audio via ElevenLabs
-    let cleanText = (text || "").replace(/[*#_~`>|]/g, "").replace(/\s+/g, " ").trim();
-    cleanText = cleanText
-      .replace(/রেজাউল\s*করিম/gi, "রিয়াজুল করিম")
-      .replace(/রেজাউল/gi, "রিয়াজুল")
-      .replace(/re[aj]aul\s*karim/gi, "রিয়াজুল করিম")
-      .replace(/re[aj]aul/gi, "রিয়াজুল")
-      .replace(/নাম\s*=/gi, "নাম,")
-      .replace(/জেলা\s*=/gi, "জেলা,")
-      .replace(/থানা\s*=/gi, "থানা,")
-      .replace(/রিসিভ ঠিকানা\s*=/gi, "রিসিভ ঠিকানা,")
-      .replace(/নাম্বার\s*=/gi, "মোবাইল নাম্বার")
-      .replace(/=/g, " ");
-    console.log(`[FB_VOICE_NOTE] Generating authentic Bangladeshi voice note with Voice ID: ${ELEVENLABS_VOICE_ID}`);
+    // 1. Generate audio via ElevenLabs with authentic Bangladeshi prosody & pronunciation
+    const cleanText = prepareBangladeshiTTSAudioText(text);
+    console.log(`[FB_VOICE_NOTE] Generating Bangladeshi voice note with Voice ID: ${ELEVENLABS_VOICE_ID} | Text: "${cleanText.slice(0, 60)}..."`);
     const ttsUrl = `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`;
     let ttsRes = await fetch(ttsUrl, {
       method: "POST",
@@ -793,9 +837,9 @@ async function sendMessengerVoiceNote(recipientId: string, text: string, accessT
         text: cleanText,
         model_id: "eleven_multilingual_v2",
         voice_settings: {
-          stability: 0.42,
-          similarity_boost: 0.88,
-          style: 0.12,
+          stability: 0.40,
+          similarity_boost: 0.82,
+          style: 0.15,
           use_speaker_boost: true
         }
       })
@@ -813,9 +857,9 @@ async function sendMessengerVoiceNote(recipientId: string, text: string, accessT
           text: cleanText,
           model_id: "eleven_flash_v2_5",
           voice_settings: {
-            stability: 0.42,
-            similarity_boost: 0.88,
-            style: 0.12,
+            stability: 0.40,
+            similarity_boost: 0.82,
+            style: 0.15,
             use_speaker_boost: true
           }
         })
