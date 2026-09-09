@@ -173,8 +173,8 @@ Knowledge Base:
 ${kb}`.trim();
 }
 
-// Active Gemini model names
-const PRIMARY_MODELS = ["gemini-2.0-flash-lite", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
+// Active Gemini model names (2026 API)
+const PRIMARY_MODELS = ["gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-flash-latest"];
 
 export async function generateAutoReply(
   incomingMessage: string,
@@ -289,6 +289,32 @@ function generateFallbackReply(
 ): string {
   const lower = message.toLowerCase().trim();
 
+  // Personal queries (e.g., asking customer's name)
+  if (/\b(name|naam|nam|নাম|jano|jaano|জানো|আমার নাম|amar naam|amar name)\b/i.test(lower)) {
+    return "জি না ভাইয়া, আপনার শুভ নামটি তো এখনো জানা হয়নি। আপনার নামটি যদি বলতেন, খুব ভালো লাগত।";
+  }
+
+  // Greetings - precise context
+  if (lower.includes("kemon") || lower.includes("কেমন")) {
+    return "আলহামদুলিল্লাহ ভাইয়া, আল্লাহর রহমতে ভালো আছি। আপনি কেমন আছেন? আপনাকে কীভাবে সাহায্য করতে পারি বলুন।";
+  }
+  if (lower.includes("salam") || lower.includes("assalamu") || lower.includes("সালাম")) {
+    return "ওয়ালাইকুম আসসালাম ভাইয়া। গ্রীন হেলথ ইউনানী ফার্মেসীতে আপনাকে স্বাগতম। কীভাবে সহযোগিতা করতে পারি বলুন?";
+  }
+  if (lower.includes("hi") || lower.includes("hello") || lower.includes("হাই") || lower.includes("হ্যালো")) {
+    return "জি ভাইয়া, আসসালামু আলাইকুম। বলুন, কীভাবে সাহায্য করতে পারি?";
+  }
+
+  // Picture Request
+  if (lower.includes("ছবি") || lower.includes("chobi") || lower.includes("pic") || lower.includes("photo") || lower.includes("পিক") || lower.includes("dekhte kemon") || lower.includes("দেখতে কেমন")) {
+    return "জি ভাইয়া, এই যে আমাদের অরিজিনাল প্রোডাক্টের ছবিটি উপরে পাঠিয়ে দিলাম। আপনি কি নির্দিষ্ট কোনো ওষুধের ছবি বা কোনো স্বাস্থ্য সমস্যার পরামর্শ জানতে চাচ্ছেন?";
+  }
+
+  // Order Intent
+  if (lower.includes("order") || lower.includes("অর্ডার") || lower.includes("নিতে চাই")) {
+    return "ধন্যবাদ! অর্ডার কনফার্ম করতে অনুগ্রহ করে আপনার: ১. নাম, ২. সম্পূর্ণ ডেলিভারি ঠিকানা (জেলা ও থানা সহ), ৩. সচল মোবাইল নম্বর লিখে পাঠান। পার্সেল হাতে পেয়ে মূল্য পরিশোধ করতে পারবেন।";
+  }
+
   if (matchedProduct) {
     const name = matchedProduct.name;
     const price = matchedProduct.discount_price || matchedProduct.custom_price;
@@ -303,29 +329,7 @@ function generateFallbackReply(
       return `${name}${dosage} নিয়ম মেনে সেবন করলে সবচেয়ে ভালো ফলাফল পাবেন। অর্ডার করতে নাম ও ঠিকানা পাঠাতে পারেন।`;
     }
 
-    if (lower.includes("ছবি") || lower.includes("chobi") || lower.includes("pic") || lower.includes("photo") || lower.includes("পিক") || lower.includes("dekhte kemon") || lower.includes("দেখতে কেমন")) {
-      return `জি ভাইয়া, এই যে আমাদের অরিজিনাল ${name}-এর ছবিটি উপরে পাঠিয়ে দিয়েছি। এটি ১০০% প্রাকৃতিক উপাদান দিয়ে প্রস্তুত। আপনি কি এর বিস্তারিত পরামর্শ জানতে চাচ্ছেন?`;
-    }
-
-    return `আমাদের ${name} ${matchedProduct.custom_pitch || "প্রাকৃতিক ও ভেষজ ফর্মুলায় প্রস্তুত অত্যন্ত কার্যকরী ওষুধ"}।${price ? ` মূল্য: ${price} টাকা${note}।` : ""}${dosage} অর্ডার করতে চাইলে আপনার নাম, সম্পূর্ণ ঠিকানা ও মোবাইল নম্বর পাঠান।`;
-  }
-
-  // Picture Request
-  if (lower.includes("ছবি") || lower.includes("chobi") || lower.includes("pic") || lower.includes("photo") || lower.includes("পিক") || lower.includes("dekhte kemon") || lower.includes("দেখতে কেমন")) {
-    return "জি ভাইয়া, এই যে আমাদের অরিজিনাল প্রোডাক্টের ছবিটি উপরে পাঠিয়ে দিলাম। আপনি কি নির্দিষ্ট কোনো ওষুধের ছবি বা কোনো স্বাস্থ্য সমস্যার পরামর্শ জানতে চাচ্ছেন?";
-  }
-
-  // Greetings
-  if (lower.includes("salam") || lower.includes("assalamu") || lower.includes("সালাম")) {
-    return "ওয়ালাইকুম আসসালাম। জি বলুন, কীভাবে সহযোগিতা করতে পারি?";
-  }
-  if (lower.includes("hi") || lower.includes("hello") || lower.includes("হাই") || lower.includes("হ্যালো")) {
-    return "জি বলুন, কীভাবে সহযোগিতা করতে পারি?";
-  }
-
-  // Order
-  if (lower.includes("order") || lower.includes("অর্ডার") || lower.includes("নিতে চাই")) {
-    return "ধন্যবাদ! অর্ডার কনফার্ম করতে অনুগ্রহ করে আপনার: ১. নাম, ২. সম্পূর্ণ ডেলিভারি ঠিকানা (জেলা ও থানা সহ), ৩. সচল মোবাইল নম্বর লিখে পাঠান। পার্সেল হাতে পেয়ে মূল্য পরিশোধ করতে পারবেন।";
+    return `জি ভাইয়া, ${name} সম্পর্কে আপনি কি কোনো বিশেষ তথ্য বা পরামর্শ জানতে চাচ্ছেন?`;
   }
 
   return "আমাদের কাছে মূলত পুরুষ ও নারীদের শারীরিক দুর্বলতা দূর করা, এনার্জি ও স্থায়ী স্ট্যামিনা বৃদ্ধির সম্পূর্ণ প্রাকৃতিক ও নিরাপদ ভেষজ ওষুধ রয়েছে। আপনার কাঙ্ক্ষিত প্রোডাক্টের নাম বা শারীরিক সমস্যার কথা জানালে বিস্তারিত পরামর্শ দিতে পারব।";

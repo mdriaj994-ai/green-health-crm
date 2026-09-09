@@ -422,7 +422,13 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     customerMemory.appendChatMessage(senderId, "user", customerMessage, false);
   }
 
-  const { context: productContext, matched } = getLiveProductInfo(customerMessage, senderId, recentHistory);
+  // Detect if this is a personal/greeting query — skip product context for these
+  const qLowerCheck = (customerMessage || "").toLowerCase();
+  const isPersonalQuery = /\b(name|naam|nam|নাম|jano|jaano|জানো|আমার নাম|amar naam|amar name|kemon acho|kemon achen|কেমন আছ|কেমন আছেন|hello|hi\b|হ্যালো|হাই|salam|সালাম|assalam|ভালো আছ|valo acho)/.test(qLowerCheck);
+
+  const { context: productContext, matched } = isPersonalQuery
+    ? { context: "", matched: null }
+    : getLiveProductInfo(customerMessage, senderId, recentHistory);
 
   const masterPath = path.join(process.cwd(), "data", "medicine_master_complete_db.json");
   const editsPath = path.join(process.cwd(), "data", "custom_user_edits.json");
@@ -552,7 +558,7 @@ ${productContext ? `\n--- LIVE MEDICINE DASHBOARD DATA ---\n${productContext}\n-
 ${masterKB ? `\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\n${masterKB}\n-----------------------------------------------\n` : ""}
 `;
 
-  const models = ["gemini-2.0-flash-lite", "gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
+  const models = ["gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-flash-latest"];
   for (const m of models) {
     try {
       const model = genAI.getGenerativeModel({
@@ -584,8 +590,8 @@ ${masterKB ? `\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\n${masterKB}\n---
           .replace(/re[aj]aul\s*karim/gi, "রিয়াজুল করিম")
           .replace(/re[aj]aul/gi, "রিয়াজুল");
 
-        // Clean leading page name or header line (e.g., "গ্রীন হেলথ ইউনানী ফার্মেসী\n")
-        text = text.replace(/^(গ্রীন\s*হেলথ\s*ইউনানী\s*ফার্মেসী|Green Health Unani Pharmacy)[\s:\-—]*\n+/gi, "").trim();
+        // Clean page name header from ANYWHERE in reply (top or middle of text)
+        text = text.replace(/(গ্রীন\s*হেলথ\s*ইউনানী\s*ফার্মেসী|Green Health Unani Pharmacy)[\s:\-—]*\n*/gi, "").trim();
 
         // Safety Guard: If customer did not express buying intent, strip any unsolicited order form
         const hasBuyIntent = /(নিতে\s*চাই|অর্ডার|পাঠান|পাঠিয়ে|কুরিয়ার|ডেলিভারি|বুক\s*কর|ঠিকানা|পার্সেল|order|buy|kuriar|delivery|parcel|address)/i.test(customerMessage);
@@ -632,8 +638,22 @@ ${masterKB ? `\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\n${masterKB}\n---
     return `জি, ${matched.name} সম্পর্কে আপনি কি কোনো বিশেষ তথ্য বা পরামর্শ জানতে চাচ্ছেন?`;
   }
 
-  // Safe fallback for unavailable items
-  return "দুঃখিত, এই প্রোডাক্টটি বর্তমানে আমাদের কাছে নেই।";
+  const qLowerFb = (customerMessage || "").toLowerCase();
+  if (/\b(name|naam|nam|নাম|jano|jaano|জানো|আমার নাম|amar naam|amar name)\b/i.test(qLowerFb)) {
+    return "জি না ভাইয়া, আপনার শুভ নামটি তো এখনো জানা হয়নি। আপনার নামটি যদি বলতেন, খুব ভালো লাগত।";
+  }
+  if (qLowerFb.includes("kemon") || qLowerFb.includes("কেমন")) {
+    return "আলহামদুলিল্লাহ ভাইয়া, আল্লাহর রহমতে ভালো আছি। আপনি কেমন আছেন? আপনাকে কীভাবে সাহায্য করতে পারি বলুন।";
+  }
+  if (qLowerFb.includes("salam") || qLowerFb.includes("assalamu") || qLowerFb.includes("সালাম")) {
+    return "ওয়ালাইকুম আসসালাম ভাইয়া। গ্রীন হেলথ ইউনানী ফার্মেসীতে আপনাকে স্বাগতম। কীভাবে সহযোগিতা করতে পারি বলুন?";
+  }
+  if (qLowerFb.includes("hi") || qLowerFb.includes("hello") || qLowerFb.includes("হাই") || qLowerFb.includes("হ্যালো")) {
+    return "জি ভাইয়া, আসসালামু আলাইকুম। বলুন, কীভাবে সাহায্য করতে পারি?";
+  }
+
+  // Safe general fallback
+  return "জি ভাইয়া, আপনার স্বাস্থ্যগত যেকোনো সমস্যা বা আমাদের প্রাকৃতিক ওষুধ সম্পর্কে জানতে নির্দ্বিধায় বলুন, আমি আপনাকে প্রয়োজনীয় তথ্য দিয়ে সাহায্য করছি।";
 }
 
 
@@ -1260,5 +1280,6 @@ async function runFollowUpScheduler() {
 }
 
 startBot();
+
 
 

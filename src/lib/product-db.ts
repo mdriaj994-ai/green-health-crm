@@ -157,10 +157,19 @@ function normalizeStr(s: string): string {
 
 // Find best matching product by customer query
 export function findProductInDB(query: string): MergedProduct | null {
-  const db = loadMergedDB();
   const normQ = normalizeStr(query);
   const compactQ = normQ.replace(/\s+/g, "");
   if (!normQ) return null;
+
+  // Ignore personal questions or greetings that have no medicine/product inquiry
+  const qLower = (query || "").toLowerCase();
+  const isGeneralOrGreeting = /\b(name|naam|nam|নাম|jano|jaano|জানো|আমার নাম|amar naam|amar name|kemon acho|kemon achen|কেমন আছ|কেমন আছেন|hello|hi\b|হ্যালো|হাই|salam|সালাম|assalam|ভালো আছ|valo acho)\b/i.test(qLower);
+  const mentionsMedicine = /\b(osudh|medicine|tablet|capsule|file|oil|cream|gel|ঔষধ|ওষুধ|ট্যাবলেট|ক্যাপসুল|ফাইল|তেল|ক্রিম|জেল|amber|ডোজ|দাম|price)\b/i.test(qLower);
+  if (isGeneralOrGreeting && !mentionsMedicine) {
+    return null;
+  }
+
+  const db = loadMergedDB();
 
   const aliases: Record<string, string[]> = {
     "dream touch": ["dream touch", "dreamtouch", "ড্রিম টাচ", "ড্রিমটাচ", "ড্রিম"],
@@ -248,7 +257,7 @@ export function findProductInDB(query: string): MergedProduct | null {
   results.sort((a, b) => b.score - a.score);
   const best = results[0];
 
-  if (!best || best.score === 0) return null;
+  if (!best || best.score < 20) return null;
   return best.item;
 }
 
