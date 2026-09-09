@@ -57,13 +57,29 @@ function getAllCustomerProfiles() {
   return Array.from(memoryCache.values()).sort((a, b) => (b.lastContact || 0) - (a.lastContact || 0));
 }
 
+function isValidPersonName(n) {
+  if (!n) return false;
+  const s = String(n).trim();
+  if (s.length < 2 || s.length > 30) return false;
+  if (/^(vai|bhai|vaiya|bhaiya|vai|ভাই|ভাইয়া|ভাইয়া|ভায়া|customer|কাস্টমার|doctor|hakim|হাকিম|ডাক্তার|admin|এডমিন|ki|jano|জান|জানো|বলেন|bolo|bolun|ki\s*jano|e\s*ki\s*jano|unknown|অজ্ঞাত|facebook\s*user|facebook\s*customer|user)$/i.test(s)) {
+    return false;
+  }
+  if (/চিকিৎসালয়|ফার্মেসী|হেলথ|health|pharmacy|herbal|ayurvedic|unani/i.test(s)) {
+    return false;
+  }
+  if (/^[\d\s]+$/.test(s)) return false;
+  if (/^(kemon|valo|kothai|koto|ki|konta|amra|apni|tumi|apnar|amar|আমি|তুমি|আপনি|কেমন)/i.test(s)) return false;
+  return true;
+}
+
 function getCustomerProfile(senderId, defaultName = "") {
   if (!isLoaded) loadMemory();
   const idStr = String(senderId);
+  const validName = isValidPersonName(defaultName) ? defaultName.trim() : "";
   if (!memoryCache.has(idStr)) {
     const newProfile = {
       senderId: idStr,
-      name: defaultName || "",
+      name: validName,
       age: "",
       maritalStatus: "",
       symptoms: [],
@@ -89,8 +105,8 @@ function getCustomerProfile(senderId, defaultName = "") {
     return newProfile;
   }
   const prof = memoryCache.get(idStr);
-  if (defaultName && (!prof.name || prof.name === "কাস্টমার" || prof.name === "Customer")) {
-    prof.name = defaultName;
+  if (!isValidPersonName(prof.name)) {
+    prof.name = validName;
   }
   return prof;
 }
@@ -239,21 +255,31 @@ function extractCustomerFacts(senderId, text, senderName) {
   if (!profile.allHealthKeywords)    profile.allHealthKeywords = [];
   if (!profile.budgetMentioned)      profile.budgetMentioned = [];
 
-  // 1. NAME
-  if (senderName && (!profile.name || profile.name === "Customer" ||
-      /e\s*ki\s*jano|ki\s*jano/i.test(profile.name))) {
-    profile.name = senderName;
-  }
-  const isAskingName = /(?:name|nam)\s*(?:ki|konta|jano|bolen)/i.test(clean);
+  // 1. NAME EXTRACTION
+  const isAskingName = /(?:name|nam|naam|নাম)\s*(?:ki|konta|jano|bolen|bolo|boloto|বলুন|বলো|জান|জানো|কিনা)/i.test(clean);
   if (!isAskingName) {
-    const nm = clean.match(/(?:my\s*name\s*is|\bnam\s*[:=])\s*([A-Za-z\u0980-\u09FF\s]{2,25})/i);
-    if (nm && nm[1]) {
-      const n = nm[1].trim();
-      if (n.length >= 2 && !/^(doctor|hakim|ki|jano)/i.test(n)) profile.name = n;
+    const namePatterns = [
+      /(?:amar|amr|আমার)\s+(?:name|naam|nam|নাম)\s*(?:is|holo|hlo|হলো|হল)?\s*[:=]?\s*([A-Za-z\u0980-\u09FF\s]{2,25})/i,
+      /(?:my\s*name\s*is|\bnam\s*[:=]|\bনাম\s*[:=]|\bনামঃ|\bname\s*[:=])\s*([A-Za-z\u0980-\u09FF\s]{2,25})/i,
+      /(?:^|\s)(?:ami|আমি)\s+([A-Za-z\u0980-\u09FF]{3,20})(?:\s+(?:bolsi|bolchi|বলছি|বলসি))?(?:$|[.,!?\s])/i
+    ];
+
+    for (const pat of namePatterns) {
+      const match = clean.match(pat);
+      if (match && match[1]) {
+        let candidate = match[1].trim().split(/\s+(?:bolsi|bolchi|bolbo|vai|bhai|apni|amr|amar|age|boyos|bari)\b/i)[0].trim();
+        if (isValidPersonName(candidate)) {
+          profile.name = candidate;
+          console.log(`[CUSTOMER_MEMORY] 👤 Name captured: "${candidate}" for ${senderId}`);
+          break;
+        }
+      }
     }
   }
-  if (profile.name && (/e\s*ki\s*jano|ki\s*jano/i.test(profile.name) || profile.name.length < 2)) {
-    profile.name = senderName || "";
+
+  // Sanitize existing profile name if invalid
+  if (profile.name && !isValidPersonName(profile.name)) {
+    profile.name = (senderName && isValidPersonName(senderName)) ? senderName.trim() : "";
   }
 
   // 2. AGE
@@ -350,16 +376,27 @@ function extractCustomerFacts(senderId, text, senderName) {
 
   // 8. PRODUCT DETECTION — all products
   const PRODS = [
-    [/amber|ambar/i,           "AMBER Premium", "19"],
-    [/soul\s*mate/i,           "Soul Mate",     "39"],
-    [/ginseng/i,               "Black Ginseng", "6" ],
-    [/velvet/i,                "Black Velvet",  "18"],
-    [/dream\s*touch/i,         "Dream Touch",   "22"],
-    [/energy\s*plus/i,         "Energy Plus",   "12"],
-    [/majoon|maju/i,           "Majoon",        "5" ],
-    [/jaoshanda/i,             "Jaoshanda",     "8" ],
-    [/habbe/i,                 "Habbe",         "10"],
-    [/qurs|kurs/i,             "Qurs",          "11"],
+    [/sex\s*king|সেক্স\s*কিং/i,                                 "Sex King (섹스킹)", "1"],
+    [/amber|ambar|অম্বার|অম্বর|অ্যাম্বার|বিছানা\s*রাজা/i,           "AMBER Premium",     "19"],
+    [/soul\s*mate|সোল\s*মেট|সুল\s*মেট/i,                        "Soul Mate",         "39"],
+    [/black\s*ginseng|জিনসেং|ginseng/i,                         "Black Ginseng",     "6" ],
+    [/black\s*velvet|velvet|ভেলভেট/i,                           "Black Velvet",      "18"],
+    [/dream\s*touch|ড্রিম\s*টাচ|ড্রিমটাচ/i,                      "Dream Touch",       "22"],
+    [/hammer\s*of\s*thor|হ্যামার|thor/i,                        "Hammer of Thor",    "25"],
+    [/titan\s*gel|টাইটান\s*জেল/i,                               "Titan Gel",         "26"],
+    [/tiger\s*king|টাইগার\s*কিং/i,                               "Tiger King",        "27"],
+    [/maxman|ম্যাক্সম্যান/i,                                     "Maxman",            "28"],
+    [/viga|ভিগা/i,                                              "Viga Spray",        "29"],
+    [/shark|শার্ক/i,                                            "Shark Extract",     "30"],
+    [/energy\s*plus|এনার্জি\s*প্লাস/i,                           "Energy Plus",       "12"],
+    [/men's\s*burner|mens\s*burner|বার্নার/i,                   "Men's Burner",      "15"],
+    [/egypt\s*gawa|গাওয়া|গাওয়া/i,                               "Egypt Gawa",        "16"],
+    [/rheumarex|রিউমারেক্স/i,                                   "Rheumarex",         "17"],
+    [/majoon|maju/i,                                            "Majoon",            "5" ],
+    [/jaoshanda/i,                                              "Jaoshanda",         "8" ],
+    [/habbe/i,                                                  "Habbe",             "10"],
+    [/qurs|kurs/i,                                              "Qurs",              "11"],
+    [/রোজাউ|rojau|roja|রোজা|রোজার/i,                            "AMBER Premium (স্পেশাল ফর্মুলা)", "19"],
   ];
   for (const [rx, name, sl] of PRODS) {
     if (rx.test(clean)) {
@@ -457,10 +494,13 @@ function buildCustomerMemoryPrompt(senderId, fallbackName) {
                     : profile.orderStatus === 'interested' ? 'Interested (gave phone)'
                     : 'Consulting';
 
+  const hasRealName = isValidPersonName(profile.name);
+  const displayName = hasRealName ? profile.name : 'NOT PROVIDED YET (Do NOT assume his name is Vai, Brother, or guess)';
+
   var parts = [
     '=== COMPLETE CUSTOMER MEMORY (PERMANENT) ===',
     'ID: ' + profile.senderId,
-    'Name: ' + (profile.name || fallbackName || 'Vai'),
+    'Known Customer Name: ' + displayName,
     'Age: ' + (profile.age ? profile.age + ' bochor' : 'not known'),
     'Marital: ' + (profile.maritalStatus || 'not known'),
     'Profession: ' + (profile.profession || 'not known'),
@@ -480,8 +520,9 @@ function buildCustomerMemoryPrompt(senderId, fallbackName) {
     '=== CRITICAL RULES ===',
     '1. Do NOT ask again: age=' + (profile.age||'none') + ' marital=' + (profile.maritalStatus||'none'),
     '2. Continue conversation naturally using saved context above.',
-    '3. Address customer by name: ' + (profile.name || fallbackName || 'Vai'),
-    '4. If order placed before (' + ordersCount + '), ask about delivery/results first.',
+    '3. Address customer respectfully: ' + (hasRealName ? profile.name + ' ভাই' : 'ভাইয়া'),
+    '4. If customer asks "amar name ki jano" and Known Customer Name is NOT PROVIDED YET: Politely say you do not know his name yet and ask for his name.',
+    '5. If order placed before (' + ordersCount + '), ask about delivery/results first.',
   ].filter(Boolean).join('\n');
 
   return parts;

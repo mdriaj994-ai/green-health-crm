@@ -419,6 +419,12 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
   // Extract and persist permanent customer facts
   if (senderId) {
     customerMemory.extractCustomerFacts(senderId, customerMessage, senderName);
+    const prof = customerMemory.getCustomerProfile(senderId);
+    if (!prof.productDiscussed && recentHistory && recentHistory.length > 0) {
+      for (const line of recentHistory) {
+        customerMemory.extractCustomerFacts(senderId, line, senderName);
+      }
+    }
     customerMemory.appendChatMessage(senderId, "user", customerMessage, false);
   }
 
@@ -544,14 +550,20 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
     - If introducing yourself by name, ALWAYS state your name in clear Bengali as 'হাকিম রিয়াজুল করিম' (never write 'রেজাউল' or English 'Rejaul/Reajul').
     - NEVER say meta phrases like "নিচের অডিওটি শুনে নিন" or "ভয়েস মেসেজ পাঠিয়ে দিচ্ছি"!
 
-13. HANDLING NAME & PERSONAL INQUIRIES (কাস্টমার নিজের নাম জিজ্ঞাসা করলে):
-    - If customer asks "amar name ki jano?", "আমার নাম কি জানো?", "আমার নাম কি?", "do you know my name?":
-      * Look at the Known Customer Name in the profile:
-      * If a real human name is present (NOT "Customer", "কাস্টমার", or empty):
-        Reply warmly: "জি ভাইয়া, আপনার নাম [Name]।"
-      * If the name is NOT known yet:
-        Reply naturally and politely: "জি না ভাইয়া, আপনার শুভ নামটি তো এখনো জানা হয়নি। আপনার নামটি যদি বলতেন, খুব ভালো লাগত।"
-      * STRICT BAN: ABSOLUTELY NEVER hallucinate or guess a name like "e ki jano" or take parts of their question as their name!
+13. HANDLING NAME & PERSONAL INQUIRIES (কাস্টমার নিজের নাম জিজ্ঞাসা করলে - "amar name ki jano?", "আমার নাম কি জানো?", "আমার নাম কি?"):
+    - Look at Known Customer Name in the profile:
+    - If a real human name is present (NOT "NOT PROVIDED YET", NOT "ভাইয়া", NOT "Customer", NOT "কাস্টমার"):
+      Reply warmly: "জি ভাইয়া, আপনার নাম [Name]।"
+    - If Known Customer Name is "NOT PROVIDED YET" or unknown:
+      Reply naturally and politely: "জি না ভাইয়া, আপনার শুভ নামটি তো এখনো জানা হয়নি। আপনার সুন্দর নামটি যদি বলতেন, খুব ভালো লাগত।"
+    - STRICT BAN: ABSOLUTELY NEVER say "আপনার নাম ভাইয়া" or "আপনার নাম কাস্টমার" or take random words from their message as their name!
+
+14. HANDLING FORGOTTEN PRODUCTS (কাস্টমার আগে যে প্রোডাক্ট নিয়ে কথা বলছিল তা ভুলে গেলে - "ami ki jeno akta product niye kotha bolsilam vule gesi ami"):
+    - Check "All products discussed (history)", "Current product" and "Recent Conversation Context" in memory:
+    - If a specific product (e.g. AMBER Premium, Sex King, ইত্যাদি) was previously discussed:
+      Remind them immediately with empathy:
+      "জি ভাইয়া, আপনি আমাদের [Product Name] নিয়ে কথা বলছিলেন! আপনার শারীরিক সমস্যা সমাধানের বিষয়ে আমরা আলাপ করছিলাম। এ বিষয়ে কি আপনার কোনো কিছু জানার আছে?"
+    - NEVER dump the entire general catalog when the customer asks which product they previously discussed!
 
 ${customerMemoryPrompt ? `\n${customerMemoryPrompt}\n` : ""}
 ${productContext ? `\n--- LIVE MEDICINE DASHBOARD DATA ---\n${productContext}\n-----------------------------------\n` : ""}
