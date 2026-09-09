@@ -3,9 +3,14 @@
 const fs = require("fs");
 const path = require("path");
 
-const MEMORY_FILE = path.join(process.cwd(), "data", "customer_memory.json");
+// ✅ Fixed: Use __dirname so path works regardless of where process starts (VPS, local, etc.)
+const DATA_DIR = path.resolve(__dirname, "..", "data");
+const MEMORY_FILE = path.join(DATA_DIR, "customer_memory.json");
 const memoryCache = new Map();
 let isLoaded = false;
+
+// Ensure data directory exists on startup
+try { if (!fs.existsSync(DATA_DIR)) fs.mkdirSync(DATA_DIR, { recursive: true }); } catch {}
 
 function loadMemory() {
   try {
@@ -28,11 +33,10 @@ function saveMemory() {
     for (const [id, prof] of memoryCache.entries()) {
       obj[id] = prof;
     }
-    const dir = path.dirname(MEMORY_FILE);
-    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    // DATA_DIR already guaranteed at module load
     fs.writeFileSync(MEMORY_FILE, JSON.stringify(obj, null, 2), "utf-8");
   } catch (err) {
-    console.warn("[CUSTOMER_MEMORY_SAVE_WARN]", err.message);
+    console.warn("[CUSTOMER_MEMORY_SAVE_WARN]", err.message, "| Path:", MEMORY_FILE);
   }
 }
 
@@ -47,14 +51,16 @@ function getCustomerProfile(senderId, defaultName = "") {
       maritalStatus: "",
       symptoms: [],
       duration: "",
-      productDiscussed: "",
-      productSl: "",
-      orderStatus: "inquiry",
+      productDiscussed: "",        // last product discussed
+      productsDiscussedAll: [],   // ALL products ever discussed
+      orderStatus: "inquiry",     // inquiry | interested | order_placed | delivered
+      ordersPlaced: [],           // history of all orders
       phone: "",
       district: "",
       thana: "",
       address: "",
       lastVoiceTranscript: "",
+      sessionSummaries: [],       // short one-liner per session
       chatLog: [],
       firstContact: Date.now(),
       lastContact: Date.now(),
@@ -91,125 +97,184 @@ function extractCustomerFacts(senderId, text, senderName) {
 
   profile.totalMessages = (profile.totalMessages || 0) + 1;
   profile.lastContact = Date.now();
-
   const clean = text.trim();
 
-  // 1. Name extraction
-  if (senderName && (!profile.name || profile.name === "কাস্টমার" || profile.name === "Customer" || /e\s*ki\s*jano|ki\s*jano|কি\s*জানো/i.test(profile.name))) {
+  // Init missing array fields
+  if (!profile.symptoms)             profile.symptoms = [];
+  if (!profile.productsDiscussedAll) profile.productsDiscussedAll = [];
+  if (!profile.ordersPlaced)         profile.ordersPlaced = [];
+  if (!profile.sessionSummaries)     profile.sessionSummaries = [];
+  if (!profile.extraFacts)           profile.extraFacts = [];
+  if (!profile.mentionedLocations)   profile.mentionedLocations = [];
+  if (!profile.allHealthKeywords)    profile.allHealthKeywords = [];
+  if (!profile.budgetMentioned)      profile.budgetMentioned = [];
+
+  // 1. NAME
+  if (senderName && (!profile.name || profile.name === "Customer" ||
+      /e\s*ki\s*jano|ki\s*jano/i.test(profile.name))) {
     profile.name = senderName;
   }
-
-  // Detect if customer is asking a question about their name (NEVER extract questions as names!)
-  const isAskingName = /(?:name|nam|নাম)\s*(?:ki|konta|koto|কি|কী|জানো|jano|bolen|bolun|বলুন|বলো|জানেন)/i.test(clean) ||
-                       /(?:who\s*am\s*i|amar\s*nam|আমার\s*নাম)\s*[?]/i.test(clean);
-
+  const isAskingName = /(?:name|nam)\s*(?:ki|konta|jano|bolen)/i.test(clean);
   if (!isAskingName) {
-    const nameMatch = clean.match(/(?:আমার\s*নাম\s*(?:হলো|হচ্ছে|হবে|is)?|my\s*name\s*is|\bnam\s*[:=]|\bনাম\s*[:=])\s*([A-Za-z\u0980-\u09FF\s]{2,25})/i);
-    if (nameMatch && nameMatch[1]) {
-      const n = nameMatch[1].trim();
-      if (n.length >= 2 && !/^(কাস্টমার|ভাই|doctor|hakim|ki\b|jano\b|e\s*ki|কি\b|কী\b)/i.test(n)) {
-        profile.name = n;
-      }
+    const nm = clean.match(/(?:my\s*name\s*is|\bnam\s*[:=])\s*([A-Za-z\u0980-\u09FF\s]{2,25})/i);
+    if (nm && nm[1]) {
+      const n = nm[1].trim();
+      if (n.length >= 2 && !/^(doctor|hakim|ki|jano)/i.test(n)) profile.name = n;
     }
   }
-
-  // Safety sanitization: remove accidental question phrases from profile name
-  if (profile.name && (/e\s*ki\s*jano|ki\s*jano|কি\s*জানো|নাম\s*কি/i.test(profile.name) || profile.name.length < 2)) {
+  if (profile.name && (/e\s*ki\s*jano|ki\s*jano/i.test(profile.name) || profile.name.length < 2)) {
     profile.name = senderName || "";
   }
 
-  // 2. Age extraction
+  // 2. AGE
   if (!profile.age) {
-    const ageMatch = clean.match(/(?:আমার\s*)?(?:বয়স|বয়স|boyos|bos|age)\s*(?:হলো|হবে|holo|hobe)?\s*[:=]?\s*([০-৯0-9]{2})/i) ||
-                     clean.match(/([০-৯0-9]{2})\s*(?:বছর|bochor|years?)/i);
-    if (ageMatch && ageMatch[1]) {
-      profile.age = toBengaliNumerals(ageMatch[1]);
-    } else {
-      const directNum = clean.match(/^\s*([০-৯0-9]{2})\s*$/);
-      if (directNum && directNum[1]) {
-        const val = parseInt(directNum[1].replace(/[০-৯]/g, d => "০১২৩৪৫৬৭৮৯".indexOf(d).toString()), 10);
-        if (val >= 18 && val <= 80) {
-          profile.age = toBengaliNumerals(directNum[1]);
-        }
+    const bDigits = ["০","১","২","৩","৪","৫","৬","৭","৮","৯"];
+    const toBN = (s) => String(s).replace(/\d/g, d => bDigits[parseInt(d,10)] || d);
+    const am = clean.match(/(?:boyos|age)\s*[:=]?\s*([\u09e6-\u09ef0-9]{2})/i) ||
+               clean.match(/([\u09e6-\u09ef0-9]{2})\s*(?:bochor|years?)/i);
+    if (am && am[1]) profile.age = toBN(am[1]);
+    else {
+      const dn = clean.match(/^\s*([\u09e6-\u09ef0-9]{2})\s*$/);
+      if (dn) {
+        const v = parseInt(dn[1].replace(/[\u09e6-\u09ef]/g, (d) => "০১২৩৪৫৬৭৮৯".indexOf(d).toString()), 10);
+        if (v >= 18 && v <= 80) profile.age = toBN(dn[1]);
       }
     }
   }
 
-  // 3. Marital status extraction
+  // 3. MARITAL STATUS
   if (!profile.maritalStatus) {
-    if (/(?:আমি\s*)?অবিবাহিত|obibahito|unmarried|single|বিয়ে\s*করি\s*নাই|বিয়ে\s*করি\s*নি/i.test(clean)) {
-      profile.maritalStatus = "অবিবাহিত";
-    } else if (/(?:আমি\s*)?বিবাহিত|bibahito|married|বিয়ে\s*করেছি|বিয়ে\s*করছি/i.test(clean)) {
-      profile.maritalStatus = "বিবাহিত";
-    }
+    if (/obibahito|unmarried|single/i.test(clean))  profile.maritalStatus = "অবিবাহিত";
+    else if (/bibahito|married/i.test(clean))        profile.maritalStatus = "বিবাহিত";
   }
 
-  // 4. Symptoms extraction
-  const symptomKeywords = [
-    { regex: /druto\s*birjopat|দ্রুত\s*বীর্যপাত|বীর্য\s*পাতলা|birjo\s*patla|taratari\s*pore|তাড়াতাড়ি\s*পড়ে|দ্রুত\s*পড়ে/i, label: "দ্রুত বীর্যপাত ও বীর্য পাতলা" },
-    { regex: /lingo\s*sithil|লিঙ্গ\s*শিথিল|দুর্বল|durbol|naram|নরম|উত্থান\s*হয়\s*না|utthan|rokto\s*chole\s*na/i, label: "লিঙ্গ শিথিলতা ও দুর্বল উত্থান" },
-    { regex: /timing\s*kom|টাইমিং\s*কম|টাইম\s*পাই\s*না|সময়\s*কম|shomoy\s*kom|বেশি\s*সময়\s*থাকতে\s*পারি\s*না/i, label: "সহবাসে সময় স্বল্পতা (কম টাইমিং)" },
-    { regex: /sopnodosh|স্বপ্নদোষ|khoy|ক্ষয়\s*রোগ|dhatu|ধাতু\s*দুর্বলতা|প্রস্রাবে\s*ধাতু/i, label: "অতিরিক্ত স্বপ্নদোষ ও ধাতু ক্ষয়" },
-    { regex: /iccha\s*kom|ইচ্ছা\s*কম|রুচি\s*নাই|উত্তেজনা\s*আসে\s*না|sexual\s*desire/i, label: "যৌন আগ্রহ ও উত্তেজনার অভাব" },
-    { regex: /choto|ছোট|bika|বাঁকা|আগামোটা\s*গোড়া\s*চিকন|agagora/i, label: "লিঙ্গের গঠনগত দুর্বলতা ও শিথিলতা" }
+  // 4. SYMPTOMS — 23 types, captures ALL health keywords automatically
+  const SYM = [
+    [/druto\s*birjopat|birjo\s*patla|taratari\s*pore/i,   "দ্রুত বীর্যপাত"],
+    [/lingo\s*sithil|durbol|naram|utthan/i,                 "লিঙ্গ শিথিলতা"],
+    [/timing\s*kom|shomoy\s*kom/i,                          "কম টাইমিং"],
+    [/sopnodosh|dhatu|khoy/i,                                "স্বপ্নদোষ ধাতু ক্ষয়"],
+    [/iccha\s*kom|ruci\s*nai/i,                             "যৌন আগ্রহের অভাব"],
+    [/choto|bika|agagora/i,                                  "লিঙ্গের গঠনগত সমস্যা"],
+    [/masturbation|bad\s*habit/i,                            "হস্তমৈথুনের ইতিহাস"],
+    [/kamar\s*batha|back\s*pain/i,                          "কোমর ব্যথা"],
+    [/diabetes|diabet|sugar/i,                               "ডায়াবেটিস"],
+    [/pressure|blood\s*pressure/i,                          "রক্তচাপ"],
+    [/gastric|stomach\s*pain|acidity/i,                     "গ্যাস্ট্রিক"],
+    [/motapa|weight\s*gain|fat/i,                            "ওজন সমস্যা"],
+    [/hair\s*fall|chul\s*pora/i,                            "চুল পড়া"],
+    [/insomnia|sleep\s*problem|gum\s*hoy\s*na/i,           "ঘুমের সমস্যা"],
+    [/headache|matha\s*batha|migraine/i,                    "মাথা ব্যথা"],
+    [/kidney|prostate|prostrate/i,                           "কিডনি প্রস্টেট"],
+    [/infertility|conception/i,                              "সন্তান না হওয়া"],
+    [/period|white\s*discharge/i,                            "মহিলা স্বাস্থ্য"],
+    [/thyroid/i,                                              "থাইরয়েড"],
+    [/arthritis|joint|bata\s*batha/i,                        "জয়েন্ট ব্যথা"],
+    [/constipation|paykana\s*hoy\s*na/i,                    "কোষ্ঠকাঠিন্য"],
+    [/asthma|shoash|breathing/i,                             "শ্বাসকষ্ট"],
+    [/male\s*weakness|purush\s*dur/i,                       "পুরুষ দুর্বলতা"],
   ];
-
-  for (const { regex, label } of symptomKeywords) {
-    if (regex.test(clean) && !profile.symptoms.includes(label)) {
-      profile.symptoms.push(label);
+  for (const [rx, label] of SYM) {
+    if (rx.test(clean)) {
+      if (!profile.symptoms.includes(label)) profile.symptoms.push(label);
+      if (!profile.allHealthKeywords.includes(label)) profile.allHealthKeywords.push(label);
     }
   }
 
-  // 5. Duration of problem (e.g. "২ বছর ধরে", "৬ মাস যাবৎ")
+  // 5. DURATION
   if (!profile.duration) {
-    const durMatch = clean.match(/(?:গত\s*)?([০-৯0-9 এক দুই তিন চার পাঁচ ছয়]+)\s*(?:বছর|মাস|দিন|year|month|সপ্তাহ)\s*(?:ধরে|যাবৎ|jabot|হলো|theke|থেকে)/i);
-    if (durMatch && durMatch[0]) {
-      profile.duration = durMatch[0].trim();
-    }
+    const dm = clean.match(/([\u09e6-\u09ef0-9]+)\s*(?:bochor|year|mash|month|din|day)\s*(?:dhore|jabot|theke|holo)/i);
+    if (dm) profile.duration = dm[0].trim();
   }
 
-  // 6. Phone number extraction
-  const phoneMatch = clean.match(/(?:\+?880|0)?1[3-9]\d{8}\b/);
-  if (phoneMatch && phoneMatch[0]) {
-    profile.phone = phoneMatch[0].replace(/^\+?88/, "");
-    profile.orderStatus = "interested";
+  // 6. PHONE
+  const pm = clean.match(/(?:\+?880|0)?1[3-9]\d{8}\b/);
+  if (pm) {
+    const ph = pm[0].replace(/^\+?88/, "");
+    if (ph !== profile.phone) { profile.phone = ph; profile.orderStatus = "interested"; }
   }
 
-  // 7. Order Form / Address parsing
-  if (/নাম\s*=|জেলা\s*=|থানা\s*=|রিসিভ ঠিকানা\s*=|নাম্বার\s*=/i.test(clean)) {
-    profile.orderStatus = "order_placed";
-    const parseKey = (key) => {
-      const reg = new RegExp(`${key}\\s*[:=]\\s*([^\\n,।]+)`, "i");
-      const m = clean.match(reg);
+  // 7. ORDER FORM
+  if (/nam\s*=|thana\s*=|number\s*=/i.test(clean) ||
+      /\u09a8\u09be\u09ae\s*=|\u099c\u09c7\u09b2\u09be\s*=|\u09a5\u09be\u09a8\u09be\s*=/i.test(clean)) {
+    const pk = (key) => {
+      const r = new RegExp(key + "\\s*[:=]\\s*([^\\n,]+)", "i");
+      const m = clean.match(r);
       return m && m[1] ? m[1].trim() : "";
     };
-    const fName = parseKey("নাম");
-    const fDist = parseKey("জেলা");
-    const fThana = parseKey("থানা");
-    const fAddr = parseKey("রিসিভ ঠিকানা") || parseKey("ঠিকানা");
-    const fNum = parseKey("নাম্বার") || parseKey("মোবাইল");
-
+    const fName  = pk("নাম") || pk("nam");
+    const fDist  = pk("জেলা") || pk("jela");
+    const fThana = pk("থানা") || pk("thana");
+    const fAddr  = pk("ঠিকানা") || pk("address");
+    const fNum   = pk("নাম্বার") || pk("number");
     if (fName && fName.length > 2) profile.name = fName;
-    if (fDist) profile.district = fDist;
-    if (fThana) profile.thana = fThana;
-    if (fAddr) profile.address = fAddr;
-    if (fNum) profile.phone = fNum;
+    if (fDist)  profile.district = fDist;
+    if (fThana) profile.thana    = fThana;
+    if (fAddr)  profile.address  = fAddr;
+    if (fNum)   profile.phone    = fNum;
+    const snap = { time: Date.now(), name: fName||profile.name, district: fDist||profile.district, thana: fThana||profile.thana, address: fAddr||profile.address, phone: fNum||profile.phone, product: profile.productDiscussed||"unknown" };
+    profile.ordersPlaced.push(snap);
+    profile.orderStatus = "order_placed";
+    console.log("[MEMORY] ✅ Order saved:", JSON.stringify(snap));
   }
 
-  // 8. Product discussion detection
-  if (/amber|ambar|আম্বার|অম্বর|अंबर/i.test(clean)) {
-    profile.productDiscussed = "AMBER Premium (অম্বর প্রিমিয়াম)";
-    profile.productSl = "19";
-  } else if (/soul\s*mate|সোল\s*মেট/i.test(clean)) {
-    profile.productDiscussed = "সোল মেট (Soul Mate)";
-    profile.productSl = "39";
-  } else if (/black\s*ginseng|জিনসেং/i.test(clean)) {
-    profile.productDiscussed = "Black Ginseng (ব্ল্যাক জিনসেং)";
-    profile.productSl = "6";
-  } else if (/black\s*velvet|ভেলভেট/i.test(clean)) {
-    profile.productDiscussed = "Men's Black Velvet (ব্ল্যাক ভেলভেট)";
-    profile.productSl = "18";
+  // 8. PRODUCT DETECTION — all products
+  const PRODS = [
+    [/amber|ambar/i,           "AMBER Premium", "19"],
+    [/soul\s*mate/i,           "Soul Mate",     "39"],
+    [/ginseng/i,               "Black Ginseng", "6" ],
+    [/velvet/i,                "Black Velvet",  "18"],
+    [/dream\s*touch/i,         "Dream Touch",   "22"],
+    [/energy\s*plus/i,         "Energy Plus",   "12"],
+    [/majoon|maju/i,           "Majoon",        "5" ],
+    [/jaoshanda/i,             "Jaoshanda",     "8" ],
+    [/habbe/i,                 "Habbe",         "10"],
+    [/qurs|kurs/i,             "Qurs",          "11"],
+  ];
+  for (const [rx, name, sl] of PRODS) {
+    if (rx.test(clean)) {
+      profile.productDiscussed = name;
+      profile.productSl = sl;
+      if (!profile.productsDiscussedAll.includes(name)) profile.productsDiscussedAll.push(name);
+      break;
+    }
   }
+
+  // 9. LOCATION
+  const lm = clean.match(/\b(dhaka|chittagong|sylhet|rajshahi|khulna|barishal|comilla|mymensingh|rangpur|noakhali|feni|gazipur|narayanganj)\b/i);
+  if (lm) {
+    const loc = lm[0];
+    if (!profile.mentionedLocations.includes(loc)) profile.mentionedLocations.push(loc);
+    if (!profile.district) profile.district = loc;
+  }
+
+  // 10. PROFESSION
+  if (!profile.profession) {
+    if (/farmer|krishok|chashibadi/i.test(clean))                   profile.profession = "Farmer";
+    else if (/driver/i.test(clean))                                 profile.profession = "Driver";
+    else if (/teacher|shikkhok/i.test(clean))                       profile.profession = "Teacher";
+    else if (/business|byapari/i.test(clean))                       profile.profession = "Business";
+    else if (/garments/i.test(clean))                               profile.profession = "Garments";
+    else if (/probashi|malaysia|saudi|dubai|abroad/i.test(clean))   profile.profession = "Probashi";
+    else if (/student/i.test(clean))                                profile.profession = "Student";
+    else if (/service|chakri|govt/i.test(clean))                    profile.profession = "Service";
+  }
+
+  // 11. BUDGET
+  const bm = clean.match(/budget\s*([0-9,]+)/i);
+  if (bm) profile.budgetMentioned.push(bm[1] + " taka");
+
+  // 12. EXTRA FACTS — catch-all
+  if (/aage\s*kheye|before\s*use|try\s*koresi|onek\s*osud/i.test(clean) && !profile.extraFacts.includes("tried treatment before")) profile.extraFacts.push("tried treatment before");
+  if (/taratari|urgent|joruri|asap/i.test(clean) && !profile.extraFacts.includes("wants urgent solution")) profile.extraFacts.push("wants urgent solution");
+  if (/dam\s*beshi|costly|sosta|kom\s*dame/i.test(clean) && !profile.extraFacts.includes("price sensitive")) profile.extraFacts.push("price sensitive");
+  if (/abar\s*nite|reorder/i.test(clean) && !profile.extraFacts.includes("wants repeat order")) {
+    profile.extraFacts.push("wants repeat order");
+    if (profile.orderStatus !== "order_placed") profile.orderStatus = "repeat_customer";
+  }
+  const cm = clean.match(/([0-9]+)\s*(?:son|daughter|shontan|baccha|child)/i);
+  if (cm) { const f = "children: " + cm[0].trim(); if (!profile.extraFacts.includes(f)) profile.extraFacts.push(f); }
+  if (profile.extraFacts.length > 30) profile.extraFacts = profile.extraFacts.slice(-30);
 
   saveMemory();
   return profile;
@@ -231,9 +296,17 @@ function appendChatMessage(senderId, role, text, isVoice = false) {
     time: Date.now(),
   });
 
-  // Keep up to 40 recent multi-turn messages
-  if (profile.chatLog.length > 40) {
-    profile.chatLog = profile.chatLog.slice(-40);
+  // Keep up to 60 recent multi-turn messages (longer memory = better context)
+  if (profile.chatLog.length > 60) {
+    // Before trimming, save a summary of the oldest messages
+    const oldest = profile.chatLog.slice(0, profile.chatLog.length - 60);
+    if (oldest.length > 0) {
+      if (!profile.sessionSummaries) profile.sessionSummaries = [];
+      const summary = oldest.slice(-5).map(m => `${m.role === 'user' ? 'কাস্টমার' : 'হাকিম'}: ${m.text.substring(0, 80)}`).join(' | ');
+      profile.sessionSummaries.push({ time: Date.now(), summary });
+      if (profile.sessionSummaries.length > 10) profile.sessionSummaries = profile.sessionSummaries.slice(-10);
+    }
+    profile.chatLog = profile.chatLog.slice(-60);
   }
 
   profile.lastContact = Date.now();
@@ -242,30 +315,46 @@ function appendChatMessage(senderId, role, text, isVoice = false) {
 
 function buildCustomerMemoryPrompt(senderId, fallbackName) {
   const profile = getCustomerProfile(senderId, fallbackName);
+  const symptomStr  = profile.symptoms && profile.symptoms.length > 0 ? profile.symptoms.join(', ') : 'not mentioned';
+  const addressStr  = [profile.district, profile.thana, profile.address].filter(Boolean).join(', ');
+  const allProducts = profile.productsDiscussedAll && profile.productsDiscussedAll.length > 0 ? profile.productsDiscussedAll.join(', ') : (profile.productDiscussed || 'none');
+  const extraStr    = profile.extraFacts && profile.extraFacts.length > 0 ? profile.extraFacts.join(', ') : 'none';
+  const locStr      = profile.mentionedLocations && profile.mentionedLocations.length > 0 ? profile.mentionedLocations.join(', ') : '';
+  const ordersCount = profile.ordersPlaced ? profile.ordersPlaced.length : 0;
+  const sessionCtx  = profile.sessionSummaries && profile.sessionSummaries.length > 0 ? profile.sessionSummaries.slice(-2).map(function(s) { return s.summary; }).join(' || ') : '';
+  const orderLabel  = profile.orderStatus === 'order_placed' ? ('Order confirmed (total ' + ordersCount + ')')
+                    : profile.orderStatus === 'repeat_customer' ? 'Wants repeat order'
+                    : profile.orderStatus === 'interested' ? 'Interested (gave phone)'
+                    : 'Consulting';
 
-  const symptomStr = (profile.symptoms && profile.symptoms.length > 0)
-    ? profile.symptoms.join(", ")
-    : "এখনও নির্দিষ্ট করেননি";
-  const addressStr = [profile.district, profile.thana, profile.address].filter(Boolean).join(", ");
+  var parts = [
+    '=== COMPLETE CUSTOMER MEMORY (PERMANENT) ===',
+    'ID: ' + profile.senderId,
+    'Name: ' + (profile.name || fallbackName || 'Vai'),
+    'Age: ' + (profile.age ? profile.age + ' bochor' : 'not known'),
+    'Marital: ' + (profile.maritalStatus || 'not known'),
+    'Profession: ' + (profile.profession || 'not known'),
+    'Location: ' + (locStr || addressStr || 'not known'),
+    'Full address: ' + (addressStr || 'not given'),
+    'Phone: ' + (profile.phone || 'not given'),
+    'Health problems: ' + symptomStr,
+    'Duration of problem: ' + (profile.duration || 'unknown'),
+    'All products discussed (history): ' + allProducts,
+    'Current product: ' + (profile.productDiscussed || 'none'),
+    'Order status: ' + orderLabel,
+    'Extra facts: ' + extraStr,
+    'Total messages sent: ' + (profile.totalMessages || 0),
+    'First contact: ' + (profile.firstContact ? new Date(profile.firstContact).toLocaleDateString() : 'unknown'),
+    'Last voice transcript: ' + (profile.lastVoiceTranscript ? profile.lastVoiceTranscript.substring(0, 100) : 'none'),
+    sessionCtx ? ('Old conversation summary: ' + sessionCtx) : '',
+    '=== CRITICAL RULES ===',
+    '1. Do NOT ask again: age=' + (profile.age||'none') + ' marital=' + (profile.maritalStatus||'none'),
+    '2. Continue conversation naturally using saved context above.',
+    '3. Address customer by name: ' + (profile.name || fallbackName || 'Vai'),
+    '4. If order placed before (' + ordersCount + '), ask about delivery/results first.',
+  ].filter(Boolean).join('\n');
 
-  return `
-=== 🧠 PERMANENT CUSTOMER CLINICAL MEMORY (কাস্টমারের আজীবনের মেমরি) ===
-কাস্টমার আইডি: ${profile.senderId}
-কাস্টমারের নাম: ${profile.name || fallbackName || "সম্মানিত ভাইয়া"}
-বয়স: ${profile.age ? profile.age + " বছর" : "এখনও জানা যায়নি"}
-বৈবাহিক অবস্থা: ${profile.maritalStatus || "এখনও জানা যায়নি"}
-শারীরিক সমস্যা: ${symptomStr}
-সমস্যার স্থায়িত্ব/মেয়াদ: ${profile.duration || "অজানা"}
-আলোচিত প্রোডাক্ট: ${profile.productDiscussed || "প্রাকৃতিক কোর্স"}
-অর্ডার অবস্থা: ${profile.orderStatus === "order_placed" ? "অর্ডার তথ্য দেওয়া হয়েছে" : profile.orderStatus === "interested" ? "আগ্রহী (ফোন দিয়েছেন)" : "পরামর্শ চলমান"}
-সংরক্ষিত ফোন: ${profile.phone || "দেওয়া হয়নি"}
-সংরক্ষিত ঠিকানা: ${addressStr || "দেওয়া হয়নি"}
-গত ভয়েস নোটে ডাক্তার যা বলেছিলেন: ${profile.lastVoiceTranscript ? `"${profile.lastVoiceTranscript}"` : "কোনো ভয়েস পাঠানো হয়নি"}
-======================================================================
-⚠️ মেমরি গাইডলাইন (CRITICAL):
-1. কাস্টমার যদি ইতিমধ্যে বয়স (${profile.age || "নেই"}), বৈবাহিক অবস্থা (${profile.maritalStatus || "নেই"}) বা সমস্যা জানিয়ে থাকেন, তবে দ্বিতীয়বার কখনোই তা জানতে চাইবেন না!
-2. কাস্টমার পূর্ববর্তী মেসেজে যে তথ্য দিয়েছে তা এই মেমরিতে সংরক্ষিত আছে। তার অতীতের কথার ধারাবাহিকতা বজায় রেখে সম্মান ও আন্তরিকতার সাথে উত্তর দিন।
-`.trim();
+  return parts;
 }
 
 function getRecentChatHistory(senderId, limit = 15) {
