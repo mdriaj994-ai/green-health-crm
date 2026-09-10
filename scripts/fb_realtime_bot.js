@@ -109,7 +109,8 @@ function isOnlyVoiceRequest(text) {
   return (
     /^(voice|boyes|boes|voyes|ভয়েস|ভয়েস|বয়েজ|বয়েজ|বয়েস|বয়েস|অডিও|audio)(\s*(dao|den|din|pathan|koro|koren|bolo|bolen|দাও|দেন|দিন|পাঠান|করুন|বলো|বলেন))?$/i.test(clean) ||
     /^(vai|bhai|vaiya|bhaiya)?\s*(voice|boyes|boes|voyes|ভয়েস|ভয়েস|বয়েজ|বয়েজ|বয়েস|বয়েস|মুখে)\s*(dao|den|din|pathan|bolo|bolen|দাও|দেন|দিন|পাঠান|বলুন|বলো|বলেন)?$/i.test(clean) ||
-    /^(voice\s*dao|voice\s*den|voice\s*din|ভয়েস\s*দাও|ভয়েস\s*দাও|ভয়েস\s*দেন|ভয়েস\s*দেন|ভয়েস\s*দিন|বয়েজ\s*দাও|বয়েজ\s*দেন|বয়েজ\s*দিন|মুখে\s*বলুন|মুখে\s*বলো|কথা\s*বলুন)$/i.test(clean)
+    /^(voice\s*dao|voice\s*den|voice\s*din|ভয়েস\s*দাও|ভয়েস\s*দাও|ভয়েস\s*দেন|ভয়েস\s*দেন|ভয়েস\s*দিন|বয়েজ\s*দাও|বয়েজ\s*দেন|বয়েজ\s*দিন|মুখে\s*বলুন|মুখে\s*বলো|কথা\s*বলুন)$/i.test(clean) ||
+    /(porte\s*pari\s*na|পড়তে\s*পারি\s*না|পড়তে\s*পারিনা|পড়তে\s*পারি\s*না|ভয়েসে\s*বলুন|ভয়েসে\s*বলুন|voice\s*a\s*bolte|voice\s*e\s*bolen|ভয়েসে\s*কথা\s*বলুন)/i.test(clean)
   );
 }
 
@@ -565,12 +566,51 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
       "জি ভাইয়া, আপনি আমাদের [Product Name] নিয়ে কথা বলছিলেন! আপনার শারীরিক সমস্যা সমাধানের বিষয়ে আমরা আলাপ করছিলাম। এ বিষয়ে কি আপনার কোনো কিছু জানার আছে?"
     - NEVER dump the entire general catalog when the customer asks which product they previously discussed!
 
+15. DELIVERY TIMELINE, HAND DELIVERY, INSPECTION & RETURN POLICY (ডেলিভারি, হাতে হাতে চেক ও রিটার্ন গ্যারান্টি):
+    - Delivery Timeline ("কয়দিন পর পাবো", "কবে পাবো"):
+      "অর্ডার করার পর ঢাকা সিটির ভেতরে ২৪ থেকে ৪৮ ঘণ্টার মধ্যে এবং ঢাকার বাইরে সারা দেশে ২ থেকে ৩ দিনের মধ্যে ক্যাশ অন ডেলিভারিতে হোম ডেলিভারি পেয়ে যাবেন।"
+    - Hand Delivery ("হাতে হাতে দিয়ে যাবে?"):
+      "জি ভাইয়া, ডেলিভারি ম্যান সরাসরি আপনার ঠিকানায় এসে আপনার নিজের হাতে পার্সেলটি দিয়ে যাবে।"
+    - Opening & Checking Before Payment ("দেখে রিসিভ করতে পারব?", "চেক করে নেওয়া যাবে?"):
+      "জি ভাইয়া, অবশ্যই! পার্সেল রিসিভ করার সময় ডেলিভারি ম্যানের সামনেই আপনি প্যাকেট সম্পূর্ণ খুলে ওষুধ ও সিল দেখে শতভাগ নিশ্চিত হয়ে তারপর ডেলিভারি ম্যানকে টাকা পরিশোধ করবেন।"
+    - Return Guarantee ("পছন্দ না হলে রিটার্ন / ফেরত দেওয়া যাবে?"):
+      "জি ভাইয়া, ওষুধ দেখে যদি কোনো সমস্যা মনে হয় বা আপনার পছন্দ না হয়, আপনি সাথে সাথেই ডেলিভারি ম্যানকে কোনো টাকা না দিয়েই পার্সেল রিটার্ন (ফেরত) করে দিতে পারবেন।"
+    - When Customer Expresses Buying/Order Intent ("জি, আমি নিতে চাচ্ছি", "অর্ডার করতে চাই"):
+      Reply warmly and invite them to confirm their order:
+      "জি ভাইয়া, মাশাআল্লাহ! আপনার সিদ্ধান্তটা একদম সঠিক। আপনার অর্ডারটি কনফার্ম করার জন্য নিচের তথ্যগুলো পূরণ করে পাঠিয়ে দিন:
+আপনার
+নাম=
+জেলা=
+থানা=
+রিসিভ ঠিকানা=
+নাম্বার ="
+
+16. CUSTOMER REQUESTING VOICE CONSULTATION ("voice a bolte", "ভয়েসে বলুন", "ami porte pari na voice daoya jabe", "মুখে বলুন", "কথা বলুন"):
+    - If customer says they cannot read or asks you to speak in voice:
+      "জি ভাইয়া, অবশ্যই! আমি ডাক্তার হাকিম রিয়াজুল করিম বলছি। কোনো সমস্যা নেই ভাইয়া, আপনি আর পড়তে হবে না—আমি আপনার সাথে মুখে কথা বলছি। আপনার কী সমস্যা হচ্ছে বা কী জানতে চাচ্ছেন, আমাকে নির্দ্বিধায় মুখে বলুন বা লিখে জানান, আমি আপনাকে ভয়েসেই সবকিছু বুঝিয়ে বলছি।"
+
+
+17. STRICT ANSWER-ONLY RULE — শুধু প্রশ্নের উত্তর দাও, অতিরিক্ত কথা নিষিদ্ধ:
+    - কাস্টমার যা জিজ্ঞেস করেছে শুধু সেটার উত্তর দাও। প্রশ্নের বাইরে কোনো অতিরিক্ত কথা, কোনো প্রোডাক্টের বিজ্ঞাপন, বিক্রির পরামর্শ দেওয়া সম্পূর্ণ নিষিদ্ধ।
+    - উদাহরণ:
+      * কাস্টমার জিজ্ঞেস করলো "AMBER-এর দাম কত?" -> শুধু দামটা বলো। বাকি কিছু বলবে না।
+      * কাস্টমার জিজ্ঞেস করলো "এটা কি কাজ করে?" -> শুধু কাজটা সংক্ষেপে বলো। "নিয়ে নিন", "অর্ডার করুন" বলা যাবে না।
+      * কাস্টমার শুধু সালাম দিল -> শুধু সালামের উত্তর দাও এবং "কীভাবে সাহায্য করতে পারি" জিজ্ঞেস করো।
+    - NEVER push product details, prices, or order forms unless the customer EXPLICITLY asked.
+    - হাকিম রিয়াজুল করিম নামটা বারবার বলা যাবে না — শুধু প্রথমবার পরিচয় দেওয়ার সময় বলবে।
+
+18. MEMORY CONTINUITY RULE — নাম ও আগের কথোপকথন মনে রাখা:
+    - কাস্টমার যদি তার নাম বলে থাকে, সেটা মনে রেখে পরবর্তী reply-তে ব্যবহার করো।
+    - কাস্টমার আগে যে বিষয় নিয়ে কথা বলেছে সেটা ভুলে যাবে না।
+    - কাস্টমার কোনো তথ্য দিলে সেটা নিশ্চিত করে আগ্রহ দেখাও, আবার জিজ্ঞেস করো না।
+    - কোনো তথ্য বা সমস্যা ইতোমধ্যে জানা থাকলে সেটা আবার জিজ্ঞেস করা সম্পূর্ণ নিষিদ্ধ।
+
 ${customerMemoryPrompt ? `\n${customerMemoryPrompt}\n` : ""}
 ${productContext ? `\n--- LIVE MEDICINE DASHBOARD DATA ---\n${productContext}\n-----------------------------------\n` : ""}
 ${masterKB ? `\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\n${masterKB}\n-----------------------------------------------\n` : ""}
 `;
 
-  const models = ["gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-flash-latest"];
+  const models = ["gemini-2.0-flash-lite", "gemini-2.0-flash", "gemini-1.5-flash-latest", "gemini-1.5-flash"];
   for (const m of models) {
     try {
       const model = genAI.getGenerativeModel({
@@ -838,9 +878,6 @@ function prepareBangladeshiTTSAudioText(rawText) {
     .replace(/১২০|120/g, "একশত বিশ")
     .replace(/১০০|100/g, "একশত");
 
-  if (!/^(জি|আসসালামু|ওয়ালাইকুম|হ্যালো)/i.test(t)) {
-    t = "জি ভাইয়া, " + t;
-  }
   t = t
     .replace(/জি\s*ভাইয়া(?![,\s]*[,])/gi, "জি ভাইয়া, ")
     .replace(/রিয়াজুল\s*করিম\s*বলছি(?![,\s]*[,।])/gi, "রিয়াজুল করিম বলছি। ")
@@ -852,6 +889,37 @@ function prepareBangladeshiTTSAudioText(rawText) {
     .trim();
 
   return t;
+}
+
+// ── Transcribe Customer Voice Notes with Gemini 100% Reliably ───────────────
+async function transcribeAudioWithGemini(audioUrl, pageAccessToken = PAGE_TOKEN) {
+  try {
+    const url = audioUrl.includes("access_token") ? audioUrl : audioUrl + (audioUrl.includes("?") ? "&" : "?") + "access_token=" + pageAccessToken;
+    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(9000) });
+    if (!res.ok) return "";
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length < 500) return "";
+    const b64 = buf.toString("base64");
+
+    const models = ["gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-flash-latest"];
+    for (const m of models) {
+      try {
+        const model = genAI.getGenerativeModel({ model: m });
+        const genRes = await model.generateContent([
+          { inlineData: { data: b64, mimeType: "audio/mp3" } },
+          "Transcribe the exact spoken words in Bengali or English accurately. Output ONLY the transcription text without commentary."
+        ]);
+        const text = genRes.response.text().trim();
+        if (text && text.length > 1) {
+          console.log(`[FB_BOT_STT] (${m}) Transcribed customer audio: "${text}"`);
+          return text;
+        }
+      } catch (e) {}
+    }
+  } catch (err) {
+    console.warn("[FB_BOT_STT_ERR]", err.message);
+  }
+  return "";
 }
 
 function splitTextIntoVoiceChunks(text, maxChars = 800) {
@@ -1007,8 +1075,8 @@ async function sendFacebookVoiceNote(recipientId, text, pageAccessToken = PAGE_T
 
 // ── Fetch Recent Conversations from Facebook ─────────────────────────────────
 async function fetchConversations(pageId = PAGE_ID, pageAccessToken = PAGE_TOKEN) {
-  const url = `https://graph.facebook.com/v19.0/${pageId}/conversations?fields=messages.limit(15){message,from,created_time,id}&access_token=${pageAccessToken}`;
-  const res = await fetch(url, { signal: AbortSignal.timeout(4500) });
+  const url = `https://graph.facebook.com/v19.0/${pageId}/conversations?fields=messages.limit(15){message,from,created_time,id,attachments}&access_token=${pageAccessToken}`;
+  const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
   if (!res.ok) return [];
   const data = await res.json();
   return data.data || [];
@@ -1077,7 +1145,21 @@ async function pollOnce() {
             saveProcessedId(lastMsg.id); // Mark in memory & disk immediately
             const customerName = lastMsg.from?.name || "Customer";
             const senderId = lastMsg.from.id;
-            const messageText = (lastMsg.message || "").trim();
+            let messageText = (lastMsg.message || "").trim();
+
+            // Detect and transcribe customer voice notes
+            const audioAttach = lastMsg.attachments?.data?.find(a => a.mime_type?.includes("audio") || a.type === "audio");
+            if (!messageText && audioAttach?.file_url) {
+              console.log(`[FB_BOT] Transcribing customer voice note from ${customerName} (${senderId})...`);
+              const transcribed = await transcribeAudioWithGemini(audioAttach.file_url, page.accessToken);
+              if (transcribed) {
+                messageText = transcribed;
+                console.log(`[FB_BOT] Customer voice note transcribed: "${messageText}"`);
+              } else {
+                messageText = "[Customer sent a voice message]";
+              }
+              setVoiceMode(senderId, true);
+            }
 
             console.log(`[FB_BOT] 🔔 [${page.pageName}] FALLBACK NEW MESSAGE from ${customerName} (${senderId}): "${messageText}"`);
 
@@ -1109,24 +1191,26 @@ async function pollOnce() {
 
             if (isTextModeRequested(messageText)) {
               setVoiceMode(senderId, false);
-            } else if (isOnlyVoiceRequest(messageText) || isVoiceRequested(messageText) || custProf?.prefersVoice || lastMsgWasVoice) {
+            } else if (isOnlyVoiceRequest(messageText) || isVoiceRequested(messageText) || custProf?.prefersVoice || lastMsgWasVoice || audioAttach) {
               setVoiceMode(senderId, true);
             }
 
             const isOnlyVoice = isOnlyVoiceRequest(messageText);
 
-            // CASE 1: Customer explicitly asked for voice of previous answer ("voice dao")
+            // CASE 1: Customer explicitly asked to speak in voice ("voice dao", "voice a bolte", "porte pari na voice daoya jabe")
             if (isOnlyVoice) {
-              const lastPageMsg = msgs.slice(1).find(m => String(m.from?.id) === String(page.pageId) && (m.message || "").trim().length > 0);
-              const voiceText = lastPageMsg?.message || "জি ভাইয়া, আপনার স্বাস্থ্যগত যেকোনো সমস্যা বা পরামর্শের জন্য নির্ভয়ে বলুন, আমি আপনাকে সাহায্য করছি।";
+              setVoiceMode(senderId, true);
+              const voiceText = "জি ভাইয়া, অবশ্যই! আমি ডাক্তার হাকিম রিয়াজুল করিম বলছি। কোনো সমস্যা নেই ভাইয়া, আপনি আর পড়তে হবে না—আমি আপনার সাথে মুখে কথা বলছি। আপনার কী সমস্যা হচ্ছে বা কী জানতে চাচ্ছেন, আমাকে নির্দ্বিধায় মুখে বলুন বা লিখে জানান, আমি আপনাকে ভয়েসেই সবকিছু বুঝিয়ে বলছি।";
 
-              console.log(`[FB_BOT] Customer asked for voice of previous answer. Sending voice note only to ${senderId}: "${voiceText.slice(0, 60)}..."`);
+              console.log(`[FB_BOT] Customer asked for voice consultation. Sending fresh doctor voice note to ${senderId}`);
               await sendSenderAction(senderId, "typing_on", page.accessToken);
               const sentVoice = await sendFacebookVoiceNote(senderId, voiceText, page.accessToken);
               if (sentVoice) {
                 customerMemory.appendChatMessage(senderId, "model", voiceText, true);
+                recordOutgoingBotMessageInDb(senderId, voiceText, true);
               } else {
                 await sendFacebookMessage(senderId, voiceText, page.accessToken);
+                recordOutgoingBotMessageInDb(senderId, voiceText, false);
               }
               saveProcessedId(lastMsg.id);
               continue;
