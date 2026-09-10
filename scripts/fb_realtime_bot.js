@@ -650,6 +650,21 @@ ${masterKB ? `\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\n${masterKB}\n---
         if (!hasBuyIntent) {
           text = text.replace(/(ভাইয়া,?\s*আপনি\s*কি\s*আমাদের\s*প্রোডাক্ট\s*নিতে\s*চাচ্ছেন\?[\s\S]*?নাম্বার\s*=?[^\n]*)/gi, "").trim();
           text = text.replace(/(আপনার\s*\n\s*নাম\s*=[\s\S]*?নাম্বার\s*=?[^\n]*)/gi, "").trim();
+        } else {
+          // Repeat order: remind customer of their saved phone/address
+          if (senderId) {
+            try {
+              const savedProf = customerMemory.getCustomerProfile(senderId);
+              if (savedProf && savedProf.phone && savedProf.ordersPlaced && savedProf.ordersPlaced.length > 0) {
+                const sPhone = savedProf.phone;
+                const sDist = savedProf.district || "";
+                const reminder = sDist
+                  ? ("\n\n" + String.fromCharCode(2477,2494,2439,2527,2479,2494) + ", " + String.fromCharCode(2438,2474,2472,2495) + " " + String.fromCharCode(2472,2509,2479,2494,2480,2494) + " " + String.fromCharCode(2472,2478,209486) + " " + sPhone + " " + String.fromCharCode(2451) + " " + sDist + ".")
+                  : ("\n\n" + "\u09ad\u09be\u0987\u09af\u09bc\u09be, \u0986\u09aa\u09a8\u09bf \u0986\u0997\u09c7 \u09af\u09c7 \u09a8\u09ae\u09cd\u09ac\u09b0\u099f\u09bf \u09a6\u09bf\u09af\u09bc\u09c7\u099b\u09bf\u09b2\u09c7\u09a8 \u09b8\u09c7\u099f\u09bf \u09b9\u09b2\u09cb " + sPhone + "\u0964 \u098f\u0987 \u09a8\u09ae\u09cd\u09ac\u09b0\u09c7\u0987 \u0995\u09bf \u09a1\u09c7\u09b2\u09bf\u09ad\u09be\u09b0\u09bf \u09a6\u09c7\u09ac, \u09a8\u09be\u0995\u09bf \u09a8\u09a4\u09c1\u09a8 \u09a8\u09ae\u09cd\u09ac\u09b0 \u09a6\u09c7\u09ac\u09c7\u09a8?");
+                text = text.trimEnd() + reminder;
+              }
+            } catch (e) {}
+          }
         }
 
         // If ongoing conversation, strip any accidental mid-chat greeting slipped by LLM
@@ -741,20 +756,56 @@ function calculateHumanTypingDelay(replyText) {
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // ── Send Message via Facebook Graph API ──────────────────────────────────────
-async function sendFacebookMessage(recipientId, text, pageAccessToken = PAGE_TOKEN) {
+async function sendFacebookMessage(recipientId, text, pageAccessToken = PAGE_TOKEN, replyToMid = null) {
   const url = `https://graph.facebook.com/v19.0/me/messages?access_token=${pageAccessToken}`;
+  const messageObj = { text };
+  if (replyToMid) messageObj.reply_to = { mid: replyToMid };
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
       recipient: { id: recipientId },
-      message: { text },
+      message: messageObj,
       messaging_type: "RESPONSE"
     })
   });
   return { status: res.status, data: await res.json() };
 }
 
+// Send Product Video via Facebook
+async function sendFacebookVideo(recipientId, productName, pageAccessToken = PAGE_TOKEN) {
+  const videoDirs = [
+    path.join(process.cwd(), "data", "Product Video"),
+    path.join(process.cwd(), "public", "videos"),
+    path.join(process.cwd(), "public", "Product Video"),
+  ];
+  const exts = [".mp4", ".mov", ".avi", ".webm"];
+  const norm = (s) => (s || "").toLowerCase().replace(/[\s_-]+/g, "");
+  const productNorm = norm(productName);
+  for (const dir of videoDirs) {
+    if (!fs.existsSync(dir)) continue;
+    const files = fs.readdirSync(dir);
+    for (const vfile of files) {
+      const fileLower = vfile.toLowerCase();
+      const hasVideoExt = exts.some(e => fileLower.endsWith(e));
+      if (!hasVideoExt) continue;
+      if (!productNorm || norm(fileLower).includes(productNorm)) {
+        const fullPath = path.join(dir, vfile);
+        try {
+          const fileBuffer = fs.readFileSync(fullPath);
+          const url = `https://graph.facebook.com/v19.0/me/messages?access_token=${pageAccessToken}`;
+          const formData = new FormData();
+          formData.append("recipient", JSON.stringify({ id: recipientId }));
+          formData.append("message", JSON.stringify({ attachment: { type: "video", payload: { is_reusable: true } } }));
+          formData.append("filedata", new Blob([fileBuffer], { type: "video/mp4" }), vfile);
+          const res = await fetch(url, { method: "POST", body: formData });
+          if (res.ok) { console.log(`[FB_BOT_VIDEO_OK] Sent video "${vfile}" to ${recipientId}`); return true; }
+        } catch (e) { console.warn("[FB_BOT_VIDEO_ERR]", e.message); }
+      }
+    }
+  }
+  return false;
+}
 function isPictureRequest(text) {
   if (!text) return false;
   const q = text.toLowerCase();
@@ -762,6 +813,15 @@ function isPictureRequest(text) {
     /chobi|cobi|pic|pik|photo|foto|picture|image|img/i.test(q) ||
     /ছবি|পিক|পিকচার|ফটো|ইমেজ/i.test(q) ||
     /dekhte kemon|দেখতে কেমন|samne theke|সামনে থেকে|bastebe kemon|বাস্তবে কেমন/i.test(q)
+  );
+}
+
+function isVideoRequest(text) {
+  if (!text) return false;
+  const q = text.toLowerCase();
+  return (
+    /video|vedeo|vedio|ভিডিও|vid/i.test(q) &&
+    !/chobi|pic|photo|ছবি/i.test(q)
   );
 }
 
@@ -901,7 +961,7 @@ async function transcribeAudioWithGemini(audioUrl, pageAccessToken = PAGE_TOKEN)
     if (buf.length < 500) return "";
     const b64 = buf.toString("base64");
 
-    const models = ["gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-flash-latest"];
+    const models = ["gemini-2.0-flash-lite", "gemini-2.0-flash", "gemini-1.5-flash-latest"];
     for (const m of models) {
       try {
         const model = genAI.getGenerativeModel({ model: m });
@@ -1171,6 +1231,25 @@ async function pollOnce() {
               return `${author}: "${(m.message || '').trim()}"`;
             }).filter(line => line.length > 5);
 
+            // Check if customer asked for a video
+            if (isVideoRequest(messageText)) {
+              try {
+                const { matched } = getLiveProductInfo(messageText, senderId, recentHistory);
+                const productName = matched?.name || matched?.["ওষুধের নাম (Brand Name)"] || "";
+                console.log(`[FB_BOT] Customer asked for video. Searching for "${productName}" video...`);
+                const videoSent = await sendFacebookVideo(senderId, productName, page.accessToken);
+                if (!videoSent) {
+                  const imgFile = (matched && (matched.imageFile || matched["ছবি পাথ (Image Path)"] || matched["ফাইলের নাম (File Name)"])) || "WhatsApp Image 2026-08-31 at 2.35.30 PM.jpeg";
+                  await sendFacebookImage(senderId, imgFile, page.accessToken);
+                  await sendFacebookMessage(senderId, "ভাইয়া, এই মুহূর্তে ভিডিও নেই, তবে প্রোডাক্টের ছবিটি পাঠিয়ে দিলাম।", page.accessToken, lastMsg.id);
+                  saveProcessedId(lastMsg.id);
+                  continue;
+                }
+              } catch (vidErr) {
+                console.warn("[FB_BOT_VID_ERR]", vidErr.message);
+              }
+            }
+
             // Check if customer asked for a picture of medicine
             if (isPictureRequest(messageText)) {
               try {
@@ -1236,7 +1315,7 @@ async function pollOnce() {
                 recordOutgoingBotMessageInDb(senderId, replyText, false);
               }
             } else {
-              const sendResult = await sendFacebookMessage(senderId, replyText, page.accessToken);
+              const sendResult = await sendFacebookMessage(senderId, replyText, page.accessToken, lastMsg.id);
               console.log(`[FB_BOT] 🚀 [${page.pageName}] SENT [${sendResult.status}]:`, sendResult.data?.message_id || sendResult.data);
               recordOutgoingBotMessageInDb(senderId, replyText, false);
             }
