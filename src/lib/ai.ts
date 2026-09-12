@@ -24,6 +24,7 @@ export interface AIContextOptions {
   platform?: string;
   senderId?: string;
   customerName?: string;
+  isVoiceMode?: boolean;
 }
 
 let cachedDefaultKB = "";
@@ -59,8 +60,16 @@ function buildSystemInstruction(options: AIContextOptions, liveProductContext: s
   const kb = options.businessDetails?.trim() || getDefaultKnowledgeBase();
   const customerMemoryPrompt = options.senderId ? buildCustomerMemoryPrompt(options.senderId, options.customerName) : "";
 
-  return `You are an elite Senior Hakim, Certified Medical Researcher, and Master Sales Closer representing Green Health Unani Pharmacy (গ্রীন হেলথ ইউনানী ফার্মেসী) in Bangladesh.
+  const voiceModeInstruction = options.isVoiceMode
+    ? `\n🎙️ CRITICAL SPOKEN VOICE MODE INSTRUCTION:
+THIS REPLY WILL BE SPOKEN DIRECTLY TO THE CUSTOMER AS A REAL DOCTOR VOICE NOTE (ভয়েস মেসেজ)!
+- ABSOLUTE STRICT BAN: NEVER say "এখানে ভয়েস পাঠানোর সুবিধা নেই", "আমি টেক্সটে বুঝিয়ে বলছি", "লিখে দিচ্ছি", "মেসেজে বলছি", or "অডিও পাঠাতে পারি না"! Saying this is a fatal contradiction because you ARE speaking directly via voice note!
+- You are directly talking to the patient with your real human voice as Hakim Reajul Karim.
+- Answer what the customer asked directly in 2-3 warm, caring, natural spoken sentences.\n`
+    : "";
 
+  return `You are an elite Senior Hakim, Certified Medical Researcher, and Master Sales Closer representing Green Health Unani Pharmacy (গ্রীন হেলথ ইউনানী ফার্মেসী) in Bangladesh.
+${voiceModeInstruction}
 CRITICAL RULES FOR GEMINI FLASH BACKEND:
 
 1. CORE IDENTITY & PERSONA (পরিচয় ও নাম):
@@ -174,7 +183,7 @@ ${kb}`.trim();
 }
 
 // Active Gemini model names (2026 API)
-const PRIMARY_MODELS = ["gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-flash-latest"];
+const PRIMARY_MODELS = ["gemini-flash-latest", "gemini-3.5-flash", "gemini-3.6-flash", "gemini-flash-lite-latest", "gemini-3.1-flash-lite"];
 
 export async function generateAutoReply(
   incomingMessage: string,
@@ -236,6 +245,15 @@ export async function generateAutoReply(
       if (reply && reply.length > 3) {
         reply = reply.replace(/[*#]+/g, "").trim();
         reply = reply.replace(/দুঃখিত[,]?\s*আপনাকে\s*ভুল\s*বোঝানোর[^\n।.!?]+[।.!?]?/gi, "").trim();
+
+        // Strict safety: remove any accidental AI excuses about not sending voice or explaining in text
+        reply = reply
+          .replace(/(এখানে|ফেসবুকে)?\s*(তো)?\s*(সরাসরি)?\s*(অডিও|ভয়েস|ভয়েস)\s*(মেসেজ)?\s*(পাঠানোর)?\s*(সুবিধা\s*নেই|পাঠাতে\s*পারি\s*না)[^\n।.!?]*[।.!?]?/gi, "")
+          .replace(/(আমি\s*)?আপনাকে\s*(টেক্সট[এে]?|লিখে|মেসেজে?)\s*(বিস্তারিত\s*)?(সবকিছু\s*)?(বুঝিয়ে|বোঝানোর|জানিয়ে|বলছি)[^\n।.!?]*[।.!?]?/gi, "আমি আপনাকে মুখে সবকিছু বুঝিয়ে বলছি।")
+          .replace(/(টেক্সট[এে]?|মেসেজে?|লিখে)\s*(বুঝিয়ে|বলছি|জানিয়ে\s*দিচ্ছি)/gi, "মুখে বুঝিয়ে বলছি")
+          .replace(/লিখে\s*দিচ্ছি/gi, "মুখে বুঝিয়ে বলছি")
+          .replace(/লিখে\s*জানিয়ে/gi, "মুখে বুঝিয়ে")
+          .trim();
 
         // Check if customer gave salam
         const hasSalam = /সালাম|আসসালাম|salam|slam|assalam|slm/i.test(effectiveMessage);

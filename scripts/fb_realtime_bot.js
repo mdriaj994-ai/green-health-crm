@@ -416,7 +416,7 @@ function detectLanguage(text) {
   return "Bengali";
 }
 
-async function generateReply(customerMessage, senderName, senderId = null, recentHistory = [], pageName = "গ্রীন হেলথ ইউনানী ফার্মেসী") {
+async function generateReply(customerMessage, senderName, senderId = null, recentHistory = [], pageName = "গ্রীন হেলথ ইউনানী ফার্মেসী", isVoiceMode = false) {
   // Extract and persist permanent customer facts
   if (senderId) {
     customerMemory.extractCustomerFacts(senderId, customerMessage, senderName);
@@ -455,6 +455,14 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
       effectiveHistory = memHistory;
     }
   }
+
+  const voiceModeInstruction = (isVoiceMode || isVoiceRequested(customerMessage))
+    ? `\n🎙️ CRITICAL SPOKEN VOICE MODE INSTRUCTION:
+THIS REPLY WILL BE SPOKEN DIRECTLY TO THE CUSTOMER AS A REAL DOCTOR VOICE NOTE (ভয়েস মেসেজ)!
+- ABSOLUTE STRICT BAN: NEVER say "এখানে ভয়েস পাঠানোর সুবিধা নেই", "আমি টেক্সটে বুঝিয়ে বলছি", "লিখে দিচ্ছি", "মেসেজে বলছি", or "অডিও পাঠাতে পারি না"! Saying this is a fatal contradiction because you ARE speaking directly via voice note!
+- You are directly talking to the patient with your real human voice as Hakim Reajul Karim.
+- Answer what the customer asked directly in 2-3 warm, caring, natural spoken sentences.\n`
+    : "";
 
   const systemInstruction = `You are an elite Senior Hakim, Certified Medical Researcher, and Master Sales Closer representing ${pageName} in Bangladesh.
 
@@ -608,9 +616,10 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
 ${customerMemoryPrompt ? `\n${customerMemoryPrompt}\n` : ""}
 ${productContext ? `\n--- LIVE MEDICINE DASHBOARD DATA ---\n${productContext}\n-----------------------------------\n` : ""}
 ${masterKB ? `\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\n${masterKB}\n-----------------------------------------------\n` : ""}
+${voiceModeInstruction}
 `;
 
-  const models = ["gemini-2.0-flash-lite", "gemini-2.0-flash", "gemini-1.5-flash-latest", "gemini-1.5-flash"];
+  const models = ["gemini-flash-latest", "gemini-3.5-flash", "gemini-3.6-flash", "gemini-flash-lite-latest", "gemini-3.1-flash-lite"];
   for (const m of models) {
     try {
       const model = genAI.getGenerativeModel({
@@ -630,6 +639,14 @@ ${masterKB ? `\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\n${masterKB}\n---
         text = text.replace(/[*#]+/g, "").trim();
         // Strict safety: remove any accidental defensive apology or robotic excuses
         text = text.replace(/দুঃখিত[,]?\s*আপনাকে\s*ভুল\s*বোঝানোর[^\n।.!?]+[।.!?]?/gi, "").trim();
+        // Strict safety: remove any accidental AI excuses about not sending voice or explaining in text
+        text = text
+          .replace(/(এখানে|ফেসবুকে)?\s*(তো)?\s*(সরাসরি)?\s*(অডিও|ভয়েস|ভয়েস)\s*(মেসেজ)?\s*(পাঠানোর)?\s*(সুবিধা\s*নেই|পাঠাতে\s*পারি\s*না)[^\n।.!?]*[।.!?]?/gi, "")
+          .replace(/(আমি\s*)?আপনাকে\s*(টেক্সট[এে]?|লিখে|মেসেজে?)\s*(বিস্তারিত\s*)?(সবকিছু\s*)?(বুঝিয়ে|বোঝানোর|জানিয়ে|বলছি)[^\n।.!?]*[।.!?]?/gi, "আমি আপনাকে মুখে সবকিছু বুঝিয়ে বলছি।")
+          .replace(/(টেক্সট[এে]?|মেসেজে?|লিখে)\s*(বুঝিয়ে|বলছি|জানিয়ে\s*দিচ্ছি)/gi, "মুখে বুঝিয়ে বলছি")
+          .replace(/লিখে\s*দিচ্ছি/gi, "মুখে বুঝিয়ে বলছি")
+          .replace(/লিখে\s*জানিয়ে/gi, "মুখে বুঝিয়ে")
+          .trim();
         try {
           const escapedName = pageName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
           text = text.replace(new RegExp(`আমি\\s*(${escapedName}|গ্রীন\\s*হেলথ\\s*ইউনানী\\s*ফার্মেসীর?)\\s*কাস্টমার\\s*সাপোর্ট[^\\n।.!?]+[।.!?]?`, "gi"), "").trim();
@@ -913,6 +930,15 @@ async function sendFacebookImage(recipientId, imageFileOrPath, pageAccessToken =
 
 function prepareBangladeshiTTSAudioText(rawText) {
   if (!rawText) return "";
+  // Strip any accidental text-referencing words from spoken voice notes
+  rawText = rawText
+    .replace(/(এখানে|ফেসবুকে)?\s*(তো)?\s*(সরাসরি)?\s*(অডিও|ভয়েস|ভয়েস)\s*(মেসেজ)?\s*(পাঠানোর)?\s*(সুবিধা\s*নেই|পাঠাতে\s*পারি\s*না)[^\n।.!?]*[।.!?]?/gi, "")
+    .replace(/(আমি\s*)?আপনাকে\s*(টেক্সট[এে]?|লিখে|মেসেজে?)\s*(বিস্তারিত\s*)?(সবকিছু\s*)?(বুঝিয়ে|বোঝানোর|জানিয়ে|বলছি)[^\n।.!?]*[।.!?]?/gi, "আমি আপনাকে মুখে সবকিছু বুঝিয়ে বলছি।")
+    .replace(/(টেক্সট[এে]?|মেসেজে?|লিখে)\s*(বুঝিয়ে|বলছি|জানিয়ে\s*দিচ্ছি)/gi, "মুখে বুঝিয়ে বলছি")
+    .replace(/\bটেক্সটে?\b/gi, "ভয়েসে")
+    .replace(/লিখে\s*দিচ্ছি/gi, "মুখে বুঝিয়ে বলছি")
+    .replace(/লিখে\s*জানিয়ে/gi, "মুখে বুঝিয়ে");
+  if (!rawText) return "";
   let t = rawText.replace(/[*#_~`>|]/g, "").replace(/\s+/g, " ").trim();
   t = t
     .replace(/রেজাউল\s*করিম/gi, "রিয়াজুল করিম")
@@ -961,7 +987,7 @@ async function transcribeAudioWithGemini(audioUrl, pageAccessToken = PAGE_TOKEN)
     if (buf.length < 500) return "";
     const b64 = buf.toString("base64");
 
-    const models = ["gemini-2.0-flash-lite", "gemini-2.0-flash", "gemini-1.5-flash-latest"];
+    const models = ["gemini-flash-latest", "gemini-3.5-flash", "gemini-3.6-flash", "gemini-flash-lite-latest"];
     for (const m of models) {
       try {
         const model = genAI.getGenerativeModel({ model: m });
@@ -1299,7 +1325,8 @@ async function pollOnce() {
             const userInVoiceMode = isVoiceMode(senderId);
 
             // Generate AI reply with thread memory and page-specific identity
-            const replyText = await generateReply(messageText, customerName, senderId, recentHistory, page.pageName);
+            const isVoiceReq = userInVoiceMode || isVoiceRequested(messageText) || isOnlyVoice;
+            const replyText = await generateReply(messageText, customerName, senderId, recentHistory, page.pageName, isVoiceReq);
             console.log(`[FB_BOT] 🤖 [${page.pageName}] REPLY: "${replyText.slice(0, 70)}..."`);
 
             if (userInVoiceMode) {

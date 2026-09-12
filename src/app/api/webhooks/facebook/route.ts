@@ -249,12 +249,11 @@ async function flushSenderEvent(senderId: string) {
 
     const isOnlyVoice = isOnlyVoiceRequest(text);
 
-    // CASE 1: Customer specifically requested voice for previous answer ("voice dao")
+    // CASE 1: Customer explicitly requested to speak in voice ("voice dao", "voice a bolte", "porte pari na voice daoya jabe")
     if (isOnlyVoice) {
-      const lastAgentMsg = chatHistory.slice().reverse().find(m => m.sender === "AGENT" && m.text.trim().length > 0);
-      const voiceText = lastAgentMsg?.text || "জি ভাইয়া, আপনার স্বাস্থ্যগত যেকোনো সমস্যা বা পরামর্শের জন্য নির্ভয়ে বলুন, আমি আপনাকে সাহায্য করছি।";
+      const voiceText = "জি ভাইয়া, অবশ্যই! আমি ডাক্তার হাকিম রিয়াজুল করিম বলছি। কোনো সমস্যা নেই ভাইয়া, আপনি আর পড়তে হবে না—আমি আপনার সাথে মুখে কথা বলছি। আপনার কী সমস্যা হচ্ছে বা কী জানতে চাচ্ছেন, আমাকে নির্দ্বিধায় মুখে বলুন বা লিখে জানান, আমি আপনাকে ভয়েসেই সবকিছু বুঝিয়ে বলছি।";
 
-      console.log(`[EXPLICIT_VOICE_REQUEST] Customer asked for voice of previous answer. Sending voice note only to ${senderId}: "${voiceText.substring(0, 60)}..."`);
+      console.log(`[EXPLICIT_VOICE_REQUEST] Customer asked for voice consultation. Sending voice note only to ${senderId}: "${voiceText.substring(0, 60)}..."`);
       await sendSenderAction(senderId, "typing_on", effectiveToken);
       const sentVoice = await sendMessengerVoiceNote(senderId, voiceText, effectiveToken);
       if (!sentVoice) {
@@ -291,12 +290,14 @@ async function flushSenderEvent(senderId: string) {
 
     // CASE 2: Normal inquiry or Question while in Voice Mode
     const userInVoiceMode = isVoiceMode(senderId);
+    const isVoiceReq = userInVoiceMode || isVoiceRequested(text) || isOnlyVoice;
 
     const replyText = await generateAutoReply(text || "ছবি পাঠালাম", {
       imageUrl: imageUrl || null,
       chatHistory,
       senderId,
       customerName: resolvedCustomerName || undefined,
+      isVoiceMode: isVoiceReq,
     });
 
     if (replyText && effectiveToken) {
@@ -368,55 +369,39 @@ async function flushSenderEvent(senderId: string) {
 const GROQ_KEY = process.env.GROQ_API_KEY || "";
 const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAW6YWihfogBSY0coWHPtYcw2Gwm11ZAznBKAIcOzhgKQJWYITHuelgvzJfoWl0QjgrsRD5DEViDdpVyQKyvxGkBVJ8saKOzXi4IaXvIwYWuJXVJwNxBGsUdru7NAV9Rk5hrGCJigh9NuX1ury8ATCBYvbjBce885iGjucQ3LSbzYQwqQvNGfcu7GO70jQu3QiwI1";
 
-async function transcribeAudioWithGroq(audioUrl: string): Promise<string> {
+async function transcribeAudioWithGemini(audioUrl: string, accessToken: string = PAGE_TOKEN): Promise<string> {
   try {
-    let dlRes = await fetch(audioUrl);
-    if (!dlRes.ok) {
-      const fbUrl = audioUrl.includes("access_token") ? audioUrl : audioUrl + (audioUrl.includes("?") ? "&" : "?") + "access_token=" + PAGE_TOKEN;
-      dlRes = await fetch(fbUrl);
-    }
-    if (!dlRes.ok) {
-      console.log(`[GROQ_STT] Failed to download audio from FB: ${dlRes.status}`);
-      return "";
-    }
-    const blob = await dlRes.blob();
-    const mime = (dlRes.headers.get("content-type") || "audio/mp4").split(";")[0];
-    const ext = mime.includes("mp4") ? "mp4" : mime.includes("ogg") ? "ogg" : "mp3";
+    const url = audioUrl.includes("access_token") ? audioUrl : audioUrl + (audioUrl.includes("?") ? "&" : "?") + "access_token=" + accessToken;
+    const dlRes = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(9000) });
+    if (!dlRes.ok) return "";
+    const buf = Buffer.from(await dlRes.arrayBuffer());
+    if (buf.length < 500) return "";
+    const b64 = buf.toString("base64");
 
-    const formData = new FormData();
-    formData.append("file", blob, `voice.${ext}`);
-    formData.append("model", "whisper-large-v3");
-    formData.append("language", "bn");
-    formData.append("response_format", "json");
-    formData.append("prompt", "গ্রীন হেলথ ইউনানী ওষুধ। ছবি পাঠান, ছবি দেখান, এটার ছবি দেন, পিকচার দেন, ফটো পাঠান, ঔষধের ছবি দিন, দেখতে কেমন, দাম কত। পেপটো-জি, অ্যাপেল-জি, জিএল টন, রেসপিরেক্স, রিউমারেক্স, মোবিক, মেনসোটন, জেনাসিন।");
-
-    const groqRes = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
-      method: "POST",
-      headers: {
-        "Authorization": `Bearer ${GROQ_KEY}`,
-      },
-      body: formData
-    });
-
-    if (!groqRes.ok) {
-      const errText = await groqRes.text();
-      console.error(`[GROQ_STT] Groq returned ${groqRes.status}: ${errText}`);
-      return "";
+    const { GoogleGenerativeAI } = await import("@google/generative-ai");
+    const gemKey = process.env.GEMINI_API_KEY || "";
+    if (gemKey) {
+      const genAI = new GoogleGenerativeAI(gemKey);
+      const models = ["gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-flash-latest"];
+      for (const m of models) {
+        try {
+          const model = genAI.getGenerativeModel({ model: m });
+          const genRes = await model.generateContent([
+            { inlineData: { data: b64, mimeType: "audio/mp3" } },
+            "Transcribe the exact spoken words in Bengali or English accurately. Output ONLY the transcription text."
+          ]);
+          const text = genRes.response.text().trim();
+          if (text && text.length > 1) {
+            console.log(`[FB_STT] (${m}) Transcribed: "${text}"`);
+            return text;
+          }
+        } catch (e) {}
+      }
     }
-    const data = await groqRes.json();
-    const rawTranscript = (data.text || "").trim();
-    // Filter out garbled binary output (non-Bengali, non-Latin characters only)
-    const hasValidText = /[\u0980-\u09FF\u0041-\u007A\u0030-\u0039]/.test(rawTranscript);
-    if (!hasValidText) {
-      console.error(`[GROQ_STT] Garbled/binary output detected, discarding: length=${rawTranscript.length}`);
-      return "";
-    }
-    console.log(`[GROQ_STT] Raw Whisper transcript: "${rawTranscript}"`);
-    return rawTranscript;
-  } catch (err) {
-    console.error("[GROQ_TRANSCRIPTION_ERROR]", err);
-    return "";
+  } catch (err: any) {
+    console.warn("[FB_STT_ERROR]", err.message);
   }
+  return "";
 }
 
 export async function handleMessengerMessage(pageId: string, event: any) {
@@ -433,7 +418,7 @@ export async function handleMessengerMessage(pageId: string, event: any) {
   let text = rawText;
   if (!text && audioUrl) {
     console.log(`[MESSENGER] Transcribing voice message from ${senderId}...`);
-    const rawTranscript = await transcribeAudioWithGroq(audioUrl);
+    const rawTranscript = await transcribeAudioWithGemini(audioUrl, PAGE_TOKEN);
     if (rawTranscript) {
       text = rawTranscript;
       console.log(`[MESSENGER] Voice transcribed: "${text}"`);
@@ -775,16 +760,8 @@ function prepareBangladeshiTTSAudioText(rawText: string): string {
   t = t
     .replace(/\bদেবেন\b/g, "দিবেন")
     .replace(/\bনেবেন\b/g, "নিবেন")
-    .replace(/\bকরেছেন\b/g, "করছেন")
-    .replace(/\bবলেছেন\b/g, "বলছেন")
-    .replace(/\bখাবেন\b/g, "খাইবেন")
     .replace(/\bজল\b/g, "পানি")
-    .replace(/\bদাদা\b/g, "ভাইয়া")
-    .replace(/\bআপনাকে\b/g, "আপনারে")
-    .replace(/\bতাহলে\b/g, "তাইলে")
-    .replace(/\bএখানে\b/g, "এইখানে")
-    .replace(/\bকোথায়\b/g, "কই")
-    .replace(/\bসেখানে\b/g, "সেইখানে");
+    .replace(/\bদাদা\b/g, "ভাইয়া");
 
   // 3. Spoken representations of order forms
   t = t
@@ -805,11 +782,6 @@ function prepareBangladeshiTTSAudioText(rawText: string): string {
     .replace(/১৫০|150/g, "একশত পঞ্চাশ")
     .replace(/১২০|120/g, "একশত বিশ")
     .replace(/১০০|100/g, "একশত");
-
-  // 5. Cadence & Rhythm: Ensure natural Bangladeshi pauses (commas)
-  if (!/^(জি|আসসালামু|ওয়ালাইকুম|হ্যালো)/i.test(t)) {
-    t = "জি ভাইয়া, " + t;
-  }
   t = t
     .replace(/জি\s*ভাইয়া(?![,\s]*[,])/gi, "জি ভাইয়া, ")
     .replace(/রিয়াজুল\s*করিম\s*বলছি(?![,\s]*[,।])/gi, "রিয়াজুল করিম বলছি। ")
