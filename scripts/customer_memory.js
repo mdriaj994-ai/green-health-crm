@@ -561,7 +561,7 @@ function getEligibleFollowUpCandidates(minHours = 72) {
 
     const msSinceContact = now - (profile.lastContact || profile.firstContact || now);
     const hoursSinceContact = msSinceContact / (1000 * 60 * 60);
-    const daysSinceContact = Math.max(1, Math.floor(hoursSinceContact / 24));
+    const daysSinceLastContact = Math.max(1, Math.floor(hoursSinceContact / 24));
 
     // Must be inactive for at least minHours
     if (hoursSinceContact < minHours) continue;
