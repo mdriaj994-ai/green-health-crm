@@ -61,14 +61,14 @@ function isValidPersonName(n) {
   if (!n) return false;
   const s = String(n).trim();
   if (s.length < 2 || s.length > 30) return false;
-  if (/^(vai|bhai|vaiya|bhaiya|vai|ভাই|ভাইয়া|ভাইয়া|ভায়া|customer|কাস্টমার|doctor|hakim|হাকিম|ডাক্তার|admin|এডমিন|ki|jano|জান|জানো|বলেন|bolo|bolun|ki\s*jano|e\s*ki\s*jano|unknown|অজ্ঞাত|facebook\s*user|facebook\s*customer|user)$/i.test(s)) {
+  if (/^(vai|bhai|vaiya|bhaiya|ভাই|ভাইয়া|ভাইয়া|ভায়া|customer|কাস্টমার|doctor|hakim|হাকিম|ডাক্তার|admin|এডমিন|ki|jano|জান|জানো|বলেন|bolo|bolun|ki\s*jano|e\s*ki\s*jano|unknown|অজ্ঞাত|facebook\s*user|facebook\s*customer|user|voice|boyes|audio|ভয়েস|ভয়েস|বয়েজ|বয়েস|অডিও)$/i.test(s)) {
     return false;
   }
-  if (/চিকিৎসালয়|ফার্মেসী|হেলথ|health|pharmacy|herbal|ayurvedic|unani/i.test(s)) {
+  if (/চিকিৎসালয়|ফার্মেসী|হেলথ|health|pharmacy|herbal|ayurvedic|unani|মেডিসিন|ওষুধ|অর্ডার|order|price|দাম|ডেলিভারি|delivery/i.test(s)) {
     return false;
   }
   if (/^[\d\s]+$/.test(s)) return false;
-  if (/^(kemon|valo|kothai|koto|ki|konta|amra|apni|tumi|apnar|amar|আমি|তুমি|আপনি|কেমন)/i.test(s)) return false;
+  if (/^(kemon|valo|kothai|koto|ki|konta|amra|apni|tumi|apnar|amar|আমি|তুমি|আপনি|কেমন|porte|পারিনা|পারি|চাই|chai|bole|বলতে)/i.test(s)) return false;
   return true;
 }
 
@@ -261,7 +261,7 @@ function extractCustomerFacts(senderId, text, senderName) {
     const namePatterns = [
       /(?:amar|amr|আমার)\s+(?:name|naam|nam|নাম)\s*(?:is|holo|hlo|হলো|হল)?\s*[:=]?\s*([A-Za-z\u0980-\u09FF\s]{2,25})/i,
       /(?:my\s*name\s*is|\bnam\s*[:=]|\bনাম\s*[:=]|\bনামঃ|\bname\s*[:=])\s*([A-Za-z\u0980-\u09FF\s]{2,25})/i,
-      /(?:^|\s)(?:ami|আমি)\s+([A-Za-z\u0980-\u09FF]{3,20})(?:\s+(?:bolsi|bolchi|বলছি|বলসি))?(?:$|[.,!?\s])/i
+      /(?:^|\s)(?:ami|আমি)\s+([A-Za-z\u0980-\u09FF]{2,20})\s+(?:bolsi|bolchi|বলছি|বলসি)(?:$|[.,!?\s])/i
     ];
 
     for (const pat of namePatterns) {
