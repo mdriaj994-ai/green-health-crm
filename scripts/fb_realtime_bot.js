@@ -619,7 +619,7 @@ ${masterKB ? `\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\n${masterKB}\n---
 ${voiceModeInstruction}
 `;
 
-  const models = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"];
+  const models = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-flash-lite-latest", "gemini-pro-latest"];
   for (const m of models) {
     try {
       const model = genAI.getGenerativeModel({
@@ -987,7 +987,7 @@ async function transcribeAudioWithGemini(audioUrl, pageAccessToken = PAGE_TOKEN)
     if (buf.length < 500) return "";
     const b64 = buf.toString("base64");
 
-    const models = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash", "gemini-1.5-flash-8b"];
+    const models = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-flash-lite-latest"];
     for (const m of models) {
       try {
         const model = genAI.getGenerativeModel({ model: m });
@@ -1455,7 +1455,7 @@ async function runFollowUpScheduler() {
 
         // 2. Ask Gemini to generate a personalised, human-like follow-up message
         let followUpMessage = null;
-        const models = ["gemini-2.0-flash", "gemini-2.0-flash-lite", "gemini-1.5-flash", "gemini-1.5-flash-8b"];
+        const models = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-flash-lite-latest"];
 
         for (const m of models) {
           try {
