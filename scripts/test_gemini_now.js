@@ -5,54 +5,36 @@ require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 
 const KEY = process.env.GEMINI_API_KEY || "";
 
-async function testMethod1_SDKApiKey() {
-  console.log("\n--- Method 1: SDK with API Key (query param) ---");
+async function listAvailableModels() {
+  console.log("\n--- Listing ALL Available Models ---");
   try {
-    const { GoogleGenerativeAI } = require("@google/generative-ai");
-    const genAI = new GoogleGenerativeAI(KEY);
-    const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash" });
-    const res = await model.generateContent("hello");
-    console.log("✅ Method 1 WORKS:", res.response.text().substring(0, 60));
-    return true;
-  } catch (err) {
-    console.log("❌ Method 1 FAILED:", err.message.substring(0, 200));
-    return false;
-  }
-}
-
-async function testMethod2_BearerToken() {
-  console.log("\n--- Method 2: Direct fetch with Bearer token ---");
-  try {
-    const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
-    const res = await fetch(url, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        "Authorization": `Bearer ${KEY}`,
-      },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: "hello, reply in one sentence" }] }]
-      }),
-      signal: AbortSignal.timeout(10000),
+    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models", {
+      headers: { "x-goog-api-key": KEY },
+      signal: AbortSignal.timeout(8000),
     });
     const data = await res.json();
-    if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-      console.log("✅ Method 2 WORKS:", data.candidates[0].content.parts[0].text.substring(0, 60));
-      return true;
+    if (data.models) {
+      const generateModels = data.models.filter(m =>
+        m.supportedGenerationMethods?.includes("generateContent")
+      );
+      console.log(`✅ Found ${generateModels.length} generateContent-capable models:`);
+      for (const m of generateModels) {
+        console.log(`  - ${m.name} (display: ${m.displayName || "n/a"})`);
+      }
+      return generateModels.map(m => m.name.replace("models/", ""));
     } else {
-      console.log("❌ Method 2 response:", JSON.stringify(data).substring(0, 300));
-      return false;
+      console.log("❌ Error:", JSON.stringify(data).substring(0, 300));
+      return [];
     }
   } catch (err) {
-    console.log("❌ Method 2 FAILED:", err.message);
-    return false;
+    console.log("❌ FAILED:", err.message);
+    return [];
   }
 }
 
-async function testMethod3_XGoogApiKey() {
-  console.log("\n--- Method 3: Direct fetch with x-goog-api-key header ---");
+async function testModel(modelName) {
   try {
-    const url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent";
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelName}:generateContent`;
     const res = await fetch(url, {
       method: "POST",
       headers: {
@@ -60,53 +42,54 @@ async function testMethod3_XGoogApiKey() {
         "x-goog-api-key": KEY,
       },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: "hello, reply in one sentence" }] }]
+        contents: [{ parts: [{ text: "hello" }] }]
       }),
       signal: AbortSignal.timeout(10000),
     });
     const data = await res.json();
     if (data.candidates?.[0]?.content?.parts?.[0]?.text) {
-      console.log("✅ Method 3 WORKS:", data.candidates[0].content.parts[0].text.substring(0, 60));
-      return true;
-    } else {
-      console.log("❌ Method 3 response:", JSON.stringify(data).substring(0, 300));
-      return false;
+      return data.candidates[0].content.parts[0].text.substring(0, 60);
     }
+    return null;
   } catch (err) {
-    console.log("❌ Method 3 FAILED:", err.message);
-    return false;
-  }
-}
-
-async function testNetworkOnly() {
-  console.log("\n--- Network Test: Can we reach Google? ---");
-  try {
-    const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models", {
-      headers: { "x-goog-api-key": KEY },
-      signal: AbortSignal.timeout(8000),
-    });
-    console.log("✅ Network OK! HTTP Status:", res.status);
-    const data = await res.json();
-    if (data.error) {
-      console.log("   API Error:", data.error.code, data.error.message);
-    } else {
-      console.log("   Models available:", data.models?.length || 0);
-    }
-  } catch (err) {
-    console.log("❌ Network FAILED:", err.message);
+    return null;
   }
 }
 
 async function main() {
-  console.log("=== Gemini Diagnostic Test ===");
+  console.log("=== Gemini Full Diagnostic ===");
   console.log("Key present:", !!KEY, "| Length:", KEY.length);
   console.log("Key starts with:", KEY.substring(0, 15) + "...");
-  console.log("Key format:", KEY.startsWith("AIza") ? "✅ Standard API Key" : KEY.startsWith("AQ.") ? "⚠️ OAuth Token (Bearer)" : "❓ Unknown");
 
-  await testNetworkOnly();
-  await testMethod1_SDKApiKey();
-  await testMethod2_BearerToken();
-  await testMethod3_XGoogApiKey();
+  const models = await listAvailableModels();
+
+  if (models.length === 0) {
+    console.log("\n❌ No models found. Check API key.");
+    return;
+  }
+
+  console.log("\n--- Testing each model ---");
+  const workingModels = [];
+  for (const m of models.slice(0, 10)) { // test first 10
+    process.stdout.write(`Testing ${m}... `);
+    const reply = await testModel(m);
+    if (reply) {
+      console.log(`✅ WORKS! Reply: "${reply}"`);
+      workingModels.push(m);
+      if (workingModels.length >= 3) break; // found enough
+    } else {
+      console.log("❌");
+    }
+  }
+
+  if (workingModels.length > 0) {
+    console.log("\n=== ✅ WORKING MODELS FOUND ===");
+    for (const m of workingModels) console.log(" -", m);
+    console.log("\nPaste these model names when asked.");
+  } else {
+    console.log("\n=== ❌ ALL MODELS FAILED ===");
+    console.log("KEY may be invalid or expired.");
+  }
 }
 
 main().catch(console.error);
