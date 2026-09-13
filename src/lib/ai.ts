@@ -301,11 +301,11 @@ Knowledge Base:
 ${kb}`.trim();
 }
 
-// Verified Gemini model names — confirmed available for this API key (Sept 2026)
+// Verified Gemini model names — Google recommended for this API key (Sept 2026)
 const PRIMARY_MODELS = [
-  "gemini-2.5-flash",
+  "gemini-3.6-flash",
   "gemini-flash-latest",
-  "gemini-2.5-flash-lite",
+  "gemini-3.1-flash-lite-preview",
   "gemini-flash-lite-latest",
   "gemini-pro-latest",
 ];
