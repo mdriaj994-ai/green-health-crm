@@ -301,8 +301,14 @@ Knowledge Base:
 ${kb}`.trim();
 }
 
-// Active Gemini model names (2026 API)
-const PRIMARY_MODELS = ["gemini-flash-latest", "gemini-3.5-flash", "gemini-3.6-flash", "gemini-flash-lite-latest", "gemini-3.1-flash-lite"];
+// Verified Gemini model names — ordered by speed/reliability (Sept 2026)
+const PRIMARY_MODELS = [
+  "gemini-2.0-flash",
+  "gemini-2.0-flash-lite",
+  "gemini-1.5-flash",
+  "gemini-1.5-flash-8b",
+  "gemini-1.5-pro",
+];
 
 export async function generateAutoReply(
   incomingMessage: string,
@@ -418,6 +424,8 @@ export async function generateAutoReply(
       }
     } catch (modelErr: any) {
       console.warn(`[AI_AUTO_REPLY_ERROR] (${modelName}):`, modelErr.message);
+      // Brief pause before trying next model (helps with transient 503 overloads)
+      await new Promise(r => setTimeout(r, 600));
     }
   }
 
