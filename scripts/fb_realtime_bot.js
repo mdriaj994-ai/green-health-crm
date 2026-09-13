@@ -10,7 +10,7 @@ const Database = require("better-sqlite3");
 const customerMemory = require("./customer_memory.js");
 
 const PAGE_ID = process.env.FACEBOOK_PAGE_ID || "110644118793600";
-const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAW6YWihfogBSQuviGfEKqUu33eHxtXp1QlcaY6aIYaWoJoQZCSYyc8zLyMqZBX3pYceTpbNDVZCjDw05l0DrZCzRjeZAMrQ1tbZAlQRyxOaRBCSItnMBZCjKPUVaG0zp1ctR7RCPYAtR9jpkmNoEC8FjEetZAsiqr13Ry7jAbYWuFGsqUZBZBBwmu2QcYkpjKD7Wo3278Q4gX";
+const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAW6YWihfogBSa2PiKFLnZCsM4RObevG0ZCFtxJ6qxC0Cwl1jNEtDXB30i1y0U9aFgclkGgJss4Ydr7nKRetn6QY9SyGRGxbZCyZBxbXlqDlFzHPy21yfkVCWeUXygXUvppB2ywoG9d8TB7lCsA70BBEqwLlzYMjpV7YZCVj0HQMQbxbwLtd4CPqZAoq1W82CbQIsQDyzqOzddM6qsJa1oPU2Oyjf4S38jupa7ugZDZD";
 const GEMINI_KEY = process.env.GEMINI_API_KEY || Buffer.from("QVEuQWI4Uk42Si0xTTlKMDlNNlJfS2tjZU9LNjVraVd2Z3NydGZUX2pQZm5JY1NtejB4eXc=", "base64").toString("utf-8");
 
 // Fetch all active connected Facebook pages dynamically from database
