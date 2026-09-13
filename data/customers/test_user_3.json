@@ -1,0 +1,30 @@
+{
+  "senderId": "test_user_3",
+  "name": "",
+  "age": "",
+  "maritalStatus": "",
+  "symptoms": [],
+  "duration": "",
+  "productDiscussed": "Sex King (섹스킹)",
+  "productsDiscussedAll": [
+    "Sex King (섹스킹)"
+  ],
+  "orderStatus": "inquiry",
+  "ordersPlaced": [],
+  "phone": "",
+  "district": "",
+  "thana": "",
+  "address": "",
+  "lastVoiceTranscript": "",
+  "sessionSummaries": [],
+  "chatLog": [],
+  "firstContact": 1788971690817,
+  "lastContact": 1788971690818,
+  "totalMessages": 1,
+  "prefersVoice": false,
+  "extraFacts": [],
+  "mentionedLocations": [],
+  "allHealthKeywords": [],
+  "budgetMentioned": [],
+  "productSl": "1"
+}

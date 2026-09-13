@@ -1,0 +1,83 @@
+{
+  "senderId": "TEST_TS_001",
+  "name": "Sabbir Hossain",
+  "age": "30",
+  "maritalStatus": "বিবাহিত (Married)",
+  "profession": "Driver",
+  "symptoms": [
+    "দ্রুত বীর্যপাত (Premature Ejaculation)"
+  ],
+  "duration": "30 bochor",
+  "productDiscussed": "AMBER Premium (অম্বার)",
+  "productsDiscussedAll": [
+    "AMBER Premium (অম্বার)"
+  ],
+  "orderStatus": "inquiry",
+  "ordersPlaced": [],
+  "phone": "",
+  "district": "Bogura",
+  "thana": "",
+  "address": "",
+  "mentionedLocations": [
+    "Bogura"
+  ],
+  "allHealthKeywords": [],
+  "budgetMentioned": [],
+  "extraFacts": [],
+  "sessionSummaries": [],
+  "lastVoiceTranscript": "",
+  "chatLog": [
+    {
+      "role": "user",
+      "text": "amar bari Bogura, ami driver",
+      "isVoice": false,
+      "time": 1788950853911
+    },
+    {
+      "role": "model",
+      "text": "জি ভাইয়া, আপনার সমস্যাটি আমি বিস্তারিত বুঝলাম।",
+      "isVoice": false,
+      "time": 1788950853911
+    },
+    {
+      "role": "user",
+      "text": "amar name ki boloto?",
+      "isVoice": false,
+      "time": 1788950864801
+    },
+    {
+      "role": "user",
+      "text": "amar boyos koto jano?",
+      "isVoice": false,
+      "time": 1788950864816
+    },
+    {
+      "role": "user",
+      "text": "amar name ki boloto?",
+      "isVoice": false,
+      "time": 1788950875616
+    },
+    {
+      "role": "model",
+      "text": "জি ভাইয়া, আপনার নাম Sabbir Hossain। আমি আপনার সব তথ্যই মনে রেখেছি। \n\nআপনার বয়স ৩০ বছর এবং আপনি পেশায় একজন ড্রাইভার। আপনার দ্রুত বীর্যপাতের যে সমস্যাটি রয়েছে, তা নিয়ে একদম চিন্তা করবেন না। আমাদের অম্বার প্রিমিয়াম কোর্সটি নিয়মিত সেবনে ইনশাআল্লাহ আপনি স্থায়ী সমাধান পাবেন। \n\nআপনার সমস্যাটি কত দিনের ভাইয়া?",
+      "isVoice": false,
+      "time": 1788950877926
+    },
+    {
+      "role": "user",
+      "text": "amar boyos koto jano?",
+      "isVoice": false,
+      "time": 1788950877927
+    },
+    {
+      "role": "model",
+      "text": "জি ভাইয়া, আপনার বয়স ৩০ বছর। আমি আপনার সব তথ্যই মনে রেখেছি। \n\nআপনার দ্রুত বীর্যপাতের সমস্যাটি কতদিন ধরে অনুভব করছেন, সেটি জানালে আমার জন্য আপনার চিকিৎসার পরবর্তী ধাপগুলো বুঝতে সুবিধা হতো। আমাদের অম্বার প্রিমিয়াম কোর্সটি আপনার এই সমস্যার সমাধানে ইনশাআল্লাহ খুব ভালো কাজ করবে।",
+      "isVoice": false,
+      "time": 1788950882173
+    }
+  ],
+  "firstContact": 1788950853909,
+  "lastContact": 1788950882173,
+  "totalMessages": 7,
+  "prefersVoice": false
+}

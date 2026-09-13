@@ -50,6 +50,7 @@ data/customer_memory.json
 data/processed_msg_ids.json
 data/thread_memory.json
 data/webhook_hits.log
+# Keep data/customers/ and data/voice_users.json tracked for VPS deployment
 n8n-workflows/
 scripts/test_*
 scripts/deploy_*
