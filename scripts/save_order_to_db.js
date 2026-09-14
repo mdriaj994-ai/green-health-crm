@@ -35,18 +35,33 @@ function parseOrderFromMessage(text) {
   return { name, phone, district: district || "", thana: thana || "", address: address || "" };
 }
 
+function ensureOrderTable(db) {
+  db.exec(`CREATE TABLE IF NOT EXISTS "Order" (
+    id TEXT PRIMARY KEY,
+    customerName TEXT NOT NULL DEFAULT '',
+    phone TEXT NOT NULL DEFAULT '',
+    district TEXT NOT NULL DEFAULT '',
+    thana TEXT NOT NULL DEFAULT '',
+    address TEXT NOT NULL DEFAULT '',
+    product TEXT NOT NULL DEFAULT '',
+    quantity INTEGER NOT NULL DEFAULT 1,
+    senderId TEXT NOT NULL DEFAULT '',
+    facebookName TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'PENDING',
+    notes TEXT NOT NULL DEFAULT '',
+    pageId TEXT NOT NULL DEFAULT '',
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+}
+
 function saveOrderToDb(orderData) {
   try {
     const dbPath = path.join(process.cwd(), "prisma", "social_inbox.db");
     const db = new Database(dbPath);
 
-    // Check if Order table exists
-    const tableExists = db.prepare("SELECT name FROM sqlite_master WHERE type='table' AND name='Order'").get();
-    if (!tableExists) {
-      console.log("[ORDER_SAVE] Order table does not exist yet, skipping");
-      db.close();
-      return false;
-    }
+    // Auto-create Order table if it doesn't exist (after Redeploy DB reset)
+    ensureOrderTable(db);
 
     // Check for duplicate order from same sender in last 30 minutes
     const recent = db.prepare(
