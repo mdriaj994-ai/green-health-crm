@@ -8,6 +8,8 @@ const fs = require("fs");
 
 const Database = require("better-sqlite3");
 const customerMemory = require("./customer_memory.js");
+const { parseOrderFromMessage, saveOrderToDb } = require("./save_order_to_db.js");
+
 
 const PAGE_ID = process.env.FACEBOOK_PAGE_ID || "110644118793600";
 const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAW6YWihfogBSY4RXyOpTmUMHfuJKokNMjlEQ3rdBuQc6BELYPwGLhfrMldpWsZA2CwZBXrjuB6bfpH2VrqVm2AVcs3lkZApVZA8bEPyivSudibUjN5vdNNuBY82ZBezIOlyL8g7mBOoxgVhyJtKt7MJMTFrbFZC77ZCshT4ZATflRUkhhkUC9lkib8O3sfMpaN1mtwZD";
@@ -1356,6 +1358,33 @@ async function pollOnce() {
             if (isOrderPlaced(messageText)) {
               // Customer gave order info → cancel any pending reminder
               cancelScheduledReminder(senderId);
+
+              // ── AUTO SAVE ORDER TO DASHBOARD ──
+              try {
+                const parsed = parseOrderFromMessage(messageText);
+                const memProf = customerMemory.getCustomerProfile(senderId);
+                if (parsed || (memProf?.phone && memProf?.address)) {
+                  const orderData = {
+                    customerName: memProf?.name && !["ভাইয়া","customer"].includes(memProf.name.toLowerCase())
+                      ? memProf.name : parsed?.name || customerName,
+                    phone:     parsed?.phone   || memProf?.phone || "",
+                    district:  parsed?.district || memProf?.district || "",
+                    thana:     parsed?.thana    || memProf?.thana || "",
+                    address:   parsed?.address  || memProf?.address || "",
+                    product:   memProf?.productDiscussed || "",
+                    senderId:  String(senderId),
+                    facebookName: memProf?.facebookName || "",
+                    pageId:    String(page.pageId),
+                  };
+                  if (orderData.phone) {
+                    const saved = saveOrderToDb(orderData);
+                    if (saved) console.log(`[ORDER] 📦 Order saved to dashboard for ${orderData.customerName}`);
+                  }
+                }
+              } catch (orderErr) {
+                console.warn("[ORDER_SAVE_ERR]", orderErr.message);
+              }
+
             } else {
               const schedIntent = detectScheduledIntent(messageText);
               if (schedIntent) {

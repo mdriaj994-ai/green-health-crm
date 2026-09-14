@@ -193,3 +193,31 @@ model AutoReplyRule {
   accountId      String
 }
 
+
+// --- Customer Orders (Bot-detected confirmed orders) -------------------------
+
+model Order {
+  id           String      @id @default(cuid())
+  customerName String
+  phone        String
+  district     String      @default("")
+  thana        String      @default("")
+  address      String
+  product      String      @default("")
+  quantity     Int         @default(1)
+  senderId     String
+  facebookName String      @default("")
+  status       OrderStatus @default(PENDING)
+  notes        String      @default("")
+  pageId       String      @default("")
+  createdAt    DateTime    @default(now())
+  updatedAt    DateTime    @updatedAt
+}
+
+enum OrderStatus {
+  PENDING
+  CONFIRMED
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
