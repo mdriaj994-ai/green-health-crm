@@ -47,6 +47,7 @@ function getActivePages() {
 const PROCESSED_FILE = path.join(process.cwd(), "data", "processed_msg_ids.json");
 const THREAD_MEMORY_FILE = path.join(process.cwd(), "data", "thread_memory.json");
 const VOICE_USERS_FILE = path.join(process.cwd(), "data", "voice_users.json");
+const SCHEDULED_REMINDERS_FILE = path.join(process.cwd(), "data", "scheduled_reminders.json");
 const processedIds = new Set();
 const threadMemory = new Map();
 const voiceUsers = new Set();
@@ -1298,6 +1299,11 @@ async function pollOnce() {
             // Generate AI reply with thread memory and page-specific identity
             const isVoiceReq = userInVoiceMode || isVoiceRequested(messageText) || isOnlyVoice;
             const replyText = await generateReply(messageText, customerName, senderId, recentHistory, page.pageName, isVoiceReq);
+            // ── Detect & Schedule follow-up if customer mentions future time ──
+            const schedIntent = detectScheduledIntent(messageText);
+            if (schedIntent && /(নেব|নিব|করব|অর্ডার|কিনব|পরে|কাল|কালকে)/i.test(messageText)) {
+              saveScheduledReminder(senderId, schedIntent.scheduledAt, page.accessToken, customerName, page.pageId);
+            }
             console.log(`[FB_BOT] 🤖 [${page.pageName}] REPLY: "${replyText.slice(0, 70)}..."`);
 
             if (userInVoiceMode) {
@@ -1388,6 +1394,10 @@ async function startBot() {
 
   // Poll every 2.0 seconds
   setInterval(pollOnce, 2000);
+  // Check scheduled reminders every 5 minutes
+  setInterval(checkAndSendScheduledReminders, 5 * 60 * 1000);
+  // Also check immediately after 30s boot
+  setTimeout(checkAndSendScheduledReminders, 30000);
 
   // Start smart follow-up scheduler (checks every hour)
   setTimeout(async () => {
