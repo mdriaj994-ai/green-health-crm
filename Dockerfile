@@ -33,4 +33,8 @@ ENV ELEVENLABS_VOICE_ID="nsJQzXf7dXyDnOFqO3uX"
 
 EXPOSE 3000
 
+# Declare /app/data as a persistent volume mount point
+# In Coolify: Configuration → Storages → Add → Source: /app-data, Target: /app/data
+VOLUME ["/app/data"]
+
 CMD ["node", "scripts/start-all.js"]
