@@ -553,7 +553,7 @@ function buildCustomerMemoryPrompt(senderId, fallbackName) {
     '5. NEVER ask for marital status again. Known: ' + (profile.maritalStatus || 'NOT GIVEN'),
     '6. NEVER ask about symptoms already mentioned. Known: ' + symptomStr,
     '7. Continue conversation naturally — do NOT repeat any question already answered.',
-    '8. Address customer as: ' + (hasRealName ? '"' + profile.name + ' ভাই"' : '"ভাইয়া"'),
+    '8. DEFAULT ADDRESS = "ভাইয়া" (like Sir/Brother, NOT a name). Only use real name if Known Customer Name shows actual name (NOT "NOT PROVIDED YET").',
     '9. If order placed before (' + ordersCount + '), ask about delivery/results first.',
     '10. DO NOT repeat welcome or introduction if totalMessages > 2.',
   ].filter(Boolean).join('\n');
