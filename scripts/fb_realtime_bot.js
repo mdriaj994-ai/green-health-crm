@@ -1242,13 +1242,20 @@ async function pollOnce() {
             }
 
             saveProcessedId(lastMsg.id); // Mark in memory & disk immediately
-            // Use only name customer told us — NEVER Facebook profile name
+            // Use only name customer told us — NEVER use Facebook profile name for addressing
             const _fbProfile = lastMsg.from?.name || "";
             const _memProf = senderId ? customerMemory.getCustomerProfile(senderId) : null;
+
+            // Save FB profile name as metadata (internal only, never used to address)
+            if (_fbProfile && _memProf && !_memProf.facebookName) {
+              customerMemory.updateCustomerProfile(String(lastMsg.from.id), { facebookName: _fbProfile });
+            }
+
             const _memName = _memProf?.name || "";
-            const _isRealName = _memName && !["ভাইয়া","Customer","কাস্টমার","NOT PROVIDED YET","customer","vaiya"].includes(_memName.toLowerCase());
+            const _isRealName = _memName && !["ভাইয়া","Customer","কাস্টমার","NOT PROVIDED YET","customer","vaiya",""].includes(_memName.trim().toLowerCase());
             const customerName = _isRealName ? _memName : "ভাইয়া";
             const senderId = lastMsg.from.id;
+
             let messageText = (lastMsg.message || "").trim();
 
             // Detect and transcribe customer voice notes
