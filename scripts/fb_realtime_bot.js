@@ -618,6 +618,15 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
     - কাস্টমার কোনো তথ্য দিলে সেটা নিশ্চিত করে আগ্রহ দেখাও, আবার জিজ্ঞেস করো না।
     - কোনো তথ্য বা সমস্যা ইতোমধ্যে জানা থাকলে সেটা আবার জিজ্ঞেস করা সম্পূর্ণ নিষিদ্ধ।
 
+
+19. STRICT NAME RULE (নাম ডাকার নিয়ম - লঙ্ঘন সম্পূর্ণ নিষিদ্ধ):
+    - ABSOLUTE BAN: NEVER use the customer's Facebook account name or profile name to address them.
+    - ONLY use a name if the customer EXPLICITLY told you their name during this conversation.
+    - If the customer has not told you their name → ALWAYS call them "ভাইয়া" (NEVER use their Facebook name).
+    - If the customer told you their name is "রাহেলা" or "Kabir" etc. → you may use it warmly once.
+    - NEVER say "[Facebook Profile Name] ভাইয়া" or any variation using the account name.
+    - DEFAULT address: "ভাইয়া" (always safe, always respectful).
+
 ${customerMemoryPrompt ? `\n${customerMemoryPrompt}\n` : ""}
 ${productContext ? `\n--- LIVE MEDICINE DASHBOARD DATA ---\n${productContext}\n-----------------------------------\n` : ""}
 ${masterKB ? `\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\n${masterKB}\n-----------------------------------------------\n` : ""}
@@ -636,7 +645,8 @@ ${voiceModeInstruction}
       const historyText = effectiveHistory && effectiveHistory.length > 0
         ? `Recent Conversation Context:\n${effectiveHistory.join("\n")}\n\n`
         : "";
-      const prompt = `${historyText}Customer (${senderName || "Customer"}): "${customerMessage}"\nReply:`;
+      const _displayName = (senderName && !["ভাইয়া","Customer","কাস্টমার"].includes(senderName)) ? senderName : "ভাইয়া";
+      const prompt = `${historyText}Customer (${_displayName}): "${customerMessage}"\nReply:`;
       const res = await model.generateContent(prompt);
       let text = res.response.text().trim();
       if (text && text.length > 3) {
@@ -1229,7 +1239,12 @@ async function pollOnce() {
             }
 
             saveProcessedId(lastMsg.id); // Mark in memory & disk immediately
-            const customerName = lastMsg.from?.name || "Customer";
+            // Use only name customer told us — NEVER Facebook profile name
+            const _fbProfile = lastMsg.from?.name || "";
+            const _memProf = senderId ? customerMemory.getCustomerProfile(senderId) : null;
+            const _memName = _memProf?.name || "";
+            const _isRealName = _memName && !["ভাইয়া","Customer","কাস্টমার","NOT PROVIDED YET","customer","vaiya"].includes(_memName.toLowerCase());
+            const customerName = _isRealName ? _memName : "ভাইয়া";
             const senderId = lastMsg.from.id;
             let messageText = (lastMsg.message || "").trim();
 
