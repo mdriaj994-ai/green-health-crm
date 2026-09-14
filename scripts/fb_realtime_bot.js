@@ -982,35 +982,6 @@ async function transcribeAudioWithGemini(audioUrl, pageAccessToken = PAGE_TOKEN)
   try {
     const url = audioUrl.includes("access_token") ? audioUrl : audioUrl + (audioUrl.includes("?") ? "&" : "?") + "access_token=" + pageAccessToken;
     const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(9000) });
-    if (!res.ok) return "";
-    const buf = Buffer.from(await res.arrayBuffer());
-    if (buf.length < 500) return "";
-    const b64 = buf.toString("base64");
-
-    const models = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-3.1-flash-lite-preview", "gemini-flash-lite-latest"];
-    for (const m of models) {
-      try {
-        const model = genAI.getGenerativeModel({ model: m });
-        const genRes = await model.generateContent([
-          { inlineData: { data: b64, mimeType: "audio/mp3" } },
-          "Transcribe the exact spoken words in Bengali or English accurately. Output ONLY the transcription text without commentary."
-        ]);
-        const text = genRes.response.text().trim();
-        if (text && text.length > 1) {
-          console.log(`[FB_BOT_STT] (${m}) Transcribed customer audio: "${text}"`);
-          return text;
-        }
-      } catch (e) {}
-    }
-  } catch (err) {
-    console.warn("[FB_BOT_STT_ERR]", err.message);
-  }
-  return "";
-}
-
-function splitTextIntoVoiceChunks(text, maxChars = 800) {
-  if (!text || text.length <= maxChars) return [text];
-
   const chunks = [];
   const sentences = text.split(/(?<=[।?!.\n])/g);
   let currentChunk = "";
@@ -1337,9 +1308,22 @@ async function pollOnce() {
                 customerMemory.appendChatMessage(senderId, "model", replyText, true);
                 recordOutgoingBotMessageInDb(senderId, replyText, true);
               } else {
-                // Fallback to text if voice note generation failed
                 await sendFacebookMessage(senderId, replyText, page.accessToken);
                 recordOutgoingBotMessageInDb(senderId, replyText, false);
+              }
+
+              // Order card: also send text when collecting order info
+              const isOrderCollecting = /নাম|ঠিকানা|মোবাইল|জেলা|উপজেলা|অর্ডার|ডেলিভারি|পাঠিয়ে দেব/i.test(replyText);
+              if (isOrderCollecting && sentVoice) {
+                await sleep(1500);
+                const orderCard = `📋 অর্ডার করতে নিচের তথ্যগুলো লিখে পাঠান:
+
+১. আপনার পুরো নাম
+২. পূর্ণ ঠিকানা (গ্রাম, উপজেলা, জেলা)
+৩. মোবাইল নম্বর
+
+✅ তথ্য পেলেই দ্রুত পাঠিয়ে দেব ইনশাআল্লাহ।`
+                await sendFacebookMessage(senderId, orderCard, page.accessToken);
               }
             } else {
               const sendResult = await sendFacebookMessage(senderId, replyText, page.accessToken, lastMsg.id);
