@@ -983,14 +983,39 @@ async function transcribeAudioWithGemini(audioUrl, pageAccessToken = PAGE_TOKEN)
   try {
     const url = audioUrl.includes("access_token") ? audioUrl : audioUrl + (audioUrl.includes("?") ? "&" : "?") + "access_token=" + pageAccessToken;
     const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(9000) });
-  const chunks = [];
-  const sentences = text.split(/(?<=[।?!.\n])/g);
-  let currentChunk = "";
+    if (!res.ok) return "";
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length < 500) return "";
+    const b64 = buf.toString("base64");
+    const models = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-flash-lite-latest"];
+    for (const m of models) {
+      try {
+        const model = genAI.getGenerativeModel({ model: m });
+        const genRes = await model.generateContent([
+          { inlineData: { data: b64, mimeType: "audio/mp3" } },
+          "Transcribe the exact spoken words in Bengali or English accurately. Output ONLY the transcription text without commentary."
+        ]);
+        const text = genRes.response.text().trim();
+        if (text && text.length > 1) {
+          console.log(`[FB_BOT_STT] (${m}) Transcribed: "${text.slice(0, 60)}"`);
+          return text;
+        }
+      } catch (e) {}
+    }
+  } catch (err) {
+    console.warn("[FB_BOT_STT_ERR]", err.message);
+  }
+  return "";
+}
 
+function splitTextIntoVoiceChunks(text, maxChars = 800) {
+  if (!text || text.length <= maxChars) return [text];
+  const chunks = [];
+  const sentences = text.split(/(?<=[।?!.])/g);
+  let currentChunk = "";
   for (const sentence of sentences) {
     const trimmed = sentence.trim();
     if (!trimmed) continue;
-
     if ((currentChunk + " " + trimmed).trim().length <= maxChars) {
       currentChunk = currentChunk ? (currentChunk + " " + trimmed) : trimmed;
     } else {
@@ -1013,7 +1038,6 @@ async function transcribeAudioWithGemini(audioUrl, pageAccessToken = PAGE_TOKEN)
       }
     }
   }
-
   if (currentChunk) chunks.push(currentChunk);
   return chunks.length > 0 ? chunks : [text];
 }
@@ -1299,10 +1323,21 @@ async function pollOnce() {
             // Generate AI reply with thread memory and page-specific identity
             const isVoiceReq = userInVoiceMode || isVoiceRequested(messageText) || isOnlyVoice;
             const replyText = await generateReply(messageText, customerName, senderId, recentHistory, page.pageName, isVoiceReq);
-            // ── Detect & Schedule follow-up if customer mentions future time ──
-            const schedIntent = detectScheduledIntent(messageText);
-            if (schedIntent && /(নেব|নিব|করব|অর্ডার|কিনব|পরে|কাল|কালকে)/i.test(messageText)) {
-              saveScheduledReminder(senderId, schedIntent.scheduledAt, page.accessToken, customerName, page.pageId);
+            // ── Scheduled Reminder: detect, schedule, or cancel ──
+            if (isOrderPlaced(messageText)) {
+              // Customer gave order info → cancel any pending reminder
+              cancelScheduledReminder(senderId);
+            } else {
+              const schedIntent = detectScheduledIntent(messageText);
+              if (schedIntent) {
+                // Only schedule if customer doesn't already have a pending reminder in last 10 mins
+                let existingReminders = [];
+                try { if (fs.existsSync(SCHEDULED_REMINDERS_FILE)) existingReminders = JSON.parse(fs.readFileSync(SCHEDULED_REMINDERS_FILE, "utf8")); } catch {}
+                const recent = existingReminders.find(r => r.senderId === senderId && (new Date(r.createdAt) > new Date(Date.now() - 600000)));
+                if (!recent) {
+                  saveScheduledReminder(senderId, schedIntent.scheduledAt, page.accessToken, customerName, page.pageId);
+                }
+              }
             }
             console.log(`[FB_BOT] 🤖 [${page.pageName}] REPLY: "${replyText.slice(0, 70)}..."`);
 
@@ -1349,6 +1384,164 @@ async function pollOnce() {
     // Network hiccup - ignore and keep polling
   } finally {
     isPolling = false;
+  }
+}
+
+
+// ══════════════════════════════════════════════════════════════════════════════
+// ── Scheduled Reminder System ─────────────────────────────────────────────────
+// ══════════════════════════════════════════════════════════════════════════════
+
+// Detect if customer gave order info (phone, address+name) → reminder should be cancelled
+function isOrderPlaced(message) {
+  if (!message) return false;
+  const hasPhone = /01[3-9]\d{8}|\+8801[3-9]\d{8}/.test(message);
+  const hasAddress = /(জেলা|উপজেলা|থানা|রোড|গ্রাম|বাড়ি|মহল্লা|পাড়া|ward|para|road|village)/.test(message);
+  const hasName = /(আমার নাম|নাম হলো|নাম:|নামঃ|my name|name is)/i.test(message);
+  return hasPhone || (hasAddress && (hasName || hasPhone));
+}
+
+// Cancel any pending reminder for this customer
+function cancelScheduledReminder(senderId) {
+  if (!fs.existsSync(SCHEDULED_REMINDERS_FILE)) return;
+  try {
+    let reminders = JSON.parse(fs.readFileSync(SCHEDULED_REMINDERS_FILE, "utf8"));
+    const before = reminders.length;
+    reminders = reminders.filter(r => r.senderId !== senderId);
+    if (reminders.length < before) {
+      fs.writeFileSync(SCHEDULED_REMINDERS_FILE, JSON.stringify(reminders, null, 2), "utf8");
+      console.log(`[REMINDER] Cancelled scheduled reminder for ${senderId} — order detected`);
+    }
+  } catch {}
+}
+
+// Save a scheduled reminder to file
+function saveScheduledReminder(senderId, scheduledAt, accessToken, customerName, pageId) {
+  let reminders = [];
+  if (fs.existsSync(SCHEDULED_REMINDERS_FILE)) {
+    try { reminders = JSON.parse(fs.readFileSync(SCHEDULED_REMINDERS_FILE, "utf8")); } catch {}
+  }
+  reminders = reminders.filter(r => r.senderId !== senderId);
+  reminders.push({
+    senderId, pageId,
+    scheduledAt: scheduledAt.toISOString(),
+    accessToken,
+    customerName: customerName || "ভাইয়া",
+    createdAt: new Date().toISOString()
+  });
+  fs.writeFileSync(SCHEDULED_REMINDERS_FILE, JSON.stringify(reminders, null, 2), "utf8");
+  const timeStr = scheduledAt.toLocaleTimeString("bn-BD", { hour: "2-digit", minute: "2-digit" });
+  console.log(`[REMINDER] Scheduled for ${customerName || senderId} at ${scheduledAt.toLocaleDateString()} ${timeStr}`);
+}
+
+// Smart time intent detection — covers 60+ expressions
+function detectScheduledIntent(message) {
+  if (!message) return null;
+  const msg = message;
+  const msgL = msg.toLowerCase();
+  const now = new Date();
+
+  const bn2en = (s) => String(s).replace(/[০-৯]/g, d => "০১২৩৪৫৬৭৮৯".indexOf(d));
+  const inHours = (h) => new Date(now.getTime() + Math.round(h * 3600000));
+  const nextDay = (h = 10) => { const d = new Date(now); d.setDate(d.getDate() + 1); d.setHours(h, 0, 0, 0); return d; };
+  const inDays = (n, h = 10) => { const d = new Date(now); d.setDate(d.getDate() + n); d.setHours(h, 0, 0, 0); return d; };
+  const todayAt = (h) => { const d = new Date(now); d.setHours(h, 0, 0, 0); return d; };
+
+  // X ঘণ্টা / ghonta pore
+  const hrM = msg.match(/([০-৯d]+)s*(?:[-–]s*[০-৯d]+)?s*(?:[ঘg][ণn]?্?[টt][াa]?|hour|hr)s*(?:পরে?|পর|বাদে|later|pore|par|bad)/i);
+  if (hrM) {
+    const h = parseInt(bn2en(hrM[1])) || 2;
+    return { label: h + " ঘণ্টা পরে", scheduledAt: inHours(h) };
+  }
+
+  // মিনিট পরে
+  const minM = msg.match(/([০-৯d]+)s*(?:মিনিট|min)s*(?:পরে?|পর|বাদে)/i);
+  if (minM) {
+    const m = parseInt(bn2en(minM[1])) || 30;
+    return { label: m + " মিনিট পরে", scheduledAt: inHours(m / 60) };
+  }
+
+  // আধাঘণ্টা
+  if (/আধা?s*ঘণ?্?টা|half.?hour/i.test(msg)) return { label: "আধাঘণ্টা পরে", scheduledAt: inHours(0.5) };
+
+  // কালকে সকালে
+  if (/কাল(কে)?s*(সকাল|ভোর|morning)|kals*sokale/i.test(msgL)) return { label: "কালকে সকালে", scheduledAt: nextDay(9) };
+
+  // কালকে বিকেলে/সন্ধ্যায়
+  if (/কাল(কে)?s*(বিকেল|সন্ধ্যা|evening|bikel|shondha)/i.test(msgL)) return { label: "কালকে বিকেলে", scheduledAt: nextDay(17) };
+
+  // কালকে রাতে
+  if (/কাল(কে)?s*(রাতে?|night|rat)/i.test(msgL)) return { label: "কালকে রাতে", scheduledAt: nextDay(21) };
+
+  // কালকে (generic)
+  if (/কাল(কে)?|tomorrow|kal(ke)?/.test(msgL) &&
+      /নেব|নিব|করব|অর্ডার|কিনব|জানাব|nibo|korbo|order|buy/i.test(msgL)) {
+    return { label: "কালকে", scheduledAt: nextDay(10) };
+  }
+
+  // পরশু
+  if (/পরশু|poroshuu?|day.?after.?tomorrow/i.test(msgL)) return { label: "পরশু", scheduledAt: inDays(2, 10) };
+
+  // আজ সন্ধ্যায়
+  if (/আজ(কে)?s*(বিকেল|সন্ধ্যা|evening)|bikel.*nibo/i.test(msgL)) {
+    const d = todayAt(18); if (d > now) return { label: "আজ সন্ধ্যায়", scheduledAt: d };
+  }
+
+  // আজ রাতে
+  if (/আজ(কে)?s*(রাতে?|night)|tonight/i.test(msgL)) {
+    const d = todayAt(21); if (d > now) return { label: "আজ রাতে", scheduledAt: d };
+  }
+
+  // X দিন পরে
+  const dayM = msg.match(/([০-৯d]+)s*[দd]িনs*(পরে?|পর|বাদে|par)/i);
+  if (dayM) { const n = parseInt(bn2en(dayM[1])) || 2; return { label: n + " দিন পরে", scheduledAt: inDays(n, 10) }; }
+
+  // বেতনের পরে / টাকা হলে
+  if (/বেতন|salary|টাকা.{0,10}হলে|taka.*hole/i.test(msgL)) return { label: "বেতনের পরে", scheduledAt: inDays(7, 10) };
+
+  // পরে নেব / একটু পরে / এখন না
+  if (/একটু পরে?|কিছুক্ষণ পরে?|একটু বাদে|পরেs*নেব|পরেs*নিব|পরেs*করব|পরেs*অর্ডার|পরেs*জানাব|ektus*pore|pores*nibo|later/i.test(msgL)) {
+    return { label: "একটু পরে", scheduledAt: inHours(1) };
+  }
+
+  // এখন না
+  if (/এখনs*না|nots*now|abhis*na/i.test(msgL)) return { label: "পরে", scheduledAt: inHours(2) };
+
+  return null;
+}
+
+// Send due scheduled reminders — runs every 5 minutes
+async function checkAndSendScheduledReminders() {
+  if (!fs.existsSync(SCHEDULED_REMINDERS_FILE)) return;
+  let reminders = [];
+  try { reminders = JSON.parse(fs.readFileSync(SCHEDULED_REMINDERS_FILE, "utf8")); } catch { return; }
+
+  const now = new Date();
+  const due = reminders.filter(r => new Date(r.scheduledAt) <= now);
+  const pending = reminders.filter(r => new Date(r.scheduledAt) > now);
+
+  for (const r of due) {
+    try {
+      const name = r.customerName || "ভাইয়া";
+      const opts = [
+        `${name}, আপনি বলেছিলেন একটু পরে অর্ডার করবেন। এখন কি সুবিধা হবে? আমি প্রস্তুত আছি।`,
+        `${name}, আশা করি এখন সুবিধা হয়েছে। অর্ডারটা দিয়ে দিন — দ্রুত পাঠিয়ে দেব ইনশাআল্লাহ।`,
+        `${name}, আপনার কথামতো সময়মতো জানাচ্ছি। অর্ডার করতে চাইলে নাম, ঠিকানা ও মোবাইল জানান।`,
+      ];
+      const msg = opts[Math.floor(Math.random() * opts.length)];
+      const activePages = getActivePages();
+      const pg = activePages.find(p => p.pageId === r.pageId) || activePages[0];
+      if (!pg) continue;
+      const token = r.accessToken || pg.accessToken;
+      await sendFacebookMessage(r.senderId, msg, token);
+      customerMemory.appendChatMessage(r.senderId, "model", msg, false);
+      console.log(`[REMINDER] Sent to ${name} (${r.senderId})`);
+    } catch (e) { console.warn("[REMINDER_ERR]", e.message); }
+    await sleep(2000);
+  }
+
+  if (due.length > 0) {
+    fs.writeFileSync(SCHEDULED_REMINDERS_FILE, JSON.stringify(pending, null, 2), "utf8");
   }
 }
 
