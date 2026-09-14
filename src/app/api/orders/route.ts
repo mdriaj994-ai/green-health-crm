@@ -1,70 +1,109 @@
 // src/app/api/orders/route.ts
+// Uses better-sqlite3 directly to ensure correct DB path (prisma/social_inbox.db)
 import { NextRequest, NextResponse } from "next/server";
-import { prisma } from "@/lib/prisma";
+import path from "path";
+
+function getDb() {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  const Database = require("better-sqlite3");
+  const dbPath = path.join(process.cwd(), "prisma", "social_inbox.db");
+  return new Database(dbPath);
+}
+
+function generateId() {
+  return "c" + require("crypto").randomBytes(16).toString("hex");
+}
 
 export async function GET(req: NextRequest) {
   try {
     const { searchParams } = new URL(req.url);
     const status = searchParams.get("status");
-    const page = parseInt(searchParams.get("page") || "1");
-    const limit = parseInt(searchParams.get("limit") || "50");
-    const skip = (page - 1) * limit;
+    const limit = parseInt(searchParams.get("limit") || "100");
 
-    const where = status && status !== "ALL" ? { status: status as any } : {};
+    const db = getDb();
 
-    const [orders, total] = await Promise.all([
-      prisma.order.findMany({
-        where,
-        orderBy: { createdAt: "desc" },
-        take: limit,
-        skip,
-      }),
-      prisma.order.count({ where }),
-    ]);
+    // Ensure Order table exists
+    db.exec(`CREATE TABLE IF NOT EXISTS "Order" (
+      id TEXT PRIMARY KEY,
+      customerName TEXT NOT NULL DEFAULT '',
+      phone TEXT NOT NULL DEFAULT '',
+      district TEXT NOT NULL DEFAULT '',
+      thana TEXT NOT NULL DEFAULT '',
+      address TEXT NOT NULL DEFAULT '',
+      product TEXT NOT NULL DEFAULT '',
+      quantity INTEGER NOT NULL DEFAULT 1,
+      senderId TEXT NOT NULL DEFAULT '',
+      facebookName TEXT NOT NULL DEFAULT '',
+      status TEXT NOT NULL DEFAULT 'PENDING',
+      notes TEXT NOT NULL DEFAULT '',
+      pageId TEXT NOT NULL DEFAULT '',
+      createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+      updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+    )`);
 
-    return NextResponse.json({ orders, total, page, limit });
-  } catch (error) {
+    let orders;
+    let total;
+
+    if (status && status !== "ALL") {
+      orders = db.prepare(`SELECT * FROM "Order" WHERE status = ? ORDER BY createdAt DESC LIMIT ?`).all(status, limit);
+      total = (db.prepare(`SELECT COUNT(*) as c FROM "Order" WHERE status = ?`).get(status) as any).c;
+    } else {
+      orders = db.prepare(`SELECT * FROM "Order" ORDER BY createdAt DESC LIMIT ?`).all(limit);
+      total = (db.prepare(`SELECT COUNT(*) as c FROM "Order"`).get() as any).c;
+    }
+
+    db.close();
+    return NextResponse.json({ orders, total });
+  } catch (error: any) {
     console.error("[API/ORDERS GET]", error);
-    return NextResponse.json({ error: "Failed to fetch orders" }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
     const body = await req.json();
-    const order = await prisma.order.create({
-      data: {
-        customerName: body.customerName || "অজ্ঞাত",
-        phone: body.phone || "",
-        district: body.district || "",
-        thana: body.thana || "",
-        address: body.address || "",
-        product: body.product || "",
-        quantity: body.quantity || 1,
-        senderId: body.senderId || "",
-        facebookName: body.facebookName || "",
-        pageId: body.pageId || "",
-        notes: body.notes || "",
-        status: "PENDING",
-      },
-    });
+    const db = getDb();
+    const id = generateId();
+    const now = new Date().toISOString();
+
+    db.prepare(`INSERT INTO "Order" (id, customerName, phone, district, thana, address, product, quantity, senderId, facebookName, status, notes, pageId, createdAt, updatedAt)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(
+      id,
+      body.customerName || "অজ্ঞাত",
+      body.phone || "",
+      body.district || "",
+      body.thana || "",
+      body.address || "",
+      body.product || "",
+      body.quantity || 1,
+      body.senderId || "",
+      body.facebookName || "",
+      "PENDING",
+      body.notes || "",
+      body.pageId || "",
+      now, now
+    );
+
+    const order = db.prepare(`SELECT * FROM "Order" WHERE id = ?`).get(id);
+    db.close();
     return NextResponse.json({ order });
-  } catch (error) {
+  } catch (error: any) {
     console.error("[API/ORDERS POST]", error);
-    return NextResponse.json({ error: "Failed to create order" }, { status: 500 });
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
 
 export async function PATCH(req: NextRequest) {
   try {
-    const body = await req.json();
-    const { id, status } = body;
-    const order = await prisma.order.update({
-      where: { id },
-      data: { status },
-    });
+    const { id, status } = await req.json();
+    const db = getDb();
+    const now = new Date().toISOString();
+    db.prepare(`UPDATE "Order" SET status = ?, updatedAt = ? WHERE id = ?`).run(status, now, id);
+    const order = db.prepare(`SELECT * FROM "Order" WHERE id = ?`).get(id);
+    db.close();
     return NextResponse.json({ order });
-  } catch (error) {
-    return NextResponse.json({ error: "Failed to update order" }, { status: 500 });
+  } catch (error: any) {
+    return NextResponse.json({ error: error.message }, { status: 500 });
   }
 }
