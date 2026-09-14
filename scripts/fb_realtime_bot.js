@@ -11,6 +11,10 @@ const customerMemory = require("./customer_memory.js");
 
 const PAGE_ID = process.env.FACEBOOK_PAGE_ID || "110644118793600";
 const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAW6YWihfogBSY4RXyOpTmUMHfuJKokNMjlEQ3rdBuQc6BELYPwGLhfrMldpWsZA2CwZBXrjuB6bfpH2VrqVm2AVcs3lkZApVZA8bEPyivSudibUjN5vdNNuBY82ZBezIOlyL8g7mBOoxgVhyJtKt7MJMTFrbFZC77ZCshT4ZATflRUkhhkUC9lkib8O3sfMpaN1mtwZD";
+const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID || "1612302413561480";
+const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET || "a41c4fa1bcb53a17c301a2e68263a65c";
+const FACEBOOK_PAGE_ID = process.env.FACEBOOK_PAGE_ID || "110644118793600";
+
 const GEMINI_KEY = process.env.GEMINI_API_KEY || Buffer.from("QVEuQWI4Uk42Si0xTTlKMDlNNlJfS2tjZU9LNjVraVd2Z3NydGZUX2pQZm5JY1NtejB4eXc=", "base64").toString("utf-8");
 
 // Fetch all active connected Facebook pages dynamically from database
@@ -1553,7 +1557,7 @@ async function startBot() {
 
   // Load existing conversation thread memory
   loadThreadMemory();
-  // Auto-sync: on startup, update DB token from env if DB token is expired/short
+  // Auto-sync: on startup, validate and sync DB token from env var
   try {
     const _envTok = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || PAGE_TOKEN;
     if (_envTok && _envTok.length > 150) {
