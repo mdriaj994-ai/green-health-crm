@@ -33,8 +33,12 @@ ENV ELEVENLABS_VOICE_ID="nsJQzXf7dXyDnOFqO3uX"
 
 EXPOSE 3000
 
+# Copy data directory to a backup location NOT covered by the volume mount
+# On first boot, startup will auto-copy from /app/data-init to /app/data if empty
+RUN cp -r /app/data /app/data-init 2>/dev/null || mkdir -p /app/data-init
+
 # Declare /app/data as a persistent volume mount point
-# In Coolify: Configuration → Storages → Add → Source: /app-data, Target: /app/data
+# In Coolify: Configuration → Storages → Directories → /app/data
 VOLUME ["/app/data"]
 
 CMD ["node", "scripts/start-all.js"]

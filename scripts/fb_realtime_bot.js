@@ -1595,10 +1595,45 @@ async function checkAndSendScheduledReminders() {
 
 // ── Start Engine ─────────────────────────────────────────────────────────────
 async function startBot() {
-  
+
+  // ══ VOLUME DATA AUTO-INIT — runs on first boot after volume mount ══
+  // If /app/data is empty (fresh volume), restore from /app/data-init backup
+  try {
+    const dataDir = path.join(process.cwd(), "data");
+    const initDir = path.join(process.cwd(), "data-init");
+    if (fs.existsSync(initDir)) {
+      const dataFiles = fs.existsSync(dataDir) ? fs.readdirSync(dataDir) : [];
+      const hasData = dataFiles.some(f => f.endsWith(".json") || fs.statSync(path.join(dataDir, f)).isDirectory());
+      if (!hasData) {
+        console.log("[STARTUP] 📂 Empty data volume detected. Restoring from backup...");
+        const copyDir = (src, dest) => {
+          if (!fs.existsSync(dest)) fs.mkdirSync(dest, { recursive: true });
+          for (const f of fs.readdirSync(src)) {
+            const srcPath = path.join(src, f);
+            const destPath = path.join(dest, f);
+            if (fs.statSync(srcPath).isDirectory()) copyDir(srcPath, destPath);
+            else if (!fs.existsSync(destPath)) fs.copyFileSync(srcPath, destPath);
+          }
+        };
+        copyDir(initDir, dataDir);
+        console.log("[STARTUP] ✅ Customer data restored from backup!");
+        // Run migration to create folder structure
+        try {
+          require("child_process").execSync(`node ${path.join(__dirname, "migrate_existing_chats.js")}`, { stdio: "pipe" });
+          console.log("[STARTUP] ✅ Customer folder migration completed!");
+        } catch {}
+      } else {
+        console.log("[STARTUP] ✅ Data volume has existing data — no restore needed.");
+      }
+    }
+  } catch (_initErr) {
+    console.warn("[STARTUP_DATA_INIT]", _initErr.message);
+  }
+
   // ══ STARTUP TOKEN VALIDATION — runs on every boot ══
   // Checks if DB token is valid. If expired, uses hardcoded permanent token.
   (async () => {
+
     try {
       const HARD_TOKEN = "EAAW6YWihfogBSY4RXyOpTmUMHfuJKokNMjlEQ3rdBuQc6BELYPwGLhfrMldpWsZA2CwZBXrjuB6bfpH2VrqVm2AVcs3lkZApVZA8bEPyivSudibUjN5vdNNuBY82ZBezIOlyL8g7mBOoxgVhyJtKt7MJMTFrbFZC77ZCshT4ZATflRUkhhkUC9lkib8O3sfMpaN1mtwZD";
       const _dbFile = path.join(process.cwd(), "prisma", "social_inbox.db");
