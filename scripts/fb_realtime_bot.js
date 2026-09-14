@@ -1580,7 +1580,64 @@ async function checkAndSendScheduledReminders() {
 
 // ── Start Engine ─────────────────────────────────────────────────────────────
 async function startBot() {
-  console.log("=================================================");
+  
+  // ══ STARTUP TOKEN VALIDATION — runs on every boot ══
+  // Checks if DB token is valid. If expired, uses hardcoded permanent token.
+  (async () => {
+    try {
+      const HARD_TOKEN = "EAAW6YWihfogBSY4RXyOpTmUMHfuJKokNMjlEQ3rdBuQc6BELYPwGLhfrMldpWsZA2CwZBXrjuB6bfpH2VrqVm2AVcs3lkZApVZA8bEPyivSudibUjN5vdNNuBY82ZBezIOlyL8g7mBOoxgVhyJtKt7MJMTFrbFZC77ZCshT4ZATflRUkhhkUC9lkib8O3sfMpaN1mtwZD";
+      const _dbFile = path.join(process.cwd(), "prisma", "social_inbox.db");
+      if (!fs.existsSync(_dbFile)) return;
+      const _db = new Database(_dbFile);
+      const _row = _db.prepare("SELECT accessToken FROM ConnectedAccount WHERE platform = 'FACEBOOK'").get();
+      const _cur = _row?.accessToken || "";
+
+      // Validate current DB token
+      const _check = await fetch("https://graph.facebook.com/v19.0/me?access_token=" + _cur).then(r => r.json()).catch(() => ({}));
+      if (_check.id) {
+        console.log("[STARTUP] ✅ Facebook token is valid. Page:", _check.name);
+        _db.close();
+        return;
+      }
+
+      // Token expired — try hardcoded permanent token
+      console.log("[STARTUP] ⚠️ DB token expired. Trying permanent token...");
+      const _check2 = await fetch("https://graph.facebook.com/v19.0/me?access_token=" + HARD_TOKEN).then(r => r.json()).catch(() => ({}));
+      if (_check2.id) {
+        _db.prepare("UPDATE ConnectedAccount SET accessToken = ? WHERE platform = 'FACEBOOK'").run(HARD_TOKEN);
+        _db.close();
+        console.log("[STARTUP] ✅ Permanent token restored! Page:", _check2.name);
+        return;
+      }
+
+      // Both expired — try app credentials exchange
+      console.log("[STARTUP] ⚠️ Both tokens expired. Trying app credentials...");
+      const _appRes = await fetch(
+        "https://graph.facebook.com/v19.0/oauth/access_token?client_id=" + FACEBOOK_APP_ID +
+        "&client_secret=" + FACEBOOK_APP_SECRET + "&grant_type=client_credentials"
+      ).then(r => r.json()).catch(() => ({}));
+
+      if (_appRes.access_token) {
+        const _pgRes = await fetch(
+          "https://graph.facebook.com/v19.0/110644118793600?fields=access_token,name&access_token=" + _appRes.access_token
+        ).then(r => r.json()).catch(() => ({}));
+        if (_pgRes.access_token) {
+          _db.prepare("UPDATE ConnectedAccount SET accessToken = ? WHERE platform = 'FACEBOOK'").run(_pgRes.access_token);
+          _db.close();
+          console.log("[STARTUP] ✅ Token refreshed via app credentials! Page:", _pgRes.name);
+          return;
+        }
+      }
+
+      _db.close();
+      console.error("[STARTUP] 🚨 All token refresh attempts failed!");
+      console.error("[STARTUP] 🔗 Fix: Go to https://developers.facebook.com/tools/explorer/ and run the token exchange script");
+    } catch (_e) {
+      console.warn("[STARTUP_TOKEN_ERR]", _e.message);
+    }
+  })();
+
+console.log("=================================================");
   console.log("  GREEN HEALTH BOT - MULTI-PAGE MESSENGER ENGINE ");
   console.log("=================================================");
 
