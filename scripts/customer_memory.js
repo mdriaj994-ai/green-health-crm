@@ -390,12 +390,40 @@ function extractCustomerFacts(senderId, text, senderName) {
     const fThana = pk("থানা") || pk("thana");
     const fAddr  = pk("ঠিকানা") || pk("address");
     const fNum   = pk("নাম্বার") || pk("number");
+    const fProd  = pk("প্রোডাক্ট") || pk("পণ্য") || pk("product");
     if (fName && fName.length > 2) profile.name = fName;
     if (fDist)  profile.district = fDist;
     if (fThana) profile.thana    = fThana;
     if (fAddr)  profile.address  = fAddr;
     if (fNum)   profile.phone    = fNum;
-    const snap = { time: Date.now(), name: fName||profile.name, district: fDist||profile.district, thana: fThana||profile.thana, address: fAddr||profile.address, phone: fNum||profile.phone, product: profile.productDiscussed||"unknown" };
+
+    // Check if order message mentions product directly (e.g. কস্তুরী, amber)
+    let explicitProd = fProd;
+    if (!explicitProd) {
+      if (/কস্তুরী|কস্তুরি|হরিণের\s*কস্তুর|kasturi|kosturi/i.test(clean)) explicitProd = "Soul Mate (খাঁটি কস্তুরী ফর্মুলা)";
+      else if (/amber|ambar|অম্বার|অম্বর|অ্যাম্বার/i.test(clean)) explicitProd = "AMBER Premium";
+      else if (/sex\s*king|সেক্স\s*কিং/i.test(clean)) explicitProd = "Sex King (섹스킹)";
+      else if (/dream\s*touch|ড্রিম\s*টাচ/i.test(clean)) explicitProd = "Dream Touch";
+      else if (/black\s*ginseng|জিনসেং/i.test(clean)) explicitProd = "Black Ginseng";
+      else if (/egypt\s*gawa|ইজিপ্ট\s*গাওয়া|গাওয়া/i.test(clean)) explicitProd = "Egypt Gawa";
+      else if (/vigrex|ভিগরেক্স/i.test(clean)) explicitProd = "Vigrex Plus";
+      else if (/maxdrive|ম্যাক্সড্রাইভ/i.test(clean)) explicitProd = "MaxDrive";
+      else if (/parsian|জোবলি|জোব্লি/i.test(clean)) explicitProd = "PARSIAN ZOBLI";
+    }
+    if (explicitProd) {
+      profile.productDiscussed = explicitProd;
+      if (!profile.productsDiscussedAll.includes(explicitProd)) profile.productsDiscussedAll.push(explicitProd);
+    }
+
+    const snap = {
+      time: Date.now(),
+      name: fName || profile.name,
+      district: fDist || profile.district,
+      thana: fThana || profile.thana,
+      address: fAddr || profile.address,
+      phone: fNum || profile.phone,
+      product: explicitProd || profile.productDiscussed || "Soul Mate (খাঁটি কস্তুরী ফর্মুলা)"
+    };
     profile.ordersPlaced.push(snap);
     profile.orderStatus = "order_placed";
     console.log("[MEMORY] ✅ Order saved:", JSON.stringify(snap));
@@ -403,21 +431,27 @@ function extractCustomerFacts(senderId, text, senderName) {
 
   // 8. PRODUCT DETECTION — all products
   const PRODS = [
-    [/sex\s*king|সেক্স\s*কিং/i,                                 "Sex King (섹스킹)", "1"],
-    [/amber|ambar|অম্বার|অম্বর|অ্যাম্বার|বিছানা\s*রাজা/i,           "AMBER Premium",     "19"],
+    [/কস্তুরী|কস্তুরি|হরিণের\s*কস্তুর|kasturi|kosturi/i,         "Soul Mate (খাঁটি কস্তুরী ফর্মুলা)", "39"],
     [/soul\s*mate|সোল\s*মেট|সুল\s*মেট/i,                        "Soul Mate",         "39"],
+    [/amber|ambar|অম্বার|অম্বর|অ্যাম্বার|বিছানা\s*রাজা/i,           "AMBER Premium",     "19"],
+    [/sex\s*king|সেক্স\s*কিং/i,                                 "Sex King (섹스킹)", "17"],
     [/black\s*ginseng|জিনসেং|ginseng/i,                         "Black Ginseng",     "6" ],
     [/black\s*velvet|velvet|ভেলভেট/i,                           "Black Velvet",      "18"],
-    [/dream\s*touch|ড্রিম\s*টাচ|ড্রিমটাচ/i,                      "Dream Touch",       "22"],
+    [/dream\s*touch|ড্রিম\s*টাচ|ড্রিমটাচ/i,                      "Dream Touch",       "1" ],
     [/hammer\s*of\s*thor|হ্যামার|thor/i,                        "Hammer of Thor",    "25"],
     [/titan\s*gel|টাইটান\s*জেল/i,                               "Titan Gel",         "26"],
     [/tiger\s*king|টাইগার\s*কিং/i,                               "Tiger King",        "27"],
     [/maxman|ম্যাক্সম্যান/i,                                     "Maxman",            "28"],
     [/viga|ভিগা/i,                                              "Viga Spray",        "29"],
     [/shark|শার্ক/i,                                            "Shark Extract",     "30"],
+    [/vigrex|ভিগরেক্স/i,                                        "Vigrex Plus",       "23"],
+    [/maxdrive|ম্যাক্সড্রাইভ/i,                                 "MaxDrive",          "28"],
+    [/parsian|জোবলি|জোব্লি/i,                                   "PARSIAN ZOBLI",     "16"],
+    [/passion\s*wave|প্যাশন/i,                                  "Passion Wave",      "29"],
+    [/black\s*lion|ব্ল্যাক\s*লায়ন/i,                           "Black Lion",        "50"],
     [/energy\s*plus|এনার্জি\s*প্লাস/i,                           "Energy Plus",       "12"],
-    [/men's\s*burner|mens\s*burner|বার্নার/i,                   "Men's Burner",      "15"],
-    [/egypt\s*gawa|গাওয়া|গাওয়া/i,                               "Egypt Gawa",        "16"],
+    [/men's\s*burner|mens\s*burner|বার্নার/i,                   "Men's Burner",      "3" ],
+    [/egypt\s*gawa|গাওয়া|গাওয়া/i,                               "Egypt Gawa",        "4" ],
     [/rheumarex|রিউমারেক্স/i,                                   "Rheumarex",         "17"],
     [/majoon|maju/i,                                            "Majoon",            "5" ],
     [/jaoshanda/i,                                              "Jaoshanda",         "8" ],

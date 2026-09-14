@@ -137,11 +137,13 @@ export default function OrdersPage() {
               <div className="flex flex-col md:flex-row md:items-start justify-between gap-4">
                 {/* Left: Customer Info */}
                 <div className="flex-1">
-                  <div className="flex items-center gap-3 mb-2">
+                  <div className="flex items-center gap-3 mb-2 flex-wrap">
                     <span className="text-gray-500 text-xs">#{total - i}</span>
                     <h3 className="font-bold text-white text-lg">{order.customerName}</h3>
-                    {order.facebookName && order.facebookName !== order.customerName && (
-                      <span className="text-xs text-gray-500">(FB: {order.facebookName})</span>
+                    {order.facebookName && (
+                      <span className="text-xs text-blue-400 bg-blue-500/10 px-2 py-0.5 rounded border border-blue-500/20 flex items-center gap-1">
+                        👤 FB: {order.facebookName}
+                      </span>
                     )}
                     <span className={`text-xs px-2 py-0.5 rounded-full border ${STATUS_COLORS[order.status] || ""}`}>
                       {STATUS_BN[order.status] || order.status}
@@ -151,7 +153,7 @@ export default function OrdersPage() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-2 text-sm">
                     <div className="flex items-center gap-2 text-gray-300">
                       <span className="text-gray-500">📱</span>
-                      <a href={`tel:${order.phone}`} className="hover:text-amber-400 transition font-mono">{order.phone}</a>
+                      <a href={`tel:${order.phone}`} className="hover:text-amber-400 transition font-mono font-bold text-emerald-400">{order.phone}</a>
                     </div>
                     <div className="flex items-center gap-2 text-gray-300">
                       <span className="text-gray-500">📍</span>
@@ -160,8 +162,10 @@ export default function OrdersPage() {
                     {order.product && (
                       <div className="flex items-center gap-2 text-gray-300">
                         <span className="text-gray-500">💊</span>
-                        <span className="text-amber-300">{order.product}</span>
-                        {order.quantity > 1 && <span className="text-gray-400">× {order.quantity}</span>}
+                        <span className="text-amber-300 font-semibold">{order.product}</span>
+                        <span className="bg-amber-500/20 text-amber-300 text-xs px-2 py-0.5 rounded-full font-bold border border-amber-500/30">
+                          {order.quantity || 1} ফাইল / পিস
+                        </span>
                       </div>
                     )}
                     <div className="flex items-center gap-2 text-gray-400 text-xs">
@@ -178,12 +182,12 @@ export default function OrdersPage() {
                 </div>
 
                 {/* Right: Actions */}
-                <div className="flex flex-wrap gap-2 md:flex-col md:w-36">
+                <div className="flex flex-wrap gap-2 md:flex-col md:w-40">
                   {order.status === "PENDING" && (
                     <button
                       onClick={() => updateStatus(order.id, "CONFIRMED")}
                       disabled={updating === order.id}
-                      className="bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-400 px-3 py-1.5 rounded-lg text-xs transition w-full"
+                      className="bg-blue-500/20 hover:bg-blue-500/30 border border-blue-500/30 text-blue-400 px-3 py-1.5 rounded-lg text-xs transition w-full font-medium"
                     >
                       ✅ নিশ্চিত করুন
                     </button>
@@ -192,7 +196,7 @@ export default function OrdersPage() {
                     <button
                       onClick={() => updateStatus(order.id, "SHIPPED")}
                       disabled={updating === order.id}
-                      className="bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 text-purple-400 px-3 py-1.5 rounded-lg text-xs transition w-full"
+                      className="bg-purple-500/20 hover:bg-purple-500/30 border border-purple-500/30 text-purple-400 px-3 py-1.5 rounded-lg text-xs transition w-full font-medium"
                     >
                       🚚 পাঠিয়ে দিন
                     </button>
@@ -201,7 +205,7 @@ export default function OrdersPage() {
                     <button
                       onClick={() => updateStatus(order.id, "DELIVERED")}
                       disabled={updating === order.id}
-                      className="bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 text-green-400 px-3 py-1.5 rounded-lg text-xs transition w-full"
+                      className="bg-green-500/20 hover:bg-green-500/30 border border-green-500/30 text-green-400 px-3 py-1.5 rounded-lg text-xs transition w-full font-medium"
                     >
                       ✅ ডেলিভারি হয়েছে
                     </button>
@@ -215,14 +219,35 @@ export default function OrdersPage() {
                       ❌ বাতিল
                     </button>
                   )}
-                  <a
-                    href={`https://m.me/${order.senderId}`}
-                    target="_blank"
-                    rel="noreferrer"
-                    className="bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 px-3 py-1.5 rounded-lg text-xs transition w-full text-center"
-                  >
-                    💬 মেসেজ করুন
-                  </a>
+                  {/* Facebook Page Inbox direct link */}
+                  {order.senderId && (
+                    <a
+                      href={`https://www.facebook.com/${order.pageId || '110644118793600'}/inbox/?selected_item_id=${order.senderId}`}
+                      target="_blank"
+                      rel="noreferrer"
+                      className="bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-300 px-3 py-1.5 rounded-lg text-xs transition w-full text-center flex items-center justify-center gap-1.5 font-medium"
+                    >
+                      💬 Facebook চ্যাট
+                    </a>
+                  )}
+                  {/* Internal Live Inbox link */}
+                  {order.senderId && (
+                    <a
+                      href={`/dashboard?chat=${order.senderId}`}
+                      className="bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 px-3 py-1.5 rounded-lg text-xs transition w-full text-center flex items-center justify-center gap-1.5"
+                    >
+                      📥 ইনবক্সে দেখুন
+                    </a>
+                  )}
+                  {/* Phone Call link */}
+                  {order.phone && (
+                    <a
+                      href={`tel:${order.phone}`}
+                      className="bg-emerald-500/10 hover:bg-emerald-500/20 border border-emerald-500/20 text-emerald-400 px-3 py-1.5 rounded-lg text-xs transition w-full text-center flex items-center justify-center gap-1.5 font-medium"
+                    >
+                      📞 কল করুন
+                    </a>
+                  )}
                 </div>
               </div>
             </div>

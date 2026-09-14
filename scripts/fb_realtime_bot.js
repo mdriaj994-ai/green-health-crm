@@ -224,13 +224,25 @@ function findMatchedProduct(query, master) {
   const compactQ = normQ.replace(/\s+/g, "");
 
   const aliases = {
+    "soul mate": ["soul mate", "soulmate", "সোল মেট", "সোলমেট", "সুল মেট", "কস্তুরী", "কস্তুরি", "হরিণের কস্তুরী", "হরিণের কস্তুরি", "kosturi", "kasturi", "horiner kosturi", "শিলাজিৎ", "জাফরান"],
+    "amber": ["amber", "ambar", "amber premium", "ambar premium", "আম্বার", "অম্বর", "অ্যাম্বার", "অंबर", "अंबर", "যৌন বিছানা রাজা", "বিছানা রাজা", "bistar raja", "tantra sutra"],
     "dream touch": ["dream touch", "dreamtouch", "ড্রিম টাচ", "ড্রিমটাচ", "ড্রিম"],
     "men's burner": ["men's burner", "mens burner", "men burner", "মেনস বার্নার", "বার্নার"],
     "men's black velvet": ["men's black velvet", "mens black velvet", "black velvet", "ব্ল্যাক ভেলভেট", "ভেলভেট"],
-    "soul mate": ["soul mate", "soulmate", "সোল মেট", "সোলমেট", "সুল মেট"],
     "black ginseng": ["black ginseng", "ginseng", "ব্ল্যাক জিনসেং", "জিনসেং"],
     "egypt gawa": ["egypt gawa", "egypt", "gawa", "ইজিপ্ট", "গাওয়া", "গাওয়া"],
     "enjoy hunter": ["enjoy hunter", "enjoy", "hunter", "হান্টার"],
+    "sex king": ["sex king", "সেক্স কিং", "সেক্সকিং", "সেক্স"],
+    "vigrex": ["vigrex", "vigrex plus", "ভিগরেক্স", "ভিগরেক্স প্লাস"],
+    "parsian": ["parsian zobli", "parsian", "zobli", "পার্সিয়ান জোবলি", "পার্সিয়ান", "জোবলি", "জোব্লি"],
+    "maxdrive": ["maxdrive", "ম্যাক্সড্রাইভ", "ম্যাক্স ড্রাইভ"],
+    "passion wave": ["passion wave", "প্যাশন ওয়েভ", "প্যাশন"],
+    "black lion": ["black lion", "ব্ল্যাক লায়ন", "লায়ন স্ট্রং"],
+    "jomdobe": ["jomdobe dosto", "jomdobe", "জুমদো বি দোস্তো", "দোস্তো"],
+    "desire play": ["desire play", "ডিজায়ার প্লে", "ডিজায়ার"],
+    "hera power": ["hera power", "হেরা পাওয়ার"],
+    "love spark": ["love spark", "লাভ স্পার্ক", "সুপার স্পার্ক লাভ"],
+    "penis prime": ["penis prime", "পেনিস প্রাইম"],
     "hammer of thor": ["hammer of thor", "hammer", "হ্যামার"],
     "maxman": ["maxman", "ম্যাক্সম্যান"],
     "titan gel": ["titan gel", "টাইটান জেল"],
@@ -238,7 +250,6 @@ function findMatchedProduct(query, master) {
     "shark": ["shark", "শার্ক"],
     "tiger king": ["tiger king", "tiger", "টাইগার কিং"],
     "rheumarex": ["rheumarex", "রিউমারেক্স"],
-    "amber": ["amber", "ambar", "amber premium", "ambar premium", "আম্বার", "অম্বর", "অ্যাম্বার", "অंबर", "अंबर", "যৌন বিছানা রাজা", "বিছানা রাজা", "bistar raja", "tantra sutra", "gold bhasma", "স্বর্ণ ভস্ম"]
   };
 
   // 1. Check known aliases
@@ -430,7 +441,11 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     const prof = customerMemory.getCustomerProfile(senderId);
     if (!prof.productDiscussed && recentHistory && recentHistory.length > 0) {
       for (const line of recentHistory) {
-        customerMemory.extractCustomerFacts(senderId, line, senderName);
+        // Only inspect customer lines, not bot messages with generic ingredients!
+        const lLow = (line || "").toLowerCase();
+        if (lLow.startsWith("user:") || lLow.startsWith("customer:") || !lLow.startsWith("bot:")) {
+          customerMemory.extractCustomerFacts(senderId, line.replace(/^(?:user|customer):\s*/i, ""), senderName);
+        }
       }
     }
     customerMemory.appendChatMessage(senderId, "user", customerMessage, false);
@@ -1354,32 +1369,32 @@ async function pollOnce() {
             // Generate AI reply with thread memory and page-specific identity
             const isVoiceReq = userInVoiceMode || isVoiceRequested(messageText) || isOnlyVoice;
             const replyText = await generateReply(messageText, customerName, senderId, recentHistory, page.pageName, isVoiceReq);
-            // ── Scheduled Reminder: detect, schedule, or cancel ──
-            if (isOrderPlaced(messageText)) {
+            const parsedOrder = parseOrderFromMessage(messageText);
+            if (parsedOrder || isOrderPlaced(messageText)) {
               // Customer gave order info → cancel any pending reminder
               cancelScheduledReminder(senderId);
 
               // ── AUTO SAVE ORDER TO DASHBOARD ──
               try {
-                const parsed = parseOrderFromMessage(messageText);
                 const memProf = customerMemory.getCustomerProfile(senderId);
-                if (parsed || (memProf?.phone && memProf?.address)) {
-                  const orderData = {
-                    customerName: memProf?.name && !["ভাইয়া","customer"].includes(memProf.name.toLowerCase())
-                      ? memProf.name : parsed?.name || customerName,
-                    phone:     parsed?.phone   || memProf?.phone || "",
-                    district:  parsed?.district || memProf?.district || "",
-                    thana:     parsed?.thana    || memProf?.thana || "",
-                    address:   parsed?.address  || memProf?.address || "",
-                    product:   memProf?.productDiscussed || "",
-                    senderId:  String(senderId),
-                    facebookName: memProf?.facebookName || "",
-                    pageId:    String(page.pageId),
-                  };
-                  if (orderData.phone) {
-                    const saved = saveOrderToDb(orderData);
-                    if (saved) console.log(`[ORDER] 📦 Order saved to dashboard for ${orderData.customerName}`);
-                  }
+                const orderData = {
+                  customerName: (parsedOrder?.name && parsedOrder.name.length > 1)
+                    ? parsedOrder.name
+                    : (memProf?.name && !["ভাইয়া","customer"].includes(memProf.name.toLowerCase()))
+                      ? memProf.name : customerName,
+                  phone:     parsedOrder?.phone   || memProf?.phone || "",
+                  district:  parsedOrder?.district || memProf?.district || "",
+                  thana:     parsedOrder?.thana    || memProf?.thana || "",
+                  address:   parsedOrder?.address  || memProf?.address || "",
+                  product:   parsedOrder?.product || memProf?.productDiscussed || (threadMemory.has(senderId) ? threadMemory.get(senderId).name : "") || "Soul Mate (খাঁটি কস্তুরী ফর্মুলা)",
+                  quantity:  parsedOrder?.quantity || 1,
+                  senderId:  String(senderId),
+                  facebookName: memProf?.facebookName || customerName || "",
+                  pageId:    String(page.pageId),
+                };
+                if (orderData.phone) {
+                  const saved = saveOrderToDb(orderData);
+                  if (saved) console.log(`[ORDER] 📦 Order saved to dashboard for ${orderData.customerName} | Product: ${orderData.product} | Qty: ${orderData.quantity}`);
                 }
               } catch (orderErr) {
                 console.warn("[ORDER_SAVE_ERR]", orderErr.message);
@@ -1482,10 +1497,12 @@ async function pollOnce() {
 // Detect if customer gave order info (phone, address+name) → reminder should be cancelled
 function isOrderPlaced(message) {
   if (!message) return false;
-  const hasPhone = /01[3-9]\d{8}|\+8801[3-9]\d{8}/.test(message);
-  const hasAddress = /(জেলা|উপজেলা|থানা|রোড|গ্রাম|বাড়ি|মহল্লা|পাড়া|ward|para|road|village)/.test(message);
-  const hasName = /(আমার নাম|নাম হলো|নাম:|নামঃ|my name|name is)/i.test(message);
-  return hasPhone || (hasAddress && (hasName || hasPhone));
+  const enMsg = message.replace(/[০-৯]/g, d => "০১২৩৪৫৬৭৮৯".indexOf(d));
+  const hasPhone = /01[3-9]\d{8}|\+8801[3-9]\d{8}/.test(enMsg);
+  const hasOrderForm = /(?:নাম\s*[=:]|নাম্বার\s*[=:]|ঠিকানা\s*[=:]|জেলা\s*[=:]|থানা\s*[=:])/i.test(message);
+  const hasAddress = /(জেলা|উপজেলা|থানা|রোড|গ্রাম|বাড়ি|মহল্লা|পাড়া|ward|para|road|village|ঠিকানা)/.test(message);
+  const hasName = /(আমার নাম|নাম হলো|নাম:|নামঃ|নাম\s*=|my name|name is)/i.test(message);
+  return hasOrderForm || hasPhone || (hasAddress && (hasName || hasPhone));
 }
 
 // Cancel any pending reminder for this customer

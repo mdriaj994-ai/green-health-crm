@@ -1,4 +1,4 @@
-﻿// src/lib/customer-memory.ts
+// src/lib/customer-memory.ts
 // 24/7 Permanent Long-term Customer Memory & Clinical Profile Engine for Next.js Webhook & Bot
 import fs from "fs";
 import path from "path";
@@ -425,7 +425,7 @@ export function extractCustomerFacts(senderId: string, text: string, senderName?
     profile.orderStatus = "order_placed";
     const orderSnapshot = {
       date: new Date().toISOString(),
-      product: profile.productDiscussed || "AMBER Premium",
+      product: profile.productDiscussed || "Soul Mate (খাঁটি কস্তুরী ফর্মুলা)",
       phone: profile.phone,
       district: profile.district || "",
       address: profile.address || "",
