@@ -29,10 +29,37 @@ function loadMemory() {
 
 function saveCustomerDossier(profile) {
   try {
-    const custDir = path.join(DATA_DIR, "customers");
-    if (!fs.existsSync(custDir)) fs.mkdirSync(custDir, { recursive: true });
-    const filename = `${profile.senderId}.json`;
-    fs.writeFileSync(path.join(custDir, filename), JSON.stringify(profile, null, 2), "utf-8");
+    // ── Folder-per-customer structure ──
+    const customerFolder = path.join(DATA_DIR, "customers", String(profile.senderId));
+    if (!fs.existsSync(customerFolder)) fs.mkdirSync(customerFolder, { recursive: true });
+
+    // Save profile (without chatLog to keep it small)
+    const profileData = Object.assign({}, profile);
+    const chatLog = profileData.chatLog || [];
+    delete profileData.chatLog; // store history separately
+    fs.writeFileSync(path.join(customerFolder, "profile.json"), JSON.stringify(profileData, null, 2), "utf-8");
+
+    // Save history (unlimited) to separate file
+    const histFile = path.join(customerFolder, "history.json");
+    let existingHistory = [];
+    if (fs.existsSync(histFile)) {
+      try { existingHistory = JSON.parse(fs.readFileSync(histFile, "utf-8")); } catch {}
+    }
+    // Merge: add new messages from chatLog that don't exist (by time)
+    const existingTimes = new Set(existingHistory.map(m => m.time));
+    const newMessages = chatLog.filter(m => !existingTimes.has(m.time));
+    if (newMessages.length > 0) {
+      const merged = [...existingHistory, ...newMessages];
+      fs.writeFileSync(histFile, JSON.stringify(merged, null, 2), "utf-8");
+    } else if (chatLog.length > 0 && existingHistory.length === 0) {
+      fs.writeFileSync(histFile, JSON.stringify(chatLog, null, 2), "utf-8");
+    }
+
+    // Also keep legacy flat file for backward compat
+    const legacyFile = path.join(DATA_DIR, "customers", `${profile.senderId}.json`);
+    if (!fs.existsSync(legacyFile)) {
+      fs.writeFileSync(legacyFile, JSON.stringify(profile, null, 2), "utf-8");
+    }
   } catch (err) {
     console.warn("[CUSTOMER_DOSSIER_SAVE_WARN]", err.message);
   }
@@ -464,16 +491,17 @@ function appendChatMessage(senderId, role, text, isVoice = false) {
   });
 
   // Keep up to 60 recent multi-turn messages (longer memory = better context)
-  if (profile.chatLog.length > 60) {
+  // Keep chatLog in memory cache for context — history.json stores full unlimited history
+  if (profile.chatLog.length > 200) {
     // Before trimming, save a summary of the oldest messages
-    const oldest = profile.chatLog.slice(0, profile.chatLog.length - 60);
+    const oldest = profile.chatLog.slice(0, profile.chatLog.length - 200);
     if (oldest.length > 0) {
       if (!profile.sessionSummaries) profile.sessionSummaries = [];
       const summary = oldest.slice(-5).map(m => `${m.role === 'user' ? 'কাস্টমার' : 'হাকিম'}: ${m.text.substring(0, 80)}`).join(' | ');
       profile.sessionSummaries.push({ time: Date.now(), summary });
-      if (profile.sessionSummaries.length > 10) profile.sessionSummaries = profile.sessionSummaries.slice(-10);
+      if (profile.sessionSummaries.length > 20) profile.sessionSummaries = profile.sessionSummaries.slice(-20);
     }
-    profile.chatLog = profile.chatLog.slice(-60);
+    profile.chatLog = profile.chatLog.slice(-200);
   }
 
   profile.lastContact = Date.now();
@@ -517,25 +545,53 @@ function buildCustomerMemoryPrompt(senderId, fallbackName) {
     'First contact: ' + (profile.firstContact ? new Date(profile.firstContact).toLocaleDateString() : 'unknown'),
     'Last voice transcript: ' + (profile.lastVoiceTranscript ? profile.lastVoiceTranscript.substring(0, 100) : 'none'),
     sessionCtx ? ('Old conversation summary: ' + sessionCtx) : '',
-    '=== CRITICAL RULES ===',
-    '1. Do NOT ask again: age=' + (profile.age||'none') + ' marital=' + (profile.maritalStatus||'none'),
-    '2. Continue conversation naturally using saved context above.',
-    '3. Address customer respectfully: ' + (hasRealName ? profile.name + ' ভাই' : 'ভাইয়া'),
-    '4. If customer asks "amar name ki jano" and Known Customer Name is NOT PROVIDED YET: Politely say you do not know his name yet and ask for his name.',
-    '5. If order placed before (' + ordersCount + '), ask about delivery/results first.',
+    '=== ABSOLUTE CRITICAL RULES (DO NOT VIOLATE) ===',
+    '1. NEVER ask for name again. Known name: ' + displayName,
+    '2. NEVER ask for phone again. Known phone: ' + (profile.phone || 'NOT GIVEN'),
+    '3. NEVER ask for address/district/thana again. Known: ' + (addressStr || 'NOT GIVEN'),
+    '4. NEVER ask for age again. Known: ' + (profile.age || 'NOT GIVEN'),
+    '5. NEVER ask for marital status again. Known: ' + (profile.maritalStatus || 'NOT GIVEN'),
+    '6. NEVER ask about symptoms already mentioned. Known: ' + symptomStr,
+    '7. Continue conversation naturally — do NOT repeat any question already answered.',
+    '8. Address customer as: ' + (hasRealName ? '"' + profile.name + ' ভাই"' : '"ভাইয়া"'),
+    '9. If order placed before (' + ordersCount + '), ask about delivery/results first.',
+    '10. DO NOT repeat welcome or introduction if totalMessages > 2.',
   ].filter(Boolean).join('\n');
 
   return parts;
 }
 
-function getRecentChatHistory(senderId, limit = 15) {
+function getRecentChatHistory(senderId, limit = 30) {
   const profile = getCustomerProfile(senderId);
-  if (!profile.chatLog || profile.chatLog.length === 0) return [];
-  return profile.chatLog.slice(-limit).map(entry => {
+  // First try to load from history.json file for complete context
+  const histFile = path.join(DATA_DIR, "customers", String(senderId), "history.json");
+  let messages = [];
+  if (fs.existsSync(histFile)) {
+    try {
+      const allHistory = JSON.parse(fs.readFileSync(histFile, "utf-8"));
+      messages = allHistory.slice(-limit);
+    } catch {}
+  }
+  // Fallback to in-memory chatLog
+  if (messages.length === 0 && profile.chatLog && profile.chatLog.length > 0) {
+    messages = profile.chatLog.slice(-limit);
+  }
+  if (messages.length === 0) return [];
+  return messages.map(entry => {
     const author = entry.role === "user" ? (profile.name || "Customer") : "হাকিম রিয়াজুল করিম (Doctor)";
     const tag = entry.isVoice ? " [Voice Note]" : "";
     return `${author}${tag}: "${entry.text}"`;
   });
+}
+
+// Get complete chat history for a customer (all messages ever)
+function getAllCustomerHistory(senderId) {
+  const histFile = path.join(DATA_DIR, "customers", String(senderId), "history.json");
+  if (fs.existsSync(histFile)) {
+    try { return JSON.parse(fs.readFileSync(histFile, "utf-8")); } catch {}
+  }
+  const profile = getCustomerProfile(senderId);
+  return profile.chatLog || [];
 }
 
 // ── Smart Follow-up Engine ────────────────────────────────────────────────────
@@ -656,6 +712,7 @@ module.exports = {
   appendChatMessage,
   buildCustomerMemoryPrompt,
   getRecentChatHistory,
+  getAllCustomerHistory,
   saveMemory,
   getEligibleFollowUpCandidates,
   recordFollowUpSent,
