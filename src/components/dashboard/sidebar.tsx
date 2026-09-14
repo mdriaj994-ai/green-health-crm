@@ -14,7 +14,8 @@ import {
   LogOut,
   Radio,
   Sparkles,
-  Crown
+  Crown,
+  PackageCheck
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
@@ -23,9 +24,11 @@ const navItems = [
   { href: "/dashboard/comments", label: "কমেন্টস", icon: MessageCircle },
   { href: "/dashboard/agents", label: "এজেন্টস", icon: Users },
   { href: "/dashboard/products", label: "মেডিসিন ড্যাশবোর্ড", icon: ShoppingBag, badge: "৫৭ টি" },
+  { href: "/dashboard/orders", label: "অর্ডার", icon: PackageCheck, badge: "নতুন" },
   { href: "/dashboard/encyclopedia", label: "মেগা এনসাইক্লোপিডিয়া", icon: BookOpen, badge: "এআই" },
   { href: "/dashboard/settings", label: "সেটিংস", icon: Settings },
 ];
+
 
 const platforms = [
   { id: "all", label: "সব চ্যানেল", color: "#fbbf24", count: "সক্রিয়" },
