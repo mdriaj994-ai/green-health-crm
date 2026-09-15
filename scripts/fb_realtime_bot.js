@@ -1505,17 +1505,42 @@ ${errorLines}
                     console.log(`[ORDER] 📦 Order saved to dashboard for ${orderData.customerName} | Product: ${orderData.product} | Qty: ${orderData.quantity}`);
                     // Send order confirmation message to customer
                     await sleep(600);
+
+                    // Build full address display
+                    const addrLine = [orderData.address, orderData.thana, orderData.district]
+                      .filter(Boolean).join(", ");
+
+                    // Generate short order ref code: e.g. ORD-20240915-1234
+                    const now = new Date();
+                    const dateStr = now.getFullYear().toString() +
+                      String(now.getMonth()+1).padStart(2,"0") +
+                      String(now.getDate()).padStart(2,"0");
+                    const randPart = Math.floor(1000 + Math.random() * 9000);
+                    const orderRef = `ORD-${dateStr}-${randPart}`;
+
                     const confirmMsg =
-`✅ আপনার অর্ডারটি সফলভাবে গ্রহণ করা হয়েছে!
+`🎉 অর্ডার কনফার্ম হয়েছে! ধন্যবাদ! 🙏
+
+━━━━━━━━━━━━━━━━━━━━
+📋 অর্ডার রেফারেন্স: ${orderRef}
+━━━━━━━━━━━━━━━━━━━━
 
 👤 নাম: ${orderData.customerName}
 📱 মোবাইল: ${orderData.phone}
-📍 ঠিকানা: ${[orderData.address, orderData.thana, orderData.district].filter(Boolean).join(", ")}
+📍 ঠিকানা: ${addrLine || "—"}${orderData.thana ? "\n    থানা: " + orderData.thana : ""}${orderData.district ? "\n    জেলা: " + orderData.district : ""}
 💊 পণ্য: ${orderData.product}
 📦 পরিমাণ: ${orderData.quantity} পিস/ফাইল
+💰 পেমেন্ট: ক্যাশ অন ডেলিভারি (পণ্য পেয়ে পরিশোধ)
 
-🚚 আমরা শীঘ্রই পাঠিয়ে দেব ইনশাআল্লাহ।
-কোনো সমস্যা হলে আমাদের সাথে যোগাযোগ করুন।`;
+━━━━━━━━━━━━━━━━━━━━
+🚚 ডেলিভারি তথ্য:
+• ঢাকার ভেতরে: ১-২ দিন
+• ঢাকার বাইরে: ২-৪ দিন
+• সারা দেশে হোম ডেলিভারি আছে ✅
+
+⚠️ তথ্যে কোনো ভুল থাকলে এখনই জানান।
+কোনো প্রশ্ন থাকলে মেসেজ করুন — আমরা সাহায্য করব ইনশাআল্লাহ। 💚`;
+
                     await sendFacebookMessage(senderId, confirmMsg, page.accessToken);
                   }
                 }

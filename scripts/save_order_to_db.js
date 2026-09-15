@@ -51,6 +51,81 @@ function detectProductInText(text) {
   return "";
 }
 
+// BD_DISTRICT_LIST for smart address splitting
+const BD_DISTRICT_LIST = [
+  "ঢাকা","চট্টগ্রাম","সিলেট","রাজশাহী","খুলনা","বরিশাল","ময়মনসিংহ","রংপুর",
+  "কুমিল্লা","নোয়াখালী","ফেনী","গাজীপুর","নারায়ণগঞ্জ","মুন্সিগঞ্জ","মানিকগঞ্জ",
+  "নরসিংদী","কিশোরগঞ্জ","টাঙ্গাইল","ফরিদপুর","গোপালগঞ্জ","মাদারীপুর","শরীয়তপুর",
+  "রাজবাড়ী","জামালপুর","শেরপুর","নেত্রকোণা","সুনামগঞ্জ","মৌলভীবাজার","হবিগঞ্জ",
+  "কক্সবাজার","বান্দরবান","রাঙামাটি","খাগড়াছড়ি","লক্ষ্মীপুর","চাঁদপুর","ব্রাহ্মণবাড়িয়া",
+  "বগুড়া","পাবনা","সিরাজগঞ্জ","নাটোর","জয়পুরহাট","নওগাঁ","চাঁপাইনবাবগঞ্জ",
+  "দিনাজপুর","নীলফামারী","লালমনিরহাট","গাইবান্ধা","ঠাকুরগাঁও","পঞ্চগড়","কুড়িগ্রাম",
+  "যশোর","ঝিনাইদহ","মাগুরা","নড়াইল","সাতক্ষীরা","মেহেরপুর","চুয়াডাঙ্গা","কুষ্টিয়া",
+  "ঝালকাঠি","পটুয়াখালী","বরগুনা","পিরোজপুর","ভোলা",
+  // English variants
+  "dhaka","chittagong","sylhet","rajshahi","khulna","barishal","barisal","mymensingh",
+  "rangpur","comilla","noakhali","feni","gazipur","narayanganj","munshiganj",
+  "manikganj","narsingdi","kishoreganj","tangail","faridpur","gopalganj","madaripur",
+  "shariatpur","rajbari","jamalpur","sherpur","netrokona","sunamganj","moulvibazar",
+  "habiganj","cox","bandarban","rangamati","khagrachhari","lakshmipur","chandpur",
+  "brahmanbaria","bogura","bogra","pabna","sirajganj","natore","joypurhat","naogaon",
+  "chapainawabganj","dinajpur","nilphamari","lalmonirhat","gaibandha","thakurgaon",
+  "panchagarh","kurigram","jashore","jhenaidah","magura","narail","satkhira","meherpur",
+  "chuadanga","kushtia","jhalokati","patuakhali","barguna","pirojpur","bhola"
+];
+
+// Smart address parser — handles comma-separated addresses like:
+// বামনগ্রাম,কালাই,জয়পুরহাট  →  address=বামনগ্রাম, thana=কালাই, district=জয়পুরহাট
+function smartSplitAddress(rawAddress, existingDistrict, existingThana) {
+  if (!rawAddress) return { address: "", thana: existingThana || "", district: existingDistrict || "" };
+
+  // If district/thana already provided explicitly, just use address as-is
+  if (existingDistrict && existingThana) {
+    return { address: rawAddress, thana: existingThana, district: existingDistrict };
+  }
+
+  // Try comma split: last part = district, middle = thana, first = village/street
+  const parts = rawAddress.split(/[,،،،]/g).map(p => p.trim()).filter(Boolean);
+  if (parts.length >= 3) {
+    // Format: গ্রাম, থানা, জেলা  OR  রোড, এলাকা, থানা, জেলা
+    const lastPart = parts[parts.length - 1];
+    const midPart  = parts[parts.length - 2];
+    const restParts = parts.slice(0, parts.length - 2).join(", ");
+    // Check if last part is a known district
+    const lastLow = lastPart.toLowerCase();
+    const isDistrictName = BD_DISTRICT_LIST.some(d => lastLow.includes(d) || d.includes(lastLow));
+    if (isDistrictName) {
+      return {
+        address: restParts || parts[0] || rawAddress,
+        thana: existingThana || midPart,
+        district: existingDistrict || lastPart
+      };
+    }
+  } else if (parts.length === 2) {
+    // Format: থানা, জেলা — address field becomes thana+district, no village given
+    const lastLow = parts[parts.length - 1].toLowerCase();
+    const isDistrictName = BD_DISTRICT_LIST.some(d => lastLow.includes(d) || d.includes(lastLow));
+    if (isDistrictName) {
+      return {
+        address: existingDistrict ? rawAddress : "",
+        thana: existingThana || parts[0],
+        district: existingDistrict || parts[1]
+      };
+    }
+  }
+
+  // Also check if the combined address string contains a district name
+  if (!existingDistrict) {
+    for (const d of BD_DISTRICT_LIST) {
+      if (rawAddress.toLowerCase().includes(d)) {
+        return { address: rawAddress, thana: existingThana || "", district: d };
+      }
+    }
+  }
+
+  return { address: rawAddress, thana: existingThana || "", district: existingDistrict || "" };
+}
+
 function parseOrderFromMessage(text) {
   if (!text) return null;
 
@@ -71,9 +146,9 @@ function parseOrderFromMessage(text) {
   const name     = nameMatch?.[1]?.trim();
   const rawPhone = phoneMatch?.[1]?.trim().replace(/\s/g, "");
   const phone    = rawPhone ? bnToEnNum(rawPhone) : "";
-  const district = districtMatch?.[1]?.trim();
-  const thana    = thanaMatch?.[1]?.trim();
-  const address  = addressMatch?.[1]?.trim();
+  const rawDistrict = districtMatch?.[1]?.trim() || "";
+  const rawThana    = thanaMatch?.[1]?.trim() || "";
+  const rawAddress  = addressMatch?.[1]?.trim() || "";
   const product  = detectProductInText(text);
 
   let quantity = 1;
@@ -85,13 +160,16 @@ function parseOrderFromMessage(text) {
   // Need at least name + phone to consider it an order
   if (!name || !phone) return null;
 
+  // Smart address split — handles comma-separated inputs
+  const addrParts = smartSplitAddress(rawAddress, rawDistrict, rawThana);
+
   return {
     name,
     phone,
-    district: district || "",
-    thana: thana || "",
-    address: address || "",
-    product: product || "",
+    district: addrParts.district || "",
+    thana:    addrParts.thana    || "",
+    address:  addrParts.address  || rawAddress,
+    product:  product || "",
     quantity
   };
 }
