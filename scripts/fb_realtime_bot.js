@@ -217,6 +217,82 @@ function normalizeStr(s) {
     .trim();
 }
 
+// ── Order Data Validator — checks phone & address before saving ───────────────
+// Returns: { valid: true } or { valid: false, issues: [...] }
+function validateOrderDetails(phone, district, thana, address) {
+  const issues = [];
+
+  // ── PHONE VALIDATION ──────────────────────────────────────────────────────
+  // Bangladesh mobile: 01[3-9]XXXXXXXX (11 digits total)
+  const enPhone = (phone || "").replace(/[০-৯]/g, d => "০১২৩৪৫৬৭৮৯".indexOf(d)).replace(/[\s\-+]/g, "");
+  const validBdPhone = /^(?:\+?88)?01[3-9]\d{8}$/.test(enPhone);
+
+  if (!phone || phone.trim() === "") {
+    issues.push({ field: "phone", msg: "📱 আপনার মোবাইল নম্বরটি দেননি। সঠিক বাংলাদেশি নম্বর দিন (যেমন: 01712345678)" });
+  } else if (!validBdPhone) {
+    // Check for obviously wrong: too short/long, fake like 0000000000, sequential 12345...
+    const digits = enPhone.replace(/\D/g, "");
+    const isAllSame = digits.length >= 8 && /^(.)\1+$/.test(digits);
+    const isSequential = ["0123456789", "9876543210", "1234567890", "01234567890"].some(seq => enPhone.includes(seq.slice(0, 8)));
+    if (isAllSame || isSequential) {
+      issues.push({ field: "phone", msg: "📱 এই নম্বরটি বাস্তব মনে হচ্ছে না (যেমন: 0000000000 বা 01234567890)। সঠিক ১১ সংখ্যার বাংলাদেশি মোবাইল নম্বর দিন।" });
+    } else {
+      issues.push({ field: "phone", msg: `📱 "${phone}" এই নম্বরটি সঠিক বাংলাদেশি মোবাইল নম্বর মনে হচ্ছে না। সঠিক নম্বর হবে: 01712345678 (11 সংখ্যার)।` });
+    }
+  }
+
+  // ── ADDRESS VALIDATION ────────────────────────────────────────────────────
+  // Valid Bangladesh districts (all 64)
+  const BD_DISTRICTS = [
+    "ঢাকা","dhaka","চট্টগ্রাম","chittagong","সিলেট","sylhet","রাজশাহী","rajshahi",
+    "খুলনা","khulna","বরিশাল","barishal","barisal","ময়মনসিংহ","mymensingh",
+    "রংপুর","rangpur","কুমিল্লা","comilla","নোয়াখালী","noakhali","ফেনী","feni",
+    "গাজীপুর","gazipur","নারায়ণগঞ্জ","narayanganj","মুন্সিগঞ্জ","munshiganj",
+    "মানিকগঞ্জ","manikganj","নরসিংদী","narsingdi","কিশোরগঞ্জ","kishoreganj",
+    "টাঙ্গাইল","tangail","ফরিদপুর","faridpur","গোপালগঞ্জ","gopalganj",
+    "মাদারীপুর","madaripur","শরীয়তপুর","shariatpur","রাজবাড়ী","rajbari",
+    "ময়মনসিংহ","জামালপুর","jamalpur","শেরপুর","sherpur","নেত্রকোণা","netrokona",
+    "সুনামগঞ্জ","sunamganj","মৌলভীবাজার","moulvibazar","হবিগঞ্জ","habiganj",
+    "কক্সবাজার","cox","বান্দরবান","bandarban","রাঙামাটি","rangamati","খাগড়াছড়ি","khagrachhari",
+    "লক্ষ্মীপুর","lakshmipur","চাঁদপুর","chandpur","ব্রাহ্মণবাড়িয়া","brahmanbaria",
+    "বগুড়া","bogura","bogra","পাবনা","pabna","সিরাজগঞ্জ","sirajganj","নাটোর","natore",
+    "জয়পুরহাট","joypurhat","নওগাঁ","naogaon","চাঁপাইনবাবগঞ্জ","chapainawabganj",
+    "দিনাজপুর","dinajpur","নীলফামারী","nilphamari","লালমনিরহাট","lalmonirhat",
+    "গাইবান্ধা","gaibandha","ঠাকুরগাঁও","thakurgaon","পঞ্চগড়","panchagarh",
+    "কুড়িগ্রাম","kurigram","যশোর","jashore","ঝিনাইদহ","jhenaidah","মাগুরা","magura",
+    "নড়াইল","narail","সাতক্ষীরা","satkhira","মেহেরপুর","meherpur","চুয়াডাঙ্গা","chuadanga",
+    "কুষ্টিয়া","kushtia","ঝালকাঠি","jhalokati","পটুয়াখালী","patuakhali",
+    "বরগুনা","barguna","পিরোজপুর","pirojpur","ভোলা","bhola"
+  ];
+
+  // Check if district/address has any recognizable Bangladesh location
+  const combinedAddr = [district, thana, address].filter(Boolean).join(" ").toLowerCase();
+
+  if (!combinedAddr.trim() || combinedAddr.trim().length < 4) {
+    issues.push({ field: "address", msg: "📍 আপনার ঠিকানা দেননি বা অসম্পূর্ণ দিয়েছেন। সঠিক ঠিকানা (জেলা, থানা, গ্রাম/রোড) দিন।" });
+  } else {
+    // Check meaninglessness — too many random/English chars or very short
+    const isMeaningless = !district && !thana && address && address.trim().length < 4;
+    const isGibberish = /^[a-z]{1,3}$/.test((address || "").trim().toLowerCase()) ||
+                        /^[0-9]+$/.test((address || "").trim()) ||
+                        /^(test|abc|xyz|aaa|bbb|111|000|dummy|fake|n\/a|none|null|xxx)$/i.test((district || address || "").trim());
+
+    if (isGibberish) {
+      issues.push({ field: "address", msg: "📍 ঠিকানাটি সঠিক মনে হচ্ছে না। সঠিক জেলা, থানা ও গ্রাম/রোড নম্বর দিন।" });
+    } else if (district) {
+      // Validate district against known BD districts
+      const districtLow = district.toLowerCase().trim();
+      const isValidDistrict = BD_DISTRICTS.some(d => districtLow.includes(d) || d.includes(districtLow));
+      if (!isValidDistrict && districtLow.length > 2) {
+        issues.push({ field: "address", msg: `📍 "${district}" বাংলাদেশের পরিচিত কোনো জেলা নয়। সঠিক জেলার নাম দিন (যেমন: ঢাকা, চট্টগ্রাম, সিলেট)।` });
+      }
+    }
+  }
+
+  if (issues.length === 0) return { valid: true };
+  return { valid: false, issues };
+}
+
 // ── Live Product Database Loader & Bilingual Matcher ────────────────────────
 function findMatchedProduct(query, master) {
   if (!query) return null;
@@ -1392,9 +1468,56 @@ async function pollOnce() {
                   facebookName: memProf?.facebookName || customerName || "",
                   pageId:    String(page.pageId),
                 };
-                if (orderData.phone) {
+
+                // ── VALIDATE phone & address BEFORE saving ────────────────
+                const validation = validateOrderDetails(
+                  orderData.phone,
+                  orderData.district,
+                  orderData.thana,
+                  orderData.address
+                );
+
+                if (!validation.valid) {
+                  // ❌ Invalid order — send correction request to customer
+                  const errorLines = validation.issues.map(issue => issue.msg).join("\n\n");
+                  const correctionMsg =
+`⚠️ আপনার অর্ডারটি গ্রহণ করা সম্ভব হয়নি, কারণ কিছু তথ্য ঠিকমতো পাওয়া যায়নি:
+
+${errorLines}
+
+🔁 সঠিক তথ্য দিয়ে আবার পাঠান:
+নাম=আপনার পুরো নাম
+জেলা=আপনার জেলা
+থানা=আপনার থানা
+রিসিভ ঠিকানা=গ্রাম/রোড/ফ্ল্যাট নম্বর
+নাম্বার=01XXXXXXXXX
+
+✅ সঠিক তথ্য দিলে আমরা সাথে সাথে অর্ডার নিশ্চিত করব ইনশাআল্লাহ।`;
+
+                  await sendSenderAction(senderId, "typing_on", page.accessToken);
+                  await sleep(800);
+                  await sendFacebookMessage(senderId, correctionMsg, page.accessToken);
+                  console.log(`[ORDER_VALIDATE] ❌ Invalid order from ${senderId} — issues: ${validation.issues.map(i=>i.field).join(", ")}`);
+                } else if (orderData.phone) {
+                  // ✅ Valid — save to dashboard
                   const saved = saveOrderToDb(orderData);
-                  if (saved) console.log(`[ORDER] 📦 Order saved to dashboard for ${orderData.customerName} | Product: ${orderData.product} | Qty: ${orderData.quantity}`);
+                  if (saved) {
+                    console.log(`[ORDER] 📦 Order saved to dashboard for ${orderData.customerName} | Product: ${orderData.product} | Qty: ${orderData.quantity}`);
+                    // Send order confirmation message to customer
+                    await sleep(600);
+                    const confirmMsg =
+`✅ আপনার অর্ডারটি সফলভাবে গ্রহণ করা হয়েছে!
+
+👤 নাম: ${orderData.customerName}
+📱 মোবাইল: ${orderData.phone}
+📍 ঠিকানা: ${[orderData.address, orderData.thana, orderData.district].filter(Boolean).join(", ")}
+💊 পণ্য: ${orderData.product}
+📦 পরিমাণ: ${orderData.quantity} পিস/ফাইল
+
+🚚 আমরা শীঘ্রই পাঠিয়ে দেব ইনশাআল্লাহ।
+কোনো সমস্যা হলে আমাদের সাথে যোগাযোগ করুন।`;
+                    await sendFacebookMessage(senderId, confirmMsg, page.accessToken);
+                  }
                 }
               } catch (orderErr) {
                 console.warn("[ORDER_SAVE_ERR]", orderErr.message);
