@@ -13,7 +13,7 @@ const { sendTelegramAdminAlert } = require("./telegram_alert.js");
 
 
 const PAGE_ID = process.env.FACEBOOK_PAGE_ID || "110644118793600";
-const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAW6YWihfogBSY4RXyOpTmUMHfuJKokNMjlEQ3rdBuQc6BELYPwGLhfrMldpWsZA2CwZBXrjuB6bfpH2VrqVm2AVcs3lkZApVZA8bEPyivSudibUjN5vdNNuBY82ZBezIOlyL8g7mBOoxgVhyJtKt7MJMTFrbFZC77ZCshT4ZATflRUkhhkUC9lkib8O3sfMpaN1mtwZD";
+const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAW6YWihfogBSQuviGfEKqUu33eHxtXp1QlcaY6aIYaWoJoQZCSYyc8zLyMqZBX3pYceTpbNDVZCjDw05l0DrZCzRjeZAMrQ1tbZAlQRyxOaRBCSItnMBZCjKPUVaG0zp1ctR7RCPYAtR9jpkmNoEC8FjEetZAsiqr13Ry7jAbYWuFGsqUZBZBBwmu2QcYkpjKD7Wo3278Q4gX";
 const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID || "1612302413561480";
 const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET || "a41c4fa1bcb53a17c301a2e68263a65c";
 const FACEBOOK_PAGE_ID = process.env.FACEBOOK_PAGE_ID || "110644118793600";
@@ -1944,12 +1944,12 @@ async function startBot() {
 
   // ── SYNC DB TOKEN NOW (before page load) — ensures valid token everywhere ──
   try {
-    const VALID_TOKEN = "EAAW6YWihfogBSY4RXyOpTmUMHfuJKokNMjlEQ3rdBuQc6BELYPwGLhfrMldpWsZA2CwZBXrjuB6bfpH2VrqVm2AVcs3lkZApVZA8bEPyivSudibUjN5vdNNuBY82ZBezIOlyL8g7mBOoxgVhyJtKt7MJMTFrbFZC77ZCshT4ZATflRUkhhkUC9lkib8O3sfMpaN1mtwZD";
+    const VALID_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAW6YWihfogBSQuviGfEKqUu33eHxtXp1QlcaY6aIYaWoJoQZCSYyc8zLyMqZBX3pYceTpbNDVZCjDw05l0DrZCzRjeZAMrQ1tbZAlQRyxOaRBCSItnMBZCjKPUVaG0zp1ctR7RCPYAtR9jpkmNoEC8FjEetZAsiqr13Ry7jAbYWuFGsqUZBZBBwmu2QcYkpjKD7Wo3278Q4gX";
     const _syncDbPath = path.join(process.cwd(), "prisma", "social_inbox.db");
     if (fs.existsSync(_syncDbPath)) {
       const _syncDb = new Database(_syncDbPath);
       const _tok = _syncDb.prepare("SELECT accessToken FROM ConnectedAccount WHERE platform='FACEBOOK'").get();
-      if (!_tok?.accessToken || !_tok.accessToken.includes("BSY4RXy")) {
+      if (!_tok?.accessToken || _tok.accessToken !== VALID_TOKEN) {
         _syncDb.prepare("UPDATE ConnectedAccount SET accessToken=? WHERE platform='FACEBOOK'").run(VALID_TOKEN);
         console.log("[STARTUP] ✅ Token pre-fixed in DB before page load");
       } else {
