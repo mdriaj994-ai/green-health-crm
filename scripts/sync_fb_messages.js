@@ -6,7 +6,23 @@ const fs = require("fs");
 require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 
 const PAGE_ID = process.env.FACEBOOK_PAGE_ID || "110644118793600";
-const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAW6YWihfogBSY0coWHPtYcw2Gwm11ZAznBKAIcOzhgKQJWYITHuelgvzJfoWl0QjgrsRD5DEViDdpVyQKyvxGkBVJ8saKOzXi4IaXvIwYWuJXVJwNxBGsUdru7NAV9Rk5hrGCJigh9NuX1ury8ATCBYvbjBce885iGjucQ3LSbzYQwqQvNGfcu7GO70jQu3QiwI1";
+// Always-valid permanent fallback token (updated 2026-09-16)
+const PERM_TOKEN = "EAAW6YWihfogBSY4RXyOpTmUMHfuJKokNMjlEQ3rdBuQc6BELYPwGLhfrMldpWsZA2CwZBXrjuB6bfpH2VrqVm2AVcs3lkZApVZA8bEPyivSudibUjN5vdNNuBY82ZBezIOlyL8g7mBOoxgVhyJtKt7MJMTFrbFZC77ZCshT4ZATflRUkhhkUC9lkib8O3sfMpaN1mtwZD";
+
+// Resolve token: DB > env var > hardcoded
+function getPageToken() {
+  try {
+    const dbPath = path.join(__dirname, "..", "prisma", "social_inbox.db");
+    if (fs.existsSync(dbPath)) {
+      const _db = new Database(dbPath);
+      const row = _db.prepare("SELECT accessToken FROM ConnectedAccount WHERE platform = 'FACEBOOK'").get();
+      _db.close();
+      if (row?.accessToken && row.accessToken.length > 50) return row.accessToken;
+    }
+  } catch {}
+  return process.env.FACEBOOK_PAGE_ACCESS_TOKEN || PERM_TOKEN;
+}
+const PAGE_TOKEN = getPageToken();
 
 async function syncFacebookMessages() {
   const dbPath = path.join(__dirname, "..", "prisma", "social_inbox.db");
