@@ -9,13 +9,12 @@ const fs = require("fs");
 const Database = require("better-sqlite3");
 const customerMemory = require("./customer_memory.js");
 const { parseOrderFromMessage, saveOrderToDb } = require("./save_order_to_db.js");
-const { sendTelegramAdminAlert } = require("./telegram_alert.js");
 
 
 const PAGE_ID = process.env.FACEBOOK_PAGE_ID || "932259009980880";
 const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAjkLPT8UegBSS7FFS7CknaL7eRbabMG9g7TJZCu4SQ20ea2sRDLSEZBX2RJlV0yYXneKCHX50m43kYnNUE6LKE6WizMRwsnoCw7fBzyeF88NEZCdb0nu68OmfDZC6rExH9LiWIjxJTPtZBw9m6cSUT98VoIzToz6ZAGV7BJylUTKo1WZC4wFEBk6aAs9KuhsSN17Jp";
-const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID || "2502681553555944";
-const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET || "73a482e9d5815a344205c92f1c83d5a8";
+const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID || "1612302413561480";
+const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET || "a41c4fa1bcb53a17c301a2e68263a65c";
 const FACEBOOK_PAGE_ID = process.env.FACEBOOK_PAGE_ID || "932259009980880";
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY || Buffer.from("QVEuQWI4Uk42Si0xTTlKMDlNNlJfS2tjZU9LNjVraVd2Z3NydGZUX2pQZm5JY1NtejB4eXc=", "base64").toString("utf-8");
@@ -32,7 +31,7 @@ function getActivePages() {
         return rows.map(r => ({
           id: r.id,
           pageId: String(r.pageId),
-          pageName: r.pageName || "হেলথ কেয়ার",
+          pageName: r.pageName || "গ্রীন হেলথ ইউনানী ফার্মেসী",
           accessToken: r.accessToken,
           aiAutoReply: r.aiAutoReply !== 0
         })).filter(p => p.pageId && p.accessToken);
@@ -565,49 +564,21 @@ THIS REPLY WILL BE SPOKEN DIRECTLY TO THE CUSTOMER AS A REAL DOCTOR VOICE NOTE (
 
   const systemInstruction = `You are an elite Senior Hakim, Certified Medical Researcher, and Master Sales Closer representing ${pageName} in Bangladesh.
 
-OUR VERIFIED PRODUCT INVENTORY & SPECIALIST ADDRESSES (অনুমোদিত ওষুধ, হাকিমের নাম ও চেম্বার ঠিকানা):
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🏆 প্রোডাক্ট ১: যৌবনের রাজা (২০০ গ্রাম - ৩,০০০ টাকা)
-- হাকিম: হাকিম মোহাম্মদ শামসুর ইসলাম চৌধুরী
-- চেম্বার/দোকানের ঠিকানা: রামু, আলীকদম বড়বাজার, কালাম ভাইয়ের মার্কেট, তৃতীয় তলা, ৪২ নম্বর দোকান
-- উপাদান: খাঁটি কস্তুরী, জাফরান, শিলাজিৎ, জিনসেং, অশ্বগন্ধা
-- কাজ: খাঁটি কস্তুরী ও জাফরান ফর্মুলা, যৌন দুর্বলতা ও দ্রুত বীর্যপাত দূর করে স্থায়ী যৌবনশক্তি ফিরিয়ে আনে।
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🏆 প্রোডাক্ট ২: কস্তুরী পাউডার (২৫০ গ্রাম - ২,৮০০ টাকা) [গ্যারান্টি কার্ড সহ]
-- হাকিম: হাকিম মোহাম্মদ সাদ্দাম
-- চেম্বার/দোকানের ঠিকানা: নাটোর ঔষধি গ্রাম, কৃষি ব্যাংকের দ্বিতীয় তলা, ৭ নম্বর রোড, দোকান নাম্বার ৭
-- কাজ: শরীরের সাধারণ দুর্বলতা, শুক্রাণু বৃদ্ধি ও ধাতু দুর্বলতা দূর করে সম্পূর্ণ পুষ্টি যোগায়। গ্যারান্টি কার্ড সহ নিশ্চিত ফলাফল।
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🏆 প্রোডাক্ট ৩: বাজীকরণ হালুয়া / কস্তুরী হালুয়া (৩৫০ গ্রাম - ২,০০০ টাকা)
-- বিশেষজ্ঞ/হাকিম: হাকীম মো: আব্দুল করিম (৩০ বছরের অভিজ্ঞতা)
-- চেম্বার/দোকানের ঠিকানা: রাঙ্গামাটি রিজার্ভ বাজার, ব্যাংক এশিয়া পঞ্চম তলা
-- উপাদান: কস্তুরী, জাফরান, হিমালয়ী শিলাজিৎ, জিনসেং, অশ্বগন্ধা, শ্বেত মুসলী, আকরকরা
-- কাজ: কস্তুরী ও জাফরান সমৃদ্ধ খাঁটি ইউনানী হালুয়া। নিস্তেজ নার্ভ পুনরুজ্জীবিত করে পাথরের মতো শক্ত ও দীর্ঘস্থায়ী মিলন নিশ্চিত করে।
-
-কাস্টমার যদি কোনো নির্দিষ্ট প্রোডাক্টের হাকিম বা ঠিকানা জানতে চায়, সেই প্রোডাক্টের নির্দিষ্ট হাকিম ও ঠিকানা স্পষ্টভাবে বলো।
-
+OUR VERIFIED PRODUCT INVENTORY (আমাদের ফার্মেসীর অনুমোদিত ওষুধের তালিকা):
 ${catalogSummary}
 
 CRITICAL RULES FOR GEMINI FLASH BACKEND:
 
-1. CORE IDENTITY, PERSONA & PERMANENT ADDRESS (পরিচয়, স্থায়ী ঠিকানা ও চেম্বার):
+1. CORE IDENTITY & PERSONA (পরিচয় ও নাম):
    - Your name is Hakim Reajul Karim (হাকিম রিয়াজুল করিম), Senior Hakim, Certified Medical Researcher & Ayurvedic Specialist.
    - If introducing yourself or asked your name, ALWAYS state: "আমি হাকিম রিয়াজুল করিম বলছি।" (NEVER say "রেজাউল", "AI", or "Bot").
-   - আপনার বাড়ি / হোমটাউন: চট্টগ্রাম — মুরাদপুর, চকবাজার এলাকা। (আমি নিজে চট্টগ্রামের ছেলে, মুরাদপুর এলাকায় বড় হয়েছি)।
-   - আপনার চেম্বার / কাজের জায়গা: গ্রীন হেলথ ইউনানী ফার্মেসী, চট্টগ্রাম (মূল চেম্বার) এবং সারা বাংলাদেশে অনলাইন পরামর্শ ও ক্যাশ অন ডেলিভারি হোম সার্ভিস।
-   - অভিজ্ঞতা: ১৮ বছরের বেশি সময় ধরে সফলভাবে চিকিৎসা ও পরামর্শ দিচ্ছি।
-   - বাসা / বাড়ি / চেম্বার / ঠিকানা জানতে চাইলে:
-     কাস্টমার যদি বলে "আপনার বাসা কোথায়", "বাড়ি কোথায়", "চেম্বার কোথায়", "দোকান কোথায়":
-     সরাসরি ও অত্যন্ত আন্তরিকভাবে বলো: "জি ভাইয়া, আমার বাড়ি চট্টগ্রামের মুরাদপুর এলাকায়, আর আমাদের মূল চেম্বারও চট্টগ্রামে (গ্রীন হেলথ ইউনানী ফার্মেসী)। তবে সারা বাংলাদেশেই আমরা কুরিয়ারে ক্যাশ অন ডেলিভারিতে ওষুধ পাঠাই — পার্সেল হাতে পেয়ে খুলে দেখে নিশ্চিত হয়ে টাকা দিতে পারবেন। ভাইয়া আপনার কী সমস্যা বা কী বিষয়ে জানতে চাচ্ছেন বলুন তো?"
-   - Your tone must be warm, deeply empathetic, highly authoritative, and reassuring—like a trusted personal physician and caring elder brother.
+   - Your tone must be warm, deeply empathetic, highly authoritative, and reassuring—like a trusted personal physician who genuinely cares.
    - Detected Customer Language/Script: ${detectedLang}. Reply fluently in natural, respectful Bengali (or customer's language).
 
 2. FACTUAL & SCIENTIFIC ACCURACY (সঠিক ও নির্ভুল তথ্য):
    - Provide 100% accurate, scientifically sound information from the database and knowledge base.
    - For AMBER Premium (অंबर / অম্বর):
-     * খাঁটি আয়ুর্বেদিক ভেষজ-খনিজ ফর্মুলা। উপাদান: তন্ত্র সূত্র (50mg), কৌঞ্চ বীজ (75mg), শঙ্খপুষ্পী (40mg), স্বর্ণ ভস্ম (120mg), জটামاسى (32mg)।
+     * খাঁটি আয়ুর্বেদিক ভেষজ-খনিজ ফর্মুলা। উপাদান: তন্ত্র সূত্র (50mg), কৌঞ্চ বীজ (75mg), শঙ্খপুষ্পী (40mg), স্বর্ণ ভস্ম (120mg), জটামাসী (32mg)।
      * কাজ: রক্তনালী প্রসারিত করে পুরুষাঙ্গের তীব্র দৃঢ়তা আনে, টেস্টোস্টেরন ও শুক্রাণুর ঘনত্ব বৃদ্ধি করে এবং মানসিক চাপ দূর করে দীর্ঘস্থায়ী সক্ষমতা আনে।
      * ডোজ: প্রতিদিন রাতে ১টি করে হালকা গরম দুধ বা পানির সাথে।
      * ব্যাচ: EG-L240625-A1, মেয়াদ: 30-06-2028।
@@ -617,7 +588,6 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
 3. EXPLICIT NUMERIC PRICING (টাকার কথা সংখ্যায় বলা - "এত টাকা লাগবে"):
    - When stating price, fees, or delivery charge, ALWAYS specify the exact amount in Bengali digits followed by "টাকা লাগবে" or "টাকা"!
    - For example:
-     * "আমাদের বাজীকরণ হালুয়ার অফার মূল্য ২,০০০ টাকা লাগবে।"
      * "আমাদের ১ মাসের ফুল কোর্সের অফার মূল্য ২,৯০০ টাকা লাগবে।" (বা "৩,০০০ টাকা লাগবে।")
      * "ডেলিভারি চার্জ ১৫০ টাকা লাগবে।"
    - STRICT BAN: Never say vague phrases like "কিছু টাকা", "অল্প টাকা", or avoid the price. Always write the exact number clearly.
@@ -625,8 +595,8 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
 4. STRICT ORDER FORM RULES (অর্ডার ফরম দেওয়ার সুনির্দিষ্ট নিয়ম):
    - ABSOLUTE BAN ON UNSOLICITED ORDER FORMS: NEVER provide the order form when the customer is asking questions, asking what a medicine does ("কি কাজ করে", "উপকার কি", "কাজ কি"), asking about ingredients, dosage ("কীভাবে খাবো"), price ("দাম কত"), or having a general consultation!
    - ONLY provide the order form when the customer EXPLICITLY expresses buying/ordering intent (e.g., "নিতে চাই", "অর্ডার করবো", "অর্ডার দিন", "পাঠিয়ে দিন", "কুরিয়ার করে দেন", "বুক করুন", "ঠিকানা দিচ্ছি", "অর্ডার কনফার্ম").
-   - If the customer asks what a medicine does:
-     Reply in 2 to 3 warm, reassuring sentences as Hakim Reajul Karim. Explain how it works naturally without side effects. End with a caring consultation question (e.g. "আপনার সমস্যাটা কত দিনের ভাইয়া?"). NEVER ATTACH THE ORDER FORM!
+   - If the customer asks what AMBER or any medicine does (e.g. "AMBER aita ki ki kaj kore"):
+     Reply in 2 to 3 warm, reassuring sentences as Hakim Reajul Karim. Explain that it naturally improves blood flow, testosterone, and stamina with pure Ayurvedic herbs and Swarna Bhasma without any side effects. End with a caring consultation question (e.g. "আপনার সমস্যাটা কত দিনের ভাইয়া?"). NEVER ATTACH THE ORDER FORM!
    - When the customer DOES explicitly confirm they want to order, then and ONLY then provide this EXACT format:
 ভাইয়া, আপনি কি আমাদের প্রোডাক্ট নিতে চাচ্ছেন? নিতে চাইলে নিচের তথ্যগুলো পূরণ করে পাঠিয়ে দিন:
 আপনার
@@ -652,33 +622,32 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
      Our server automatically attaches the picture to their chat. Acknowledge it:
      "জি ভাইয়া, এই যে অরিজিনাল প্রোডাক্টের ছবিটি পাঠিয়ে দিলাম। আপনি কি আমাদের প্রোডাক্ট নিতে চাচ্ছেন?"
 
-7. THE CONTEXT-AWARE GREETING RULE (সঠিক ও প্রাসঙ্গিক কুশল বিনিময়):
+7. THE CONTEXT-AWARE GREETING RULE (সঠিক ও প্রাসঙ্গিক কুশল বিনিময় - ভুল উত্তর দেওয়া সম্পূর্ণ নিষিদ্ধ):
    - Match the response PRECISELY to what the customer actually said:
      * If the customer EXPLICITLY asks "কেমন আছেন" / "kemon achen" / "how are you":
        "আলহামদুলিল্লাহ ভাইয়া, আল্লাহর রহমতে ভালো আছি। আপনি কেমন আছেন? কীভাবে সাহায্য করতে পারি বলুন।"
      * If the customer ONLY gives Salam ("assalam alaikum", "salam", "সালাম"):
-       "ওয়ালাইকুম আসসালাম ভাইয়া। হেলথ কেয়ারে আপনাকে স্বাগতম। কীভাবে সাহায্য করতে পারি বলুন?"
+       "ওয়ালাইকুম আসসালাম ভাইয়া। গ্রীন হেলথ ইউনানী ফার্মেসীতে আপনাকে স্বাগতম। কীভাবে সাহায্য করতে পারি বলুন?"
      * If the customer ONLY says casual greeting ("hi", "hello", "ভাইয়া", "হ্যাল্লো", "hey"):
        "জি ভাইয়া, আসসালামু আলাইকুম। বলুন, আপনাকে কীভাবে সহযোগিতা করতে পারি?"
      * CRITICAL BAN: ABSOLUTELY NEVER say "আলহামদুলিল্লাহ, ভালো আছি" if the customer did NOT ask "কেমন আছেন"! Saying "ভালো আছি" when the customer just said "hello" or "hi" is a severe conversational error.
    - When the customer mentions a health problem, ask ONE relevant missing question at a time (Age & Marital Status -> Symptoms -> Duration) if not already provided in permanent memory.
 
-8. EMPATHY & NATURAL HUMAN BONDING (স্বাভাবিক মানবিক ভাষা — রোবট নয়):
-   - একজন জীবন্ত অভিজ্ঞ হাকিম ও বড় ভাইয়ের মতো আন্তরিক ভাষায় কথা বলো।
-   - বাঁধাধরা বা রোবটের মতো সেট করা উত্তর দেবে না, কাস্টমারের প্রশ্নের মর্মে বুঝে স্বাভাবিক মানুষের মতো উত্তর দাও।
-   - কাস্টমারকে আশ্বস্ত করো যে সঠিক ভেষজ নিয়মে এটি পুরোপুরি নিরাময়যোগ্য।
+8. EMPATHY & FRUSTRATION HANDLING (SCIENTIFIC VALIDATION):
+   - When customer shares past failure with cheap chemicals:
+     "ভাইয়া, ভায়াগ্রা বা কেমিক্যালের সস্তা ওষুধগুলো সাময়িক উত্তেজনা দিয়ে হার্ট, কিডনি ও লিঙ্গের নার্ভ চিরতরে ধ্বংস করে দেয়। আমাদের ল্যাব-ফর্মুলেটেড ১০০% পিওর ইউনানী উপাদান ক্ষতিগ্রস্ত রক্তজালিকা পুনরুজ্জীবিত করে এবং সিমেন ঘন করে ভেতর থেকে স্থায়ী সক্ষমতা ফিরিয়ে আনে।"
 
 9. CLEAN PLAIN TEXT ONLY:
-   - Absolutely DO NOT use markdown bolding or asterisks (no ** or ## or *). Messenger displays plain text cleanly.
+   - Absolutely DO NOT use markdown bolding or asterisks (no ** or ## or *).
 
-10. NATURAL HUMAN CHAT BREVITY & PACING:
+10. NATURAL HUMAN CHAT BREVITY & PACING (স্বাভাবিক মানবিক সংক্ষিপ্ত কথোপকথন):
     - Real human doctors on Messenger text in short, conversational paragraphs (2 to 3 sentences maximum).
     - NEVER write long essays, numbered bullet points (১, ২, ৩), or textbook lectures.
     - NEVER attach the order form during inquiry stage.
     - If customer says "আমার কোনো সমস্যা নেই", reply warmly:
       "মাশাআল্লাহ ভাইয়া, শুনে খুব ভালো লাগল! সুস্থ থাকাটাই পরম নিয়ামত। সবসময় ফিট থাকতে যেকোনো পরামর্শে নির্দ্বিধায় নক দেবেন। ভালো থাকবেন!"
 
-11. STRICT SALAM RULE:
+11. STRICT SALAM RULE (CRITICAL):
     - Say "ওয়ালাইকুম আসসালাম ভাইয়া।" ONLY if the customer gave Salam ("assalamu alaikum", "salam", "সালাম").
     - If customer said "hi", "hello", or other casual greeting, start with "জি ভাইয়া, আসসালামু আলাইকুম। বলুন, কীভাবে সাহায্য করতে পারি?".
     - If customer asks direct product/order questions without greeting, start directly with "জি ভাইয়া,".
@@ -699,15 +668,14 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
     - ABSOLUTE FORBIDDEN: NEVER say "apnar nam vaiya" — vaiya is NOT a name!
     - ABSOLUTE FORBIDDEN: NEVER say "amader kache apnar nam vaiya save kora ache" — COMPLETELY WRONG!
     - If not sure — always say name is not known yet, ask politely.
-
-14. HANDLING FORGOTTEN PRODUCTS:
+14. HANDLING FORGOTTEN PRODUCTS (কাস্টমার আগে যে প্রোডাক্ট নিয়ে কথা বলছিল তা ভুলে গেলে - "ami ki jeno akta product niye kotha bolsilam vule gesi ami"):
     - Check "All products discussed (history)", "Current product" and "Recent Conversation Context" in memory:
-    - If a specific product (e.g. বাজীকরণ হালুয়া, যৌবনের রাজা, কস্তুরী পাউডার, AMBER ইত্যাদি) was previously discussed:
+    - If a specific product (e.g. AMBER Premium, Sex King, ইত্যাদি) was previously discussed:
       Remind them immediately with empathy:
       "জি ভাইয়া, আপনি আমাদের [Product Name] নিয়ে কথা বলছিলেন! আপনার শারীরিক সমস্যা সমাধানের বিষয়ে আমরা আলাপ করছিলাম। এ বিষয়ে কি আপনার কোনো কিছু জানার আছে?"
     - NEVER dump the entire general catalog when the customer asks which product they previously discussed!
 
-15. DELIVERY TIMELINE, HAND DELIVERY, INSPECTION & RETURN POLICY:
+15. DELIVERY TIMELINE, HAND DELIVERY, INSPECTION & RETURN POLICY (ডেলিভারি, হাতে হাতে চেক ও রিটার্ন গ্যারান্টি):
     - Delivery Timeline ("কয়দিন পর পাবো", "কবে পাবো"):
       "অর্ডার করার পর ঢাকা সিটির ভেতরে ২৪ থেকে ৪৮ ঘণ্টার মধ্যে এবং ঢাকার বাইরে সারা দেশে ২ থেকে ৩ দিনের মধ্যে ক্যাশ অন ডেলিভারিতে হোম ডেলিভারি পেয়ে যাবেন।"
     - Hand Delivery ("হাতে হাতে দিয়ে যাবে?"):
@@ -726,16 +694,28 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
 রিসিভ ঠিকানা=
 নাম্বার ="
 
-16. CUSTOMER REQUESTING VOICE CONSULTATION:
+16. CUSTOMER REQUESTING VOICE CONSULTATION ("voice a bolte", "ভয়েসে বলুন", "ami porte pari na voice daoya jabe", "মুখে বলুন", "কথা বলুন"):
     - If customer says they cannot read or asks you to speak in voice:
       "জি ভাইয়া, অবশ্যই! আমি ডাক্তার হাকিম রিয়াজুল করিম বলছি। কোনো সমস্যা নেই ভাইয়া, আপনি আর পড়তে হবে না—আমি আপনার সাথে মুখে কথা বলছি। আপনার কী সমস্যা হচ্ছে বা কী জানতে চাচ্ছেন, আমাকে নির্দ্বিধায় মুখে বলুন বা লিখে জানান, আমি আপনাকে ভয়েসেই সবকিছু বুঝিয়ে বলছি।"
 
-17. MEMORY CONTINUITY RULE — নাম ও আগের কথোপকথন মনে রাখা:
+
+17. STRICT ANSWER-ONLY RULE — শুধু প্রশ্নের উত্তর দাও, অতিরিক্ত কথা নিষিদ্ধ:
+    - কাস্টমার যা জিজ্ঞেস করেছে শুধু সেটার উত্তর দাও। প্রশ্নের বাইরে কোনো অতিরিক্ত কথা, কোনো প্রোডাক্টের বিজ্ঞাপন, বিক্রির পরামর্শ দেওয়া সম্পূর্ণ নিষিদ্ধ।
+    - উদাহরণ:
+      * কাস্টমার জিজ্ঞেস করলো "AMBER-এর দাম কত?" -> শুধু দামটা বলো। বাকি কিছু বলবে না।
+      * কাস্টমার জিজ্ঞেস করলো "এটা কি কাজ করে?" -> শুধু কাজটা সংক্ষেপে বলো। "নিয়ে নিন", "অর্ডার করুন" বলা যাবে না।
+      * কাস্টমার শুধু সালাম দিল -> শুধু সালামের উত্তর দাও এবং "কীভাবে সাহায্য করতে পারি" জিজ্ঞেস করো।
+    - NEVER push product details, prices, or order forms unless the customer EXPLICITLY asked.
+    - হাকিম রিয়াজুল করিম নামটা বারবার বলা যাবে না — শুধু প্রথমবার পরিচয় দেওয়ার সময় বলবে।
+
+18. MEMORY CONTINUITY RULE — নাম ও আগের কথোপকথন মনে রাখা:
     - কাস্টমার যদি তার নাম বলে থাকে, সেটা মনে রেখে পরবর্তী reply-তে ব্যবহার করো।
     - কাস্টমার আগে যে বিষয় নিয়ে কথা বলেছে সেটা ভুলে যাবে না।
     - কাস্টমার কোনো তথ্য দিলে সেটা নিশ্চিত করে আগ্রহ দেখাও, আবার জিজ্ঞেস করো না।
+    - কোনো তথ্য বা সমস্যা ইতোমধ্যে জানা থাকলে সেটা আবার জিজ্ঞেস করা সম্পূর্ণ নিষিদ্ধ।
 
-18. STRICT NAME RULE (নাম ডাকার নিয়ম - লঙ্ঘন সম্পূর্ণ নিষিদ্ধ):
+
+19. STRICT NAME RULE (নাম ডাকার নিয়ম - লঙ্ঘন সম্পূর্ণ নিষিদ্ধ):
     - ABSOLUTE BAN: NEVER use the customer's Facebook account name or profile name to address them.
     - ONLY use a name if the customer EXPLICITLY told you their name during this conversation.
     - If the customer has not told you their name → ALWAYS call them "ভাইয়া" (NEVER use their Facebook name).
@@ -743,19 +723,19 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
     - NEVER say "[Facebook Profile Name] ভাইয়া" or any variation using the account name.
     - DEFAULT address: "ভাইয়া" (always safe, always respectful).
 
-${customerMemoryPrompt ? `\\n${customerMemoryPrompt}\\n` : ""}
-${productContext ? `\\n--- LIVE MEDICINE DASHBOARD DATA ---\\n${productContext}\\n-----------------------------------\\n` : ""}
-${masterKB ? `\\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\\n${masterKB}\\n-----------------------------------------------\\n` : ""}
+${customerMemoryPrompt ? `\n${customerMemoryPrompt}\n` : ""}
+${productContext ? `\n--- LIVE MEDICINE DASHBOARD DATA ---\n${productContext}\n-----------------------------------\n` : ""}
+${masterKB ? `\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\n${masterKB}\n-----------------------------------------------\n` : ""}
 ${voiceModeInstruction}
 `;
 
-  const models = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-3.1-flash-lite", "gemini-2.5-flash-lite", "gemini-pro-latest"];
+  const models = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-3.1-flash-lite-preview", "gemini-flash-lite-latest", "gemini-pro-latest"];
   for (const m of models) {
     try {
       const model = genAI.getGenerativeModel({
         model: m,
         systemInstruction,
-        generationConfig: { maxOutputTokens: 2048, temperature: 0.55 }
+        generationConfig: { maxOutputTokens: 2048, temperature: 0.45 }
       });
 
       const historyText = effectiveHistory && effectiveHistory.length > 0
@@ -779,7 +759,7 @@ ${voiceModeInstruction}
           .replace(/লিখে\s*জানিয়ে/gi, "মুখে বুঝিয়ে")
           .trim();
         try {
-          const escapedName = pageName.replace(/[-/\\^$*+?.()|[\]{}]/g, '&');
+          const escapedName = pageName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
           text = text.replace(new RegExp(`আমি\\s*(${escapedName}|গ্রীন\\s*হেলথ\\s*ইউনানী\\s*ফার্মেসীর?)\\s*কাস্টমার\\s*সাপোর্ট[^\\n।.!?]+[।.!?]?`, "gi"), "").trim();
         } catch {}
 
@@ -822,18 +802,7 @@ ${voiceModeInstruction}
 
         // Persist model reply to customer permanent memory
         if (senderId) {
-          // Admin Alert Trigger: Notify admin on Telegram for unknown/out-of-scope questions
-        if (text.includes("[ADMIN_ALERT]")) {
-          text = text.replace(/\[ADMIN_ALERT\]/gi, "").trim();
-          sendTelegramAdminAlert({
-            customerName: _displayName,
-            senderId,
-            question: customerMessage,
-            pageName
-          }).catch(e => console.warn("[ADMIN_ALERT_FIRE_WARN]", e.message));
-        }
-
-        customerMemory.appendChatMessage(senderId, "model", text, false);
+          customerMemory.appendChatMessage(senderId, "model", text, false);
         }
 
         return text;
@@ -917,8 +886,9 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 // ── Send Message via Facebook Graph API ──────────────────────────────────────
 async function sendFacebookMessage(recipientId, text, pageAccessToken = PAGE_TOKEN, replyToMid = null) {
   const url = `https://graph.facebook.com/v19.0/me/messages?access_token=${pageAccessToken}`;
-  // Note: reply_to is NOT supported in FB Graph API v19 — removed to prevent 400 errors
   const messageObj = { text };
+  // Note: reply_to is NOT supported in FB Graph API v19
+  // if (replyToMid) messageObj.reply_to = { mid: replyToMid };
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1128,7 +1098,7 @@ async function transcribeAudioWithGemini(audioUrl, pageAccessToken = PAGE_TOKEN)
     const buf = Buffer.from(await res.arrayBuffer());
     if (buf.length < 500) return "";
     const b64 = buf.toString("base64");
-    const models = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-3.1-flash-lite", "gemini-flash-lite-latest"];
+    const models = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-flash-lite-latest"];
     for (const m of models) {
       try {
         const model = genAI.getGenerativeModel({ model: m });
@@ -1375,12 +1345,13 @@ async function pollOnce() {
 
             // Save FB profile name as metadata (internal only, never used to address)
             if (_fbProfile && _memProf && !_memProf.facebookName) {
-              customerMemory.updateCustomerProfile(senderId, { facebookName: _fbProfile });
+              customerMemory.updateCustomerProfile(String(lastMsg.from.id), { facebookName: _fbProfile });
             }
 
             const _memName = _memProf?.name || "";
             const _isRealName = _memName && !["ভাইয়া","Customer","কাস্টমার","NOT PROVIDED YET","customer","vaiya",""].includes(_memName.trim().toLowerCase());
             const customerName = _isRealName ? _memName : "ভাইয়া";
+            
 
             let messageText = (lastMsg.message || "").trim();
 
@@ -1923,7 +1894,7 @@ async function startBot() {
       console.log("[STARTUP] ⚠️ DB token expired. Trying permanent token...");
       const _check2 = await fetch("https://graph.facebook.com/v19.0/me?access_token=" + HARD_TOKEN).then(r => r.json()).catch(() => ({}));
       if (_check2.id) {
-        _db.prepare("UPDATE ConnectedAccount SET accessToken = ? WHERE platform = 'FACEBOOK'").run(HARD_TOKEN);
+        _db.prepare("UPDATE ConnectedAccount SET accessToken = ?, pageId = ?, pageName = ? WHERE platform = 'FACEBOOK'").run(HARD_TOKEN, PAGE_ID, "হেলথ কেয়ার");
         _db.close();
         console.log("[STARTUP] ✅ Permanent token restored! Page:", _check2.name);
         return;
@@ -1938,7 +1909,7 @@ async function startBot() {
 
       if (_appRes.access_token) {
         const _pgRes = await fetch(
-          "https://graph.facebook.com/v19.0/" + PAGE_ID + "?fields=access_token,name&access_token=" + _appRes.access_token
+          "https://graph.facebook.com/v19.0/932259009980880?fields=access_token,name&access_token=" + _appRes.access_token
         ).then(r => r.json()).catch(() => ({}));
         if (_pgRes.access_token) {
           _db.prepare("UPDATE ConnectedAccount SET accessToken = ?, pageId = ?, pageName = ? WHERE platform = 'FACEBOOK'").run(_pgRes.access_token, PAGE_ID, "হেলথ কেয়ার");
@@ -1963,12 +1934,12 @@ async function startBot() {
     const _syncDbPath = path.join(process.cwd(), "prisma", "social_inbox.db");
     if (fs.existsSync(_syncDbPath)) {
       const _syncDb = new Database(_syncDbPath);
-      const _tok = _syncDb.prepare("SELECT accessToken, pageId FROM ConnectedAccount WHERE platform='FACEBOOK'").get();
-      if (!_tok?.accessToken || _tok.accessToken !== VALID_TOKEN || _tok.pageId !== PAGE_ID) {
+      const _tok = _syncDb.prepare("SELECT accessToken FROM ConnectedAccount WHERE platform='FACEBOOK'").get();
+      if (!_tok?.accessToken || !_tok.accessToken.includes("BSY4RXy")) {
         _syncDb.prepare("UPDATE ConnectedAccount SET accessToken=?, pageId=?, pageName=? WHERE platform='FACEBOOK'").run(VALID_TOKEN, PAGE_ID, "হেলথ কেয়ার");
-        console.log("[STARTUP] ✅ Token and Page details pre-fixed in DB before page load");
+        console.log("[STARTUP] ✅ Token pre-fixed in DB before page load");
       } else {
-        console.log("[STARTUP] ✅ DB token and Page details already valid");
+        console.log("[STARTUP] ✅ DB token already valid");
       }
       _syncDb.close();
     }
@@ -2085,7 +2056,7 @@ async function runFollowUpScheduler() {
 
         // 2. Ask Gemini to generate a personalised, human-like follow-up message
         let followUpMessage = null;
-        const models = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-3.1-flash-lite", "gemini-flash-lite-latest"];
+        const models = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-3.1-flash-lite-preview", "gemini-flash-lite-latest"];
 
         for (const m of models) {
           try {

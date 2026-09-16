@@ -6,11 +6,7 @@ import path from "path";
 function getDb() {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const Database = require("better-sqlite3");
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const fs = require("fs");
-  const dataDb = path.join(process.cwd(), "data", "social_inbox.db");
-  const prismaDb = path.join(process.cwd(), "prisma", "social_inbox.db");
-  const dbPath = fs.existsSync(dataDb) ? dataDb : prismaDb;
+  const dbPath = path.join(process.cwd(), "prisma", "social_inbox.db");
   const db = new Database(dbPath);
   // Ensure Order table always exists (runs on every connection)
   db.exec(`CREATE TABLE IF NOT EXISTS "Order" (
@@ -31,16 +27,6 @@ function getDb() {
     updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
   )`);
   return db;
-}
-
-function syncOrdersBackup(db: any) {
-  try {
-    // eslint-disable-next-line @typescript-eslint/no-require-imports
-    const fs = require("fs");
-    const backupPath = path.join(process.cwd(), "data", "orders_backup.json");
-    const all = db.prepare('SELECT * FROM "Order" ORDER BY createdAt DESC').all();
-    fs.writeFileSync(backupPath, JSON.stringify(all, null, 2), "utf-8");
-  } catch (_) {}
 }
 
 function generateId() {
@@ -119,7 +105,6 @@ export async function POST(req: NextRequest) {
     );
 
     const order = db.prepare(`SELECT * FROM "Order" WHERE id = ?`).get(id);
-    syncOrdersBackup(db);
     db.close();
     return NextResponse.json({ order });
   } catch (error: any) {
@@ -135,7 +120,6 @@ export async function PATCH(req: NextRequest) {
     const now = new Date().toISOString();
     db.prepare(`UPDATE "Order" SET status = ?, updatedAt = ? WHERE id = ?`).run(status, now, id);
     const order = db.prepare(`SELECT * FROM "Order" WHERE id = ?`).get(id);
-    syncOrdersBackup(db);
     db.close();
     return NextResponse.json({ order });
   } catch (error: any) {

@@ -4,7 +4,6 @@ import { buildCustomerMemoryPrompt, extractCustomerFacts, appendChatMessage, get
 import { getGeoSocialProofFromProfile, detectDistrictFromText } from "./geo-social-proof";
 import fs from "fs";
 import path from "path";
-import { notifyAdminUnknownQuestion } from "./telegram-alert";
 
 let genAIInstance: GoogleGenerativeAI | null = null;
 
@@ -189,84 +188,6 @@ THE SALES FUNNEL — follow this exact sequence in EVERY conversation:
 NON-NEGOTIABLE CLOSING DIRECTIVE: No matter what the customer chats about — small talk, personal questions, complaints, general health queries — ALWAYS find a natural, caring bridge back to their HEALTH and the 3,000 TK PACKAGE. The conversation must ALWAYS funnel toward the close. Never let a conversation end without a clear next step toward ordering.
 ══════════════════════════════════════════════════════════
 
-══════════════════════════════════════════════════════════
-RULE 5 — THREE PRODUCT CATALOG WITH HAKIM & ADDRESS (৩টি প্রোডাক্ট — সঠিক হাকিম ও ঠিকানা অনুযায়ী উত্তর দিতে হবে)
-
-CRITICAL: প্রতিটি প্রোডাক্টের আলাদা হাকিম ও ঠিকানা আছে। কাস্টমার যে প্রোডাক্টের কথা জিজ্ঞেস করবে বা যাকে যে প্রোডাক্ট suggest করা হবে — সেই প্রোডাক্টের নির্দিষ্ট হাকিম ও ঠিকানা বলতে হবে। অন্য প্রোডাক্টের হাকিম বা ঠিকানা মিশিয়ে ফেলা কঠোরভাবে নিষিদ্ধ।
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🏆 প্রোডাক্ট ১: যৌবনের রাজা
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- প্রোডাক্টের নাম: যৌবনের রাজা
-- পরিমাণ: ২০০ গ্রাম
-- মূল্য: ৩,০০০ টাকা
-- হাকিমের নাম: হাকিম মোহাম্মদ শামসুর ইসলাম চৌধুরী
-- অফিস/চেম্বার ঠিকানা: রামু, আলীকদম বড়বাজার, কালাম ভাইয়ের মার্কেট, তৃতীয় তলা, ৪২ নম্বর দোকান
-- উপাদান: খাঁটি কস্তুরী, জাফরান, শিলাজিৎ, জিনসেন (Ginseng), অশ্বগন্ধা, কস্তুরী আনাম
-- কার জন্য (Symptoms যেসব ক্ষেত্রে suggest করবে):
-  * যৌন দুর্বলতা (Sexual weakness)
-  * দ্রুত বীর্যপাত (Premature ejaculation)
-  * পুরুষত্বহীনতা (Erectile dysfunction)
-  * যৌনশক্তি কম, উত্তেজনা কম
-  * বিবাহিত পুরুষ যারা যৌন সমস্যায় ভুগছেন
-  * বয়স্ক পুরুষ (৩৫+) যাদের যৌবনশক্তি কমে গেছে
-- বিশেষত্ব: খাঁটি কস্তুরী ও জাফরান ফর্মুলা, ভেতর থেকে যৌবনশক্তি ফিরিয়ে আনে
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🏆 প্রোডাক্ট ২: কস্তুরী পাউডার
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- প্রোডাক্টের নাম: কস্তুরী পাউডার
-- পরিমাণ: ২৫০ গ্রাম
-- মূল্য: ২,৮০০ টাকা
-- হাকিমের নাম: হাকিম মোহাম্মদ সাদ্দাম
-- অফিস/চেম্বার ঠিকানা: নাটোর ঔষধি গ্রাম, কৃষি ব্যাংকের দ্বিতীয় তলা, ৭ নম্বর রোড, দোকান নাম্বার ৭
-- বিশেষ সুবিধা: গ্যারান্টি কার্ড সহ দেওয়া হয়
-- কার জন্য (Symptoms যেসব ক্ষেত্রে suggest করবে):
-  * শরীরের সাধারণ দুর্বলতা (General weakness)
-  * শুক্রাণু কম (Low sperm count)
-  * স্মৃতিশক্তি দুর্বলতা (Memory weakness)
-  * রক্ত পরিষ্কার ও শরীর পরিশুদ্ধ করতে
-  * হার্ট সমস্যা আছে কিন্তু হালকা চিকিৎসা চান
-  * ডায়াবেটিস রোগী যিনি প্রাকৃতিক উপায়ে শক্তি বাড়াতে চান
-  * যারা পাউডার আকারে ওষুধ পছন্দ করেন
-- বিশেষত্ব: গ্যারান্টি কার্ড সহ — সম্পূর্ণ নিশ্চিত ফলাফল
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-🏆 প্রোডাক্ট ৩: বাজীকরণ হালুয়া (প্রাকৃতিক ইউনানী প্রস্তুতি)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-- প্রোডাক্টের নাম: বাজীকরণ হালুয়া (প্রাকৃতিক ইউনানী প্রস্তুতি)
-- পরিমাণ: ৩৫০ গ্রাম
-- মূল্য: ২০০০ টাকা (ব্যানারে প্রদর্শিত অফার মূল্য)
-- বিশেষজ্ঞ: হাকীম মো: আব্দুল করিম (প্রখ্যাত ইউনানী চিকিৎসক, ৩০ বছরের অভিজ্ঞতা)
-- অফিস/চেম্বার ঠিকানা: রাঙ্গামাটি রিজার্ভ বাজার, ব্যাংক এশিয়া পঞ্চম তলা
-- মূল কাজ: পুরুষের শক্তি, সামর্থ্য, প্রাকৃতিক এনার্জি বৃদ্ধি এবং সামগ্রিক শারীরিক কল্যাণ নিশ্চিত করা।
-- উপাদান তালিকা ও শরীরের রগে এর নিখুঁত কার্যকারিতা (Ingredients & Action Mechanism):
-  * কস্তুরী ও জাফরান: শরীরের রক্ত সঞ্চালন এত দ্রুত বাড়িয়ে দেয় যে মনে হবে রগে রগে ৩৬০০ ভোল্টের কারেন্ট খেলে যাচ্ছে। নিস্তেজ রগগুলোতে তাৎক্ষণিক জোশ ও উষ্ণতা এনে দেয়।
-  * হিমালয়ী শিলাজিৎ ও জিনসেং: শরীরের স্ট্যামিনা ও সহনশীলতা বহুগুণ বাড়িয়ে দেয়। ক্লান্তি দূর করে বাঘের মতো শারীরিক শক্তি ফিরিয়ে আনে।
-  * অশ্বগন্ধা, শ্বেত মুসলী ও আকরকরা: পুরুষাঙ্গের টিস্যুগুলোকে পুনরুজ্জীবিত করে, ভেতর থেকে সব দুর্বলতা দূর করে এবং লিঙ্গ পাথরের মতো শক্ত ও দীর্ঘস্থায়ী করতে সাহায্য করে।
-  * তালমখানা, সর্পগন্ধা ও জয়ফল-জয়ত্রী: বীর্য ঘন করে এবং দ্রুত বীর্যপাতের সমস্যা চিরতরে দূর করে দীর্ঘক্ষণ মিলন করার ক্ষমতা তৈরি করে।
-- SENTIMENT-BASED SALES LOGIC FOR BAJIKORON HALUA (সেন্টিমেন্ট অ্যানালিসিস ও চ্যাটিং প্রম্পট):
-  * If the customer shows frustration, shyness, or depression about sex life ("সহবাসে টিকতে পারি না", "লিঙ্গ নরম", "লজ্জা পাচ্ছি", "ভেঙ্গে পড়েছি"):
-    Bot must respond with extreme empathy, assuring them that 30 years of Hakim Abdul Karim's tested Unani formula (Bajikoron Halua, 350g, 2000 BDT) will completely solve it with zero side effects.
-  * If the customer asks about energy and strength:
-    Explain how ingredients like Shilajit, Ginseng, and Kasturi work like a 3600-volt current in the veins to boost energy and physical endurance instantly.
-- কার জন্য (Symptoms যেসব ক্ষেত্রে suggest করবে):
-  * মিলনে অক্ষমতা (Impotence) বা সহবাসে কম সময়
-  * লিঙ্গ নরম বা নিস্তেজ হওয়া (Size/strength/firmness issues)
-  * পুরুষের এনার্জি ও স্থায়ী স্ট্যামিনার অভাব
-  * তরুণ ও মধ্যবয়সী পুরুষ যারা বাঘের মতো শক্তি চান
-- বিশেষত্ব: হালুয়া আকারে — খেতে সুস্বাদু, সরাসরি রগে রগে কাজ করে এবং দ্রুত শোষিত হয়
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-PRODUCT SELECTION RULES (কোন রোগীকে কোন প্রোডাক্ট দেবে):
-1. যৌন সমস্যা + বিবাহিত/বয়স্ক → প্রথমে "যৌবনের রাজা" suggest করো
-2. সাধারণ দুর্বলতা + ডায়াবেটিস/হার্ট সমস্যা → "কস্তুরী পাউডার" suggest করো (গ্যারান্টি কার্ড সহ)
-3. পুরুষত্বহীনতা / কম সময় / লিঙ্গ নরম / শারীরিক এনার্জি ও স্ট্যামিনা → "বাজীকরণ হালুয়া" suggest করো
-4. যদি কাস্টমার সরাসরি কোনো প্রোডাক্টের নাম বলে → সেই প্রোডাক্টের তথ্য দাও
-
-HAKIM ADDRESS RULE: কাস্টমার যদি জিজ্ঞেস করে "হাকিম কে?" বা "অফিস কোথায়?" বা "কোথায় পাওয়া যায়?" — তাহলে সেই মুহূর্তে যে প্রোডাক্ট নিয়ে কথা হচ্ছে সেই প্রোডাক্টের হাকিম/বিশেষজ্ঞের নাম ও ঠিকানা বলো। (বাজীকরণ হালুয়ার ক্ষেত্রে: হাকীম মো: আব্দুল করিম, ৩০ বছরের অভিজ্ঞতা, ঠিকানা: রাঙ্গামাটি রিজার্ভ বাজার, ব্যাংক এশিয়া পঞ্চম তলা)। অন্য প্রোডাক্টের তথ্য মিশাবে না।
-══════════════════════════════════════════════════════════
-
 CRITICAL OPERATIONAL RULES FOR GEMINI FLASH BACKEND:
 
 1. CORE IDENTITY & PERSONA (পরিচয় ও নাম):
@@ -371,12 +292,6 @@ CRITICAL OPERATIONAL RULES FOR GEMINI FLASH BACKEND:
     - NEVER use Kolkata/Indian Bengali words, idioms, or tone (strictly NO "জল", "দাদা", "আজ্ঞে", "নমস্কার", "কোলকাতা কথ্য টান").
     - Use natural Bangladeshi brotherly expressions: "জি ভাইয়া", "আসসালামু আলাইকুম", "ইনশাআল্লাহ", "আল্লাহর রহমতে", "কোনো চিন্তা করবেন না", "কুরিয়ার ম্যানের সামনে পার্সেল খুলে দেখে টাকা দিবেন", "ক্যাশ অন ডেলিভারি"।
     - Speak with genuine warmth, authority, and empathy like a trusted Bangladeshi elder brother / Hakim.
-
-15. UNKNOWN QUESTION HANDLING & ADMIN ESCALATION (অজানা/অদ্ভুত প্রশ্ন ও এডমিন অ্যালার্ট):
-    - যদি কাস্টমার এমন কোনো অদ্ভুত, সম্পূর্ণ অপরিচিত, অপ্রাসঙ্গিক বা জটিল প্রশ্ন করে যার সুনির্দিষ্ট উত্তর আমাদের ডাটাবেস বা নলেজ বেইজে নেই:
-    - কোনো ভুল, বানিয়ে বলা বা আজেবাজে উত্তর দেওয়া সম্পূর্ণ নিষিদ্ধ!
-    - কাস্টমারের চ্যাটটি সাময়িক হোল্ডে রেখে হুবহু নিচের ফরম্যাটে উত্তর দাও (উপরে [ADMIN_ALERT] কোডটি অবশ্যই লিখবে যাতে সিস্টেম এডমিনকে টেলিগ্রামে পাঠাতে পারে):
-      "[ADMIN_ALERT] জি ভাইয়া, আপনার এই বিশেষ প্রশ্নটির সঠিক ও নির্ভুল পরামর্শ নিশ্চিত করতে আমাদের প্রধান বিশেষজ্ঞ ও চিকিৎসকের কাছে পাঠানো হয়েছে। খুব দ্রুতই আপনাকে সঠিক তথ্য ও পরামর্শ জানানো হচ্ছে, দয়া করে একটু অপেক্ষা করুন।"
 
 ${customerMemoryPrompt ? `\n${customerMemoryPrompt}\n` : ""}
 ${liveProductContext ? `\n--- LIVE DASHBOARD DATA FOR THIS INQUIRY ---\n${liveProductContext}\n-------------------------------------------\n` : ""}
@@ -498,17 +413,6 @@ export async function generateAutoReply(
 
         if (options.chatHistory && options.chatHistory.length > 0) {
           reply = reply.replace(/^(হ্যালো\s*ভাইয়া[,।!?]?|হাই\s*ভাইয়া[,।!?]?)/gi, "").trim();
-        }
-
-        // Admin Alert Trigger: Notify admin on Telegram for unknown/out-of-scope questions
-        if (reply.includes("[ADMIN_ALERT]")) {
-          reply = reply.replace(/\[ADMIN_ALERT\]/gi, "").trim();
-          notifyAdminUnknownQuestion({
-            customerName: effectiveCustomerName,
-            senderId: options.senderId,
-            question: effectiveMessage,
-            pageName: options.businessDetails || "গ্রীন হেলথ ইউনানী ফার্মেসী"
-          }).catch((e) => console.warn("[ADMIN_ALERT_FIRE_WARN]", e.message));
         }
 
         // Append assistant reply to permanent customer memory

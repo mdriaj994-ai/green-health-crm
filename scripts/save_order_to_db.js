@@ -3,7 +3,6 @@
 const Database = require("better-sqlite3");
 const path = require("path");
 const crypto = require("crypto");
-const fs = require("fs");
 
 function generateCuid() {
   return "c" + crypto.randomBytes(16).toString("hex");
@@ -197,9 +196,7 @@ function ensureOrderTable(db) {
 
 function saveOrderToDb(orderData) {
   try {
-    const dataDb = path.join(process.cwd(), "data", "social_inbox.db");
-    const prismaDb = path.join(process.cwd(), "prisma", "social_inbox.db");
-    const dbPath = fs.existsSync(dataDb) ? dataDb : prismaDb;
+    const dbPath = path.join(process.cwd(), "prisma", "social_inbox.db");
     const db = new Database(dbPath);
 
     // Auto-create Order table if it doesn't exist (after Redeploy DB reset)
@@ -243,39 +240,6 @@ function saveOrderToDb(orderData) {
 
     db.close();
     console.log(`[ORDER_SAVE] ✅ Order saved! Customer: ${orderData.customerName} | Phone: ${orderData.phone} | Product: ${orderData.product || 'N/A'} | Qty: ${orderData.quantity || 1}`);
-
-    // Persist order to data/orders_backup.json (survives Coolify Redeploy)
-    try {
-      const dataDir = path.join(process.cwd(), "data");
-      const backupPath = path.join(dataDir, "orders_backup.json");
-      let backupList = [];
-      if (fs.existsSync(backupPath)) {
-        try { backupList = JSON.parse(fs.readFileSync(backupPath, "utf-8")); } catch (_) {}
-      }
-      const newOrderObj = {
-        id,
-        customerName: orderData.customerName || "অজ্ঞাত",
-        phone: orderData.phone || "",
-        district: orderData.district || "",
-        thana: orderData.thana || "",
-        address: orderData.address || "",
-        product: orderData.product || "",
-        quantity: orderData.quantity || 1,
-        senderId: orderData.senderId || "",
-        facebookName: orderData.facebookName || "",
-        status: "PENDING",
-        notes: orderData.notes || "",
-        pageId: orderData.pageId || "",
-        createdAt: now,
-        updatedAt: now
-      };
-      backupList = [newOrderObj, ...backupList.filter(o => o.id !== id)];
-      fs.writeFileSync(backupPath, JSON.stringify(backupList, null, 2), "utf-8");
-      console.log(`[ORDER_SAVE] 💾 Saved order to persistent backup JSON (Total: ${backupList.length})`);
-    } catch (bErr) {
-      console.warn("[ORDER_BACKUP_WARN]", bErr.message);
-    }
-
     return true;
   } catch (err) {
     console.error("[ORDER_SAVE] Error:", err.message);
