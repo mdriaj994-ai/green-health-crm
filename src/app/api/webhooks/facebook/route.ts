@@ -363,20 +363,83 @@ async function flushSenderEvent(senderId: string) {
 
           console.log(`[ORDER_DATA] name="${orderData.customerName}" phone="${orderData.phone}" district="${orderData.district}" thana="${orderData.thana}"`);
 
-          // Save via HTTP API (most reliable on Coolify)
-          try {
-            const orderRes = await fetch("http://localhost:3000/api/orders", {
-              method: "POST",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify(orderData),
-            }).then(r => r.json()).catch(() => null);
+          // ── SMART VALIDATION ──────────────────────────────────────────────
+          const validationErrors: string[] = [];
 
-            if (orderRes?.order?.id) {
-              console.log(`[ORDER] ✅ Order saved! ID: ${orderRes.order.id} | Customer: ${orderData.customerName}`);
+          // 1. Phone validation — must be valid BD number: 01[3-9]XXXXXXXX (11 digits)
+          const cleanPhone = orderData.phone.replace(/[\s\-+]/g, "").replace(/^88/, "");
+          const phoneValid = /^01[3-9]\d{8}$/.test(cleanPhone);
+          if (!phoneValid) {
+            if (cleanPhone.length < 11) {
+              validationErrors.push(`📱 আপনার মোবাইল নাম্বারটি মাত্র ${cleanPhone.length}টি সংখ্যা — বাংলাদেশের নাম্বার ১১ সংখ্যার হওয়া উচিত। দয়া করে সঠিক নাম্বারটি দিন।`);
+            } else if (cleanPhone.length > 11) {
+              validationErrors.push(`📱 আপনার মোবাইল নাম্বারটিতে ${cleanPhone.length}টি সংখ্যা আছে — এটি একটু বেশি মনে হচ্ছে। সঠিক ১১ সংখ্যার নাম্বারটি দিন।`);
+            } else if (!/^01/.test(cleanPhone)) {
+              validationErrors.push(`📱 বাংলাদেশের নাম্বার সাধারণত 01 দিয়ে শুরু হয়। আপনার নাম্বারটি আবার চেক করুন।`);
+            } else {
+              validationErrors.push(`📱 আপনার নাম্বারটি (${orderData.phone}) সঠিক মনে হচ্ছে না। দয়া করে আপনার সক্রিয় মোবাইল নাম্বারটি আবার দিন।`);
+            }
+          }
 
-              // Send confirmation message to customer
-              const refNum = `ORD-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(1000+Math.random()*9000)}`;
-              const confirmMsg =
+          // 2. Name validation — must not be empty or generic
+          const invalidNames = ["customer", "কাস্টমার", "অজ্ঞাত", "unknown", "na", "n/a", "নাই", "নেই"];
+          if (!orderData.customerName || orderData.customerName.trim().length < 2 || invalidNames.includes(orderData.customerName.toLowerCase().trim())) {
+            validationErrors.push(`👤 আপনার নামটি সঠিকভাবে লেখেননি। দয়া করে আপনার পুরো নামটি লিখুন।`);
+          }
+
+          // 3. Address validation — must have some detail
+          const hasAddress = orderData.district || orderData.thana || orderData.address;
+          if (!hasAddress) {
+            validationErrors.push(`📍 আপনার ঠিকানা পাইনি। দয়া করে জেলা, থানা এবং বাড়ির ঠিকানা দিন।`);
+          } else if (orderData.address && orderData.address.trim().length < 3) {
+            validationErrors.push(`📍 আপনার রিসিভ ঠিকানাটি খুব সংক্ষিপ্ত। একটু বিস্তারিত লিখুন যাতে কুরিয়ার সহজে পৌঁছাতে পারে।`);
+          }
+
+          // 4. District validation — if given, check it's not just numbers or garbage
+          if (orderData.district && /^\d+$/.test(orderData.district.trim())) {
+            validationErrors.push(`📮 জেলার জায়গায় শুধু সংখ্যা দিয়েছেন। দয়া করে সঠিক জেলার নাম লিখুন (যেমন: ঢাকা, চট্টগ্রাম, খুলনা)।`);
+          }
+
+          // ── IF VALIDATION FAILS → send correction request ─────────────────
+          if (validationErrors.length > 0) {
+            const errorMsg =
+`⚠️ অর্ডারটি সম্পন্ন করা যাচ্ছে না — কিছু তথ্য সঠিক মনে হচ্ছে না:
+
+${validationErrors.map((e, i) => `${i+1}. ${e}`).join('\n\n')}
+
+━━━━━━━━━━━━━━━━━━━━
+✏️ দয়া করে নিচের ফর্মটি সঠিকভাবে পূরণ করে আবার পাঠান:
+
+নাম=
+জেলা=
+থানা=
+রিসিভ ঠিকানা=
+নাম্বার=
+
+আপনার সঠিক তথ্য দিলে আমরা সাথে সাথে অর্ডার কনফার্ম করব। 🙏`;
+
+            console.log(`[ORDER_VALIDATE_FAIL] Errors: ${validationErrors.length} | phone=${orderData.phone} | name=${orderData.customerName}`);
+            await sendSenderAction(senderId, "typing_on", effectiveToken);
+            await sendMessengerReply(pageId, senderId, errorMsg, effectiveToken);
+            console.log(`[ORDER_VALIDATE_MSG] Correction request sent to ${senderId}`);
+
+          } else {
+            // ── VALIDATION PASSED → Save & Confirm ───────────────────────────
+            console.log(`[ORDER_VALIDATE_OK] All fields valid. Saving order...`);
+
+            try {
+              const orderRes = await fetch("http://localhost:3000/api/orders", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(orderData),
+              }).then(r => r.json()).catch(() => null);
+
+              if (orderRes?.order?.id) {
+                console.log(`[ORDER] ✅ Order saved! ID: ${orderRes.order.id} | Customer: ${orderData.customerName}`);
+
+                // Send confirmation message to customer
+                const refNum = `ORD-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(1000+Math.random()*9000)}`;
+                const confirmMsg =
 `🎉 অর্ডার কনফার্ম হয়েছে! ধন্যবাদ! 🙏
 
 ━━━━━━━━━━━━━━━━━━━━
@@ -395,14 +458,15 @@ async function flushSenderEvent(senderId: string) {
 ⚠️ তথ্যে ভুল থাকলে এখনই জানান।
 💚 সুস্থ থাকুন, ভালো থাকুন।`;
 
-              await sendSenderAction(senderId, "typing_on", effectiveToken);
-              await sendMessengerReply(pageId, senderId, confirmMsg, effectiveToken);
-              console.log(`[ORDER_CONFIRM] ✅ Confirmation sent to ${senderId}`);
-            } else {
-              console.warn(`[ORDER_SAVE_FAIL] API returned:`, JSON.stringify(orderRes));
+                await sendSenderAction(senderId, "typing_on", effectiveToken);
+                await sendMessengerReply(pageId, senderId, confirmMsg, effectiveToken);
+                console.log(`[ORDER_CONFIRM] ✅ Confirmation sent to ${senderId}`);
+              } else {
+                console.warn(`[ORDER_SAVE_FAIL] API returned:`, JSON.stringify(orderRes));
+              }
+            } catch (orderApiErr: any) {
+              console.warn(`[ORDER_API_ERR]`, orderApiErr.message);
             }
-          } catch (orderApiErr: any) {
-            console.warn(`[ORDER_API_ERR]`, orderApiErr.message);
           }
         }
       } catch (orderDetectErr: any) {
