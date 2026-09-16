@@ -1446,7 +1446,10 @@ async function pollOnce() {
             const isVoiceReq = userInVoiceMode || isVoiceRequested(messageText) || isOnlyVoice;
             const replyText = await generateReply(messageText, customerName, senderId, recentHistory, page.pageName, isVoiceReq);
             const parsedOrder = parseOrderFromMessage(messageText);
-            if (parsedOrder || isOrderPlaced(messageText)) {
+            const orderPlacedDetected = isOrderPlaced(messageText);
+            console.log(`[ORDER_DETECT] parsed=${parsedOrder ? 'YES phone:'+parsedOrder.phone : 'null'} | isOrderPlaced=${orderPlacedDetected} | msg="${messageText.slice(0,50).replace(/\n/g,' ')}"`);
+
+            if (parsedOrder || orderPlacedDetected) {
               // Customer gave order info → cancel any pending reminder
               cancelScheduledReminder(senderId);
 
@@ -1468,6 +1471,8 @@ async function pollOnce() {
                   facebookName: memProf?.facebookName || customerName || "",
                   pageId:    String(page.pageId),
                 };
+                console.log(`[ORDER_DATA] name="${orderData.customerName}" phone="${orderData.phone}" district="${orderData.district}"`);
+
 
                 // ── VALIDATE phone & address BEFORE saving ────────────────
                 const validation = validateOrderDetails(
