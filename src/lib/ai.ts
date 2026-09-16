@@ -303,9 +303,9 @@ ${kb}`.trim();
 
 // Verified Gemini model names — Google recommended for this API key (Sept 2026)
 const PRIMARY_MODELS = [
-  "gemini-3.6-flash",
+  "gemini-3.8-flash",
   "gemini-flash-latest",
-  "gemini-3.1-flash-lite-preview",
+  "gemini-3.1-flash-lite",
   "gemini-flash-lite-latest",
   "gemini-pro-latest",
 ];
@@ -446,6 +446,11 @@ function generateFallbackReply(
     return "জি না ভাইয়া, আপনার শুভ নামটি তো এখনো জানা হয়নি। আপনার নামটি যদি বলতেন, খুব ভালো লাগত।";
   }
 
+  // Address / Home queries (বাসা কোথায়, বাড়ি কোথায়, এলাকা, চেম্বার)
+  if (/বাসা|বাড়ি|বাড়ি|ঠিকানা|থাকেন|location|basa|bari|thikana|chamber|চেম্বার/i.test(lower)) {
+    return "জি ভাইয়া, আমার বাড়ি চট্টগ্রামে — মুরাদপুর এলাকায়। আমাদের মূল চেম্বার চট্টগ্রামে হলেও সারা বাংলাদেশেই আমরা কুরিয়ারে ক্যাশ অন ডেলিভারিতে পার্সেল পাঠিয়ে থাকি। আপনার শারীরিক কী সমস্যা নিয়ে কথা বলতে চাচ্ছিলেন ভাইয়া?";
+  }
+
   // Greetings - precise context
   if (lower.includes("kemon") || lower.includes("কেমন")) {
     return "আলহামদুলিল্লাহ ভাইয়া, আল্লাহর রহমতে ভালো আছি। আপনি কেমন আছেন? আপনাকে কীভাবে সাহায্য করতে পারি বলুন।";
@@ -462,9 +467,13 @@ function generateFallbackReply(
     return "জি ভাইয়া, এই যে আমাদের অরিজিনাল প্রোডাক্টের ছবিটি উপরে পাঠিয়ে দিলাম। আপনি কি নির্দিষ্ট কোনো ওষুধের ছবি বা কোনো স্বাস্থ্য সমস্যার পরামর্শ জানতে চাচ্ছেন?";
   }
 
-  // Order Intent
+  // Order Intent with Geo Social Proof if location detected
+  const detectedDist = detectDistrictFromText(message);
+  const geoProof = detectedDist ? getGeoSocialProofFromProfile(detectedDist, undefined, message) : "";
+
   if (lower.includes("order") || lower.includes("অর্ডার") || lower.includes("নিতে চাই")) {
-    return "ধন্যবাদ! অর্ডার কনফার্ম করতে অনুগ্রহ করে আপনার: ১. নাম, ২. সম্পূর্ণ ডেলিভারি ঠিকানা (জেলা ও থানা সহ), ৩. সচল মোবাইল নম্বর লিখে পাঠান। পার্সেল হাতে পেয়ে মূল্য পরিশোধ করতে পারবেন।";
+    const prefix = geoProof ? `${geoProof} ` : "";
+    return `${prefix}ধন্যবাদ! অর্ডার কনফার্ম করতে অনুগ্রহ করে আপনার: ১. নাম, ২. সম্পূর্ণ ডেলিভারি ঠিকানা (জেলা ও থানা সহ), ৩. সচল মোবাইল নম্বর লিখে পাঠান। কোনো অগ্রিম পেমেন্ট নেই, পার্সেল হাতে পেয়ে মূল্য পরিশোধ করতে পারবেন।`;
   }
 
   if (matchedProduct) {

@@ -16,19 +16,19 @@ import {
 // ─────────────────────────────────────────────────────────────────────────────
 const DELIVERY_PROOF_TEMPLATES = [
   (customerDistrict: string, nearbyDistrict: string) =>
-    `ভাইয়া, আমরা আজকেই ${nearbyDistrict}-এ একটা পার্সেল পাঠাচ্ছি। আপনি ${customerDistrict} থেকে অর্ডার দিলে একই রুটে আপনারটাও দ্রুত পৌঁছে যাবে।`,
+    `জি ভাইয়া, আজকে আপনাদের পাশের এলাকা ${nearbyDistrict}-এ আমাদের পার্সেল যাচ্ছে। আপনি ${customerDistrict} থেকে অর্ডার করলে ওই পার্সেলের সাথে আপনারটাও একবারে পাঠিয়ে দিব, তাহলে খুব তাড়াতাড়ি আপনি পার্সেল পেয়ে যাবেন ইনশাআল্লাহ।`,
 
   (customerDistrict: string, nearbyDistrict: string) =>
-    `একটু আগেই ${nearbyDistrict}-এর একজন ভাই অর্ডার কনফার্ম করলেন। ${customerDistrict} কাছেই — আপনারটাও একই গাড়িতে দিয়ে দিতে পারব ইনশাআল্লাহ।`,
+    `ভাইয়া, আমরা আজকেই ${nearbyDistrict}-এ একটা পার্সেল পাঠাচ্ছি। আপনি ${customerDistrict} থেকে অর্ডার দিলে একই রুটে আপনারটাও দ্রুত পৌঁছে যাবে।`,
 
   (customerDistrict: string, nearbyDistrict: string) =>
-    `ভাইয়া, ${nearbyDistrict}-এ গতকাল পার্সেল গেছে, সবাই পেয়েছেন আলহামদুলিল্লাহ। ${customerDistrict}-এও নিয়মিত ডেলিভারি হয় — চিন্তা করবেন না।`,
+    `একটু আগেই ${nearbyDistrict}-এর একজন ভাই অর্ডার কনফার্ম করলেন। ${customerDistrict} কাছেই — আপনারটাও একই পার্সেলের সাথে দিয়ে দিতে পারব ইনশাআল্লাহ।`,
 
   (customerDistrict: string, nearbyDistrict: string) =>
-    `আমাদের ${nearbyDistrict}-এর কাস্টমার ভাই মাত্র ৩ দিনে পেয়ে গেছেন। ${customerDistrict} তো একটু কাছেই — আপনিও ২-৩ দিনের মধ্যে পেয়ে যাবেন।`,
+    `ভাইয়া, ${nearbyDistrict}-এ নিয়মিত পার্সেল যাচ্ছে, সবাই সময়মতো পেয়েছেন আলহামদুলিল্লাহ। ${customerDistrict}-এও আজই পাঠিয়ে দিতে পারব — চিন্তা করবেন না।`,
 
   (customerDistrict: string, nearbyDistrict: string) =>
-    `আজকে ${nearbyDistrict}য়ে একটা শিপমেন্ট যাচ্ছে। ${customerDistrict} কাছে হওয়ায় আপনার অর্ডারটাও একই ব্যাচে দিলে দ্রুত পৌঁছানো যাবে।`,
+    `আমাদের ${nearbyDistrict}-এর কাস্টমার ভাই মাত্র ২ দিনে পেয়ে গেছেন। ${customerDistrict} তো একদম কাছেই — আপনারটাও একই ব্যাচে পাঠিয়ে দিলে দ্রুত পেয়ে যাবেন।`,
 ];
 
 // ─────────────────────────────────────────────────────────────────────────────
