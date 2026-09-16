@@ -7,7 +7,26 @@ function getDb() {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   const Database = require("better-sqlite3");
   const dbPath = path.join(process.cwd(), "prisma", "social_inbox.db");
-  return new Database(dbPath);
+  const db = new Database(dbPath);
+  // Ensure Order table always exists (runs on every connection)
+  db.exec(`CREATE TABLE IF NOT EXISTS "Order" (
+    id TEXT PRIMARY KEY,
+    customerName TEXT NOT NULL DEFAULT '',
+    phone TEXT NOT NULL DEFAULT '',
+    district TEXT NOT NULL DEFAULT '',
+    thana TEXT NOT NULL DEFAULT '',
+    address TEXT NOT NULL DEFAULT '',
+    product TEXT NOT NULL DEFAULT '',
+    quantity INTEGER NOT NULL DEFAULT 1,
+    senderId TEXT NOT NULL DEFAULT '',
+    facebookName TEXT NOT NULL DEFAULT '',
+    status TEXT NOT NULL DEFAULT 'PENDING',
+    notes TEXT NOT NULL DEFAULT '',
+    pageId TEXT NOT NULL DEFAULT '',
+    createdAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updatedAt DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+  )`);
+  return db;
 }
 
 function generateId() {
