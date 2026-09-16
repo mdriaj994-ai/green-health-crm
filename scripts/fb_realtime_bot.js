@@ -1505,9 +1505,28 @@ ${errorLines}
                   console.log(`[ORDER_VALIDATE] ❌ Invalid order from ${senderId} — issues: ${validation.issues.map(i=>i.field).join(", ")}`);
                 } else if (orderData.phone) {
                   // ✅ Valid — save to dashboard
+                  // Save via direct DB
                   const saved = saveOrderToDb(orderData);
                   if (saved) {
                     console.log(`[ORDER] 📦 Order saved to dashboard for ${orderData.customerName} | Product: ${orderData.product} | Qty: ${orderData.quantity}`);
+                  } else {
+                    console.log(`[ORDER] ⚠️ DB save returned false (duplicate or error), trying API fallback...`);
+                  }
+                  // Also save via API (HTTP fallback — ensures 100% persistence on Coolify)
+                  try {
+                    const _apiBase = `http://localhost:3000`;
+                    const _apiRes = await fetch(`${_apiBase}/api/orders`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(orderData)
+                    }).then(r => r.json()).catch(() => null);
+                    if (_apiRes?.order?.id) {
+                      console.log(`[ORDER] ✅ API fallback saved order! ID: ${_apiRes.order.id}`);
+                    } else {
+                      console.log(`[ORDER] ⚠️ API fallback result: ${JSON.stringify(_apiRes)}`);
+                    }
+                  } catch (_apiErr) {
+                    console.warn(`[ORDER_API_ERR]`, _apiErr.message);
                   }
 
                   // ── ALWAYS send confirmation to customer ─────────────────
