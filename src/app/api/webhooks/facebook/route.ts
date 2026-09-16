@@ -332,6 +332,84 @@ async function flushSenderEvent(senderId: string) {
         console.log(`[AUTO_REPLY_SENT] To: ${senderId} | Reply: "${replyText.substring(0, 80)}..."`);
       }
 
+      // ── ORDER DETECTION & SAVE ─────────────────────────────────────────────
+      // Detect if this message contains order information and save to dashboard
+      try {
+        const { parseOrderFromMessage } = require("../../../../../scripts/save_order_to_db.js");
+        const parsedOrder = parseOrderFromMessage(text);
+
+        // Also check phone number pattern for order detection
+        const enText = text.replace(/[০-৯]/g, (d: string) => "০১২৩৪৫৬৭৮৯".indexOf(d).toString());
+        const hasPhone = /01[3-9]\d{8}/.test(enText);
+        const hasOrderForm = /(?:নাম\s*[=:]|নাম্বার\s*[=:]|ঠিকানা\s*[=:]|জেলা\s*[=:]|থানা\s*[=:])/.test(text);
+        const isOrderMsg = Boolean(parsedOrder) || hasOrderForm || hasPhone;
+
+        console.log(`[ORDER_DETECT] parsed=${parsedOrder ? 'YES phone:'+parsedOrder.phone : 'null'} | hasPhone=${hasPhone} | hasForm=${hasOrderForm} | text="${text.slice(0,50).replace(/\n/g,' ')}"`);
+
+        if (isOrderMsg && parsedOrder?.phone) {
+          const custProf = custProfile || {};
+          const orderData = {
+            customerName: parsedOrder.name || resolvedCustomerName || "অজ্ঞাত",
+            phone:        parsedOrder.phone,
+            district:     parsedOrder.district || (custProf as any).district || "",
+            thana:        parsedOrder.thana    || (custProf as any).thana    || "",
+            address:      parsedOrder.address  || (custProf as any).address  || "",
+            product:      parsedOrder.product  || "Soul Mate (খাঁটি কস্তুরী ফর্মুলা)",
+            quantity:     parsedOrder.quantity || 1,
+            senderId:     String(senderId),
+            facebookName: resolvedCustomerName || senderId,
+            pageId:       String(pageId),
+          };
+
+          console.log(`[ORDER_DATA] name="${orderData.customerName}" phone="${orderData.phone}" district="${orderData.district}" thana="${orderData.thana}"`);
+
+          // Save via HTTP API (most reliable on Coolify)
+          try {
+            const orderRes = await fetch("http://localhost:3000/api/orders", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(orderData),
+            }).then(r => r.json()).catch(() => null);
+
+            if (orderRes?.order?.id) {
+              console.log(`[ORDER] ✅ Order saved! ID: ${orderRes.order.id} | Customer: ${orderData.customerName}`);
+
+              // Send confirmation message to customer
+              const refNum = `ORD-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(1000+Math.random()*9000)}`;
+              const confirmMsg =
+`🎉 অর্ডার কনফার্ম হয়েছে! ধন্যবাদ! 🙏
+
+━━━━━━━━━━━━━━━━━━━━
+📋 অর্ডার রেফারেন্স: ${refNum}
+━━━━━━━━━━━━━━━━━━━━
+
+👤 নাম: ${orderData.customerName}
+📱 মোবাইল: ${orderData.phone}
+📍 ঠিকানা: ${orderData.address}${orderData.thana ? '\n🏘️ থানা: '+orderData.thana : ''}${orderData.district ? '\n📮 জেলা: '+orderData.district : ''}
+💊 পণ্য: ${orderData.product}
+📦 পরিমাণ: ${orderData.quantity} পিস
+💰 পেমেন্ট: ক্যাশ অন ডেলিভারি
+
+━━━━━━━━━━━━━━━━━━━━
+🚚 ডেলিভারি: ২-৪ কার্যদিবস
+⚠️ তথ্যে ভুল থাকলে এখনই জানান।
+💚 সুস্থ থাকুন, ভালো থাকুন।`;
+
+              await sendSenderAction(senderId, "typing_on", effectiveToken);
+              await sendMessengerReply(pageId, senderId, confirmMsg, effectiveToken);
+              console.log(`[ORDER_CONFIRM] ✅ Confirmation sent to ${senderId}`);
+            } else {
+              console.warn(`[ORDER_SAVE_FAIL] API returned:`, JSON.stringify(orderRes));
+            }
+          } catch (orderApiErr: any) {
+            console.warn(`[ORDER_API_ERR]`, orderApiErr.message);
+          }
+        }
+      } catch (orderDetectErr: any) {
+        console.warn(`[ORDER_DETECT_ERR]`, orderDetectErr.message);
+      }
+      // ── END ORDER DETECTION ───────────────────────────────────────────────
+
       // Save bot reply to DB
       try {
         const { prisma } = await import("@/lib/prisma");
