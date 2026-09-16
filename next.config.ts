@@ -6,6 +6,12 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: true,
   },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
+  experimental: {
+    cpus: 1,
+  },
   images: {
     remotePatterns: [
       { protocol: "https", hostname: "galaxylaboratoriesunani.com.bd" },

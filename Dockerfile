@@ -16,6 +16,7 @@ COPY . .
 
 # Generate Prisma Client and compile Next.js application
 RUN npx prisma generate
+ENV NODE_OPTIONS="--max-old-space-size=2048"
 RUN npm run build
 
 # Configure runtime environment
