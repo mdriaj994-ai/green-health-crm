@@ -1,0 +1,1075 @@
+import { NextResponse } from "next/server";
+import { startMessengerPoller } from "@/lib/messenger-poller";
+import fs from "fs";
+import path from "path";
+
+// Start background poller ensuring it is always active
+try {
+  startMessengerPoller();
+} catch {}
+
+const VERIFY_TOKEN = process.env.FACEBOOK_WEBHOOK_VERIFY_TOKEN ?? "social_inbox_verify_token";
+
+// ── GET: Facebook Webhook Verification ──────────────────────────
+export async function GET(req: Request) {
+  const { searchParams } = new URL(req.url);
+
+  const mode      = searchParams.get("hub.mode");
+  const token     = searchParams.get("hub.verify_token");
+  const challenge = searchParams.get("hub.challenge");
+
+  if (mode === "subscribe" && token === VERIFY_TOKEN) {
+    console.log("[FB_WEBHOOK] Verification successful");
+    return new Response(challenge, { status: 200 });
+  }
+
+  return NextResponse.json({ error: "Verification failed" }, { status: 403 });
+}
+
+// ── POST: Receive Facebook Events ───────────────────────────────────────────
+export async function POST(req: Request) {
+  // Read body first (stream can only be consumed once)
+  let body: any;
+  try {
+    body = await req.json();
+  } catch {
+    return NextResponse.json({ error: "Bad request" }, { status: 400 });
+  }
+
+  // Log incoming webhook event to disk
+  try {
+    const fs = await import("fs");
+    const path = await import("path");
+    const logFile = path.join(process.cwd(), "data", "webhook_hits.log");
+    fs.appendFileSync(logFile, `[${new Date().toISOString()}] INCOMING: ${JSON.stringify(body)}\n`);
+  } catch {}
+
+  // Respond 200 to Facebook IMMEDIATELY to prevent retry/duplicate webhook delivery
+  setImmediate(async () => {
+    try {
+      if (!body || body.object !== "page") return;
+
+      for (const entry of body.entry ?? []) {
+        // ── Messages (Messenger) ──
+        for (const event of entry.messaging ?? []) {
+          if (event.message) {
+            // handleMessengerMessage does Redis dedup THEN forwards to N8N (guaranteed once)
+            await handleMessengerMessage(entry.id, event);
+          }
+        }
+
+        // ── Comments on Posts / Ads ──
+        for (const change of entry.changes ?? []) {
+          if (change.field === "feed" && change.value?.item === "comment") {
+            await handleFacebookComment(entry.id, change.value);
+          }
+        }
+      }
+    } catch (error) {
+      console.error("[FB_WEBHOOK_ERROR]", error);
+    }
+  });
+
+  return NextResponse.json({ status: "ok" }, { status: 200 });
+}
+
+
+// Persistent shared deduplication across Webhook and Polling Bot
+const PROCESSED_MSGS_FILE = path.join(process.cwd(), "data", "processed_msg_ids.json");
+const processedMsgIds = new Set<string>();
+
+// Preload processed IDs from file if exists
+try {
+  if (fs.existsSync(PROCESSED_MSGS_FILE)) {
+    const data = JSON.parse(fs.readFileSync(PROCESSED_MSGS_FILE, "utf-8"));
+    if (Array.isArray(data)) {
+      for (const id of data) processedMsgIds.add(id);
+    }
+  }
+} catch {}
+
+function isProcessedId(id: string): boolean {
+  if (!id) return false;
+  if (processedMsgIds.has(id)) return true;
+  try {
+    if (fs.existsSync(PROCESSED_MSGS_FILE)) {
+      const data = JSON.parse(fs.readFileSync(PROCESSED_MSGS_FILE, "utf-8"));
+      if (Array.isArray(data) && data.includes(id)) {
+        processedMsgIds.add(id);
+        return true;
+      }
+    }
+  } catch {}
+  return false;
+}
+
+function markProcessedId(id: string) {
+  if (!id) return;
+  processedMsgIds.add(id);
+  try {
+    const dataDir = path.join(process.cwd(), "data");
+    if (!fs.existsSync(dataDir)) fs.mkdirSync(dataDir, { recursive: true });
+    let list: string[] = [];
+    if (fs.existsSync(PROCESSED_MSGS_FILE)) {
+      try {
+        list = JSON.parse(fs.readFileSync(PROCESSED_MSGS_FILE, "utf-8"));
+      } catch {}
+    }
+    if (!list.includes(id)) {
+      list.push(id);
+      if (list.length > 500) list = list.slice(-500);
+      fs.writeFileSync(PROCESSED_MSGS_FILE, JSON.stringify(list), "utf-8");
+    }
+  } catch {}
+}
+
+// Smart message buffer per sender to combine rapid text + image + audio events (within 2.0s)
+interface PendingSenderEvent {
+  pageId: string;
+  senderId: string;
+  text: string;
+  imageUrl: string | null;
+  audioUrl: string | null;
+  timestamp: number;
+  timer: NodeJS.Timeout;
+}
+const pendingSenderEvents = new Map<string, PendingSenderEvent>();
+
+async function flushSenderEvent(senderId: string) {
+  const pending = pendingSenderEvents.get(senderId);
+  if (!pending) return;
+  pendingSenderEvents.delete(senderId);
+
+  const { pageId, text, imageUrl, audioUrl, timestamp } = pending;
+
+  console.log(`[AUTO_REPLY] Processing message from ${senderId} | Text: "${text}" | Image: ${imageUrl ? "YES" : "NO"}`);
+
+  // Generate AI reply using Gemini (Hakim Rejaul Karim persona)
+  try {
+    const { generateAutoReply } = await import("@/lib/ai");
+
+    // Fetch chat history from DB for context
+    let chatHistory: { sender: "CUSTOMER" | "AGENT"; text: string }[] = [];
+    let pageAccessToken = PAGE_TOKEN;
+    try {
+      const { prisma } = await import("@/lib/prisma");
+      const account = await prisma.connectedAccount.findFirst({
+        where: { pageId, isActive: true },
+      }) as any;
+      if (account) {
+        if (account.accessToken) {
+          pageAccessToken = account.accessToken;
+        }
+        const contact = await prisma.contact.findFirst({
+          where: { platformUserId: senderId, platform: "MESSENGER" },
+        });
+        if (contact) {
+          const convId = `conv_${account.id}_${contact.id}`;
+          const recentMsgs = await (prisma as any).message.findMany({
+            where: { conversationId: convId },
+            orderBy: { createdAt: "desc" },
+            take: 10,
+          });
+          chatHistory = recentMsgs.reverse().map((m: any) => ({
+            sender: m.senderType as "CUSTOMER" | "AGENT",
+            text: m.content || "",
+          }));
+        }
+      }
+    } catch (histErr) {
+      console.warn("[CHAT_HISTORY_WARN]", histErr);
+    }
+
+    const effectiveToken = pageAccessToken || PAGE_TOKEN;
+    if (effectiveToken) {
+      await sendSenderAction(senderId, "mark_seen", effectiveToken);
+      await sendSenderAction(senderId, "typing_on", effectiveToken);
+    }
+
+    // ── Picture Request Detection: Send authentic medicine photo if asked ──
+    let picProduct: any = null;
+    try {
+      const { isPictureRequest, findProductForImage } = await import("@/lib/product-db");
+      if (isPictureRequest(text)) {
+        picProduct = findProductForImage(text, chatHistory);
+        const imgToSend = picProduct?.imageFile || "WhatsApp Image 2026-08-31 at 2.35.30 PM.jpeg";
+        if (effectiveToken) {
+          console.log(`[AUTO_REPLY_PIC] Customer requested picture. Sending (${imgToSend}) to ${senderId}`);
+          await sendMessengerImage(senderId, imgToSend, effectiveToken);
+        }
+      }
+    } catch (picErr: any) {
+      console.warn("[AUTO_REPLY_PIC_WARN]", picErr.message);
+    }
+
+    // ── Voice Mode & Voice Request Logic ──
+    const { isVoiceMode, setVoiceMode, isOnlyVoiceRequest, isVoiceRequested, isTextModeRequested } = await import("@/lib/voice-mode");
+    const { getCustomerProfile, updateCustomerProfile } = await import("@/lib/customer-memory");
+
+    const custProfile = getCustomerProfile(senderId);
+
+    // Resolve Customer Real Name from Contact, Profile, or Facebook Graph API
+    let resolvedCustomerName = (custProfile?.name && custProfile.name !== "Customer" && custProfile.name !== "কাস্টমার") ? custProfile.name : "";
+    if (!resolvedCustomerName) {
+      try {
+        const { prisma } = await import("@/lib/prisma");
+        const contact = await prisma.contact.findFirst({
+          where: { platformUserId: senderId, platform: "MESSENGER" },
+        });
+        if (contact?.name && contact.name !== "Customer" && contact.name !== "কাস্টমার") {
+          resolvedCustomerName = contact.name;
+        }
+      } catch {}
+
+      if (!resolvedCustomerName && effectiveToken) {
+        try {
+          const fbUserRes = await fetch(`https://graph.facebook.com/v19.0/${senderId}?fields=first_name,last_name,name&access_token=${effectiveToken}`);
+          if (fbUserRes.ok) {
+            const fbUser = await fbUserRes.json();
+            if (fbUser && fbUser.name) {
+              resolvedCustomerName = fbUser.name;
+            }
+          }
+        } catch {}
+      }
+
+      if (resolvedCustomerName) {
+        updateCustomerProfile(senderId, { name: resolvedCustomerName });
+      }
+    }
+
+    const lastMsgWasVoice = chatHistory && chatHistory.length > 0 &&
+      chatHistory.slice().reverse().find((m: any) => m.sender === "AGENT")?.text?.includes("[ভয়েস");
+
+    if (isTextModeRequested(text)) {
+      setVoiceMode(senderId, false);
+    } else if (isOnlyVoiceRequest(text) || isVoiceRequested(text) || Boolean(audioUrl) || custProfile?.prefersVoice || lastMsgWasVoice) {
+      setVoiceMode(senderId, true);
+    }
+
+    const isOnlyVoice = isOnlyVoiceRequest(text);
+
+    // CASE 1: Customer explicitly requested to speak in voice ("voice dao", "voice a bolte", "porte pari na voice daoya jabe")
+    if (isOnlyVoice) {
+      const voiceText = "জি ভাইয়া, অবশ্যই! আমি ডাক্তার হাকিম রিয়াজুল করিম বলছি। কোনো সমস্যা নেই ভাইয়া, আপনি আর পড়তে হবে না—আমি আপনার সাথে মুখে কথা বলছি। আপনার কী সমস্যা হচ্ছে বা কী জানতে চাচ্ছেন, আমাকে নির্দ্বিধায় মুখে বলুন বা লিখে জানান, আমি আপনাকে ভয়েসেই সবকিছু বুঝিয়ে বলছি।";
+
+      console.log(`[EXPLICIT_VOICE_REQUEST] Customer asked for voice consultation. Sending voice note only to ${senderId}: "${voiceText.substring(0, 60)}..."`);
+      await sendSenderAction(senderId, "typing_on", effectiveToken);
+      const sentVoice = await sendMessengerVoiceNote(senderId, voiceText, effectiveToken);
+      if (!sentVoice) {
+        await sendMessengerReply(pageId, senderId, voiceText, effectiveToken);
+      }
+
+      // Save bot voice reply to DB
+      try {
+        const { prisma } = await import("@/lib/prisma");
+        const account = await prisma.connectedAccount.findFirst({
+          where: { pageId, platform: { in: ["MESSENGER", "FACEBOOK"] }, isActive: true },
+        }) as any;
+        if (account) {
+          const contact = await prisma.contact.findFirst({
+            where: { platformUserId: senderId, platform: "MESSENGER" },
+          });
+          if (contact) {
+            const convId = `conv_${account.id}_${contact.id}`;
+            await (prisma as any).message.create({
+              data: {
+                conversationId: convId,
+                content: `[ভয়েস মেসেজ] ${voiceText}`,
+                senderType: "AGENT",
+                platformMsgId: "auto_" + Date.now(),
+              },
+            });
+          }
+        }
+      } catch (saveErr) {
+        console.warn("[SAVE_VOICE_REPLY_WARN]", saveErr);
+      }
+      return;
+    }
+
+    // CASE 2: Normal inquiry or Question while in Voice Mode
+    const userInVoiceMode = isVoiceMode(senderId);
+    const isVoiceReq = userInVoiceMode || isVoiceRequested(text) || isOnlyVoice;
+
+    const replyText = await generateAutoReply(text || "ছবি পাঠালাম", {
+      imageUrl: imageUrl || null,
+      chatHistory,
+      senderId,
+      customerName: resolvedCustomerName || undefined,
+      isVoiceMode: isVoiceReq,
+    });
+
+    if (replyText && effectiveToken) {
+      if (userInVoiceMode) {
+        // Customer is in voice mode: send reply directly as voice note ONLY (no text)
+        console.log(`[VOICE_MODE_ACTIVE] Customer is in voice mode. Sending response as voice note only to ${senderId}: "${replyText.substring(0, 80)}..."`);
+        await sendSenderAction(senderId, "typing_on", effectiveToken);
+        const sentVoice = await sendMessengerVoiceNote(senderId, replyText, effectiveToken);
+        try {
+          const { appendChatMessage } = await import("@/lib/customer-memory");
+          appendChatMessage(senderId, "model", replyText, true);
+        } catch {}
+        if (!sentVoice) {
+          // Fallback to text if voice note generation/upload failed
+          await sendMessengerReply(pageId, senderId, replyText, effectiveToken);
+        }
+      } else {
+        const charCount = replyText.length;
+        const rawDelay = 1800 + (charCount * 25);
+        const jitter = (Math.random() * 800) - 400;
+        const delayMs = Math.min(9500, Math.max(2200, Math.round(rawDelay + jitter)));
+
+        if (delayMs > 4500) {
+          await new Promise(r => setTimeout(r, 3500));
+          await sendSenderAction(senderId, "typing_on", effectiveToken);
+          await new Promise(r => setTimeout(r, delayMs - 3500));
+        } else {
+          await new Promise(r => setTimeout(r, delayMs));
+        }
+
+        await sendMessengerReply(pageId, senderId, replyText, effectiveToken);
+        console.log(`[AUTO_REPLY_SENT] To: ${senderId} | Reply: "${replyText.substring(0, 80)}..."`);
+      }
+
+      // ── ORDER DETECTION & SAVE ─────────────────────────────────────────────
+      // Detect if this message contains order information and save to dashboard
+      try {
+        const { parseOrderFromMessage } = require("../../../../../scripts/save_order_to_db.js");
+        const parsedOrder = parseOrderFromMessage(text);
+
+        // Also check phone number pattern for order detection
+        const enText = text.replace(/[০-৯]/g, (d: string) => "০১২৩৪৫৬৭৮৯".indexOf(d).toString());
+        const hasPhone = /01[3-9]\d{8}/.test(enText);
+        const hasOrderForm = /(?:নাম\s*[=:]|নাম্বার\s*[=:]|ঠিকানা\s*[=:]|জেলা\s*[=:]|থানা\s*[=:])/.test(text);
+        const isOrderMsg = Boolean(parsedOrder) || hasOrderForm || hasPhone;
+
+        console.log(`[ORDER_DETECT] parsed=${parsedOrder ? 'YES phone:'+parsedOrder.phone : 'null'} | hasPhone=${hasPhone} | hasForm=${hasOrderForm} | text="${text.slice(0,50).replace(/\n/g,' ')}"`);
+
+        if (isOrderMsg && parsedOrder?.phone) {
+          const custProf = custProfile || {};
+          const orderData = {
+            customerName: parsedOrder.name || resolvedCustomerName || "অজ্ঞাত",
+            phone:        parsedOrder.phone,
+            district:     parsedOrder.district || (custProf as any).district || "",
+            thana:        parsedOrder.thana    || (custProf as any).thana    || "",
+            address:      parsedOrder.address  || (custProf as any).address  || "",
+            product:      parsedOrder.product  || "Soul Mate (খাঁটি কস্তুরী ফর্মুলা)",
+            quantity:     parsedOrder.quantity || 1,
+            senderId:     String(senderId),
+            facebookName: resolvedCustomerName || senderId,
+            pageId:       String(pageId),
+          };
+
+          console.log(`[ORDER_DATA] name="${orderData.customerName}" phone="${orderData.phone}" district="${orderData.district}" thana="${orderData.thana}"`);
+
+          // Save via HTTP API (most reliable on Coolify)
+          try {
+            const orderRes = await fetch("http://localhost:3000/api/orders", {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(orderData),
+            }).then(r => r.json()).catch(() => null);
+
+            if (orderRes?.order?.id) {
+              console.log(`[ORDER] ✅ Order saved! ID: ${orderRes.order.id} | Customer: ${orderData.customerName}`);
+
+              // Send confirmation message to customer
+              const refNum = `ORD-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(1000+Math.random()*9000)}`;
+              const confirmMsg =
+`🎉 অর্ডার কনফার্ম হয়েছে! ধন্যবাদ! 🙏
+
+━━━━━━━━━━━━━━━━━━━━
+📋 অর্ডার রেফারেন্স: ${refNum}
+━━━━━━━━━━━━━━━━━━━━
+
+👤 নাম: ${orderData.customerName}
+📱 মোবাইল: ${orderData.phone}
+📍 ঠিকানা: ${orderData.address}${orderData.thana ? '\n🏘️ থানা: '+orderData.thana : ''}${orderData.district ? '\n📮 জেলা: '+orderData.district : ''}
+💊 পণ্য: ${orderData.product}
+📦 পরিমাণ: ${orderData.quantity} পিস
+💰 পেমেন্ট: ক্যাশ অন ডেলিভারি
+
+━━━━━━━━━━━━━━━━━━━━
+🚚 ডেলিভারি: ২-৪ কার্যদিবস
+⚠️ তথ্যে ভুল থাকলে এখনই জানান।
+💚 সুস্থ থাকুন, ভালো থাকুন।`;
+
+              await sendSenderAction(senderId, "typing_on", effectiveToken);
+              await sendMessengerReply(pageId, senderId, confirmMsg, effectiveToken);
+              console.log(`[ORDER_CONFIRM] ✅ Confirmation sent to ${senderId}`);
+            } else {
+              console.warn(`[ORDER_SAVE_FAIL] API returned:`, JSON.stringify(orderRes));
+            }
+          } catch (orderApiErr: any) {
+            console.warn(`[ORDER_API_ERR]`, orderApiErr.message);
+          }
+        }
+      } catch (orderDetectErr: any) {
+        console.warn(`[ORDER_DETECT_ERR]`, orderDetectErr.message);
+      }
+      // ── END ORDER DETECTION ───────────────────────────────────────────────
+
+      // Save bot reply to DB
+      try {
+        const { prisma } = await import("@/lib/prisma");
+        const account = await prisma.connectedAccount.findFirst({
+          where: { pageId, platform: { in: ["MESSENGER", "FACEBOOK"] }, isActive: true },
+        }) as any;
+        if (account) {
+          const contact = await prisma.contact.findFirst({
+            where: { platformUserId: senderId, platform: "MESSENGER" },
+          });
+          if (contact) {
+            const convId = `conv_${account.id}_${contact.id}`;
+            await (prisma as any).message.create({
+              data: {
+                conversationId: convId,
+                content: userInVoiceMode ? `[ভয়েস মেসেজ] ${replyText}` : replyText,
+                mediaUrl: picProduct?.imageFile ? `/api/products/image?file=${encodeURIComponent(picProduct.imageFile)}` : null,
+                senderType: "AGENT",
+                platformMsgId: "auto_" + Date.now(),
+              },
+            });
+          }
+        }
+      } catch (saveErr) {
+        console.warn("[SAVE_REPLY_WARN]", saveErr);
+      }
+    } else {
+      console.warn("[AUTO_REPLY_SKIP] No reply generated or PAGE_TOKEN missing.");
+    }
+  } catch (aiErr: any) {
+    console.error("[AUTO_REPLY_ERROR]", aiErr.message || aiErr);
+  }
+}
+
+const GROQ_KEY = process.env.GROQ_API_KEY || "";
+const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAW6YWihfogBSY0coWHPtYcw2Gwm11ZAznBKAIcOzhgKQJWYITHuelgvzJfoWl0QjgrsRD5DEViDdpVyQKyvxGkBVJ8saKOzXi4IaXvIwYWuJXVJwNxBGsUdru7NAV9Rk5hrGCJigh9NuX1ury8ATCBYvbjBce885iGjucQ3LSbzYQwqQvNGfcu7GO70jQu3QiwI1";
+
+async function transcribeAudioWithGemini(audioUrl: string, accessToken: string = PAGE_TOKEN): Promise<string> {
+  try {
+    const url = audioUrl.includes("access_token") ? audioUrl : audioUrl + (audioUrl.includes("?") ? "&" : "?") + "access_token=" + accessToken;
+    const dlRes = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(9000) });
+    if (!dlRes.ok) return "";
+    const buf = Buffer.from(await dlRes.arrayBuffer());
+    if (buf.length < 500) return "";
+    const b64 = buf.toString("base64");
+
+    const { GoogleGenerativeAI } = await import("@google/generative-ai");
+    const gemKey = process.env.GEMINI_API_KEY || "";
+    if (gemKey) {
+      const genAI = new GoogleGenerativeAI(gemKey);
+      const models = ["gemini-3.5-flash-lite", "gemini-3.6-flash", "gemini-flash-latest"];
+      for (const m of models) {
+        try {
+          const model = genAI.getGenerativeModel({ model: m });
+          const genRes = await model.generateContent([
+            { inlineData: { data: b64, mimeType: "audio/mp3" } },
+            "Transcribe the exact spoken words in Bengali or English accurately. Output ONLY the transcription text."
+          ]);
+          const text = genRes.response.text().trim();
+          if (text && text.length > 1) {
+            console.log(`[FB_STT] (${m}) Transcribed: "${text}"`);
+            return text;
+          }
+        } catch (e) {}
+      }
+    }
+  } catch (err: any) {
+    console.warn("[FB_STT_ERROR]", err.message);
+  }
+  return "";
+}
+
+export async function handleMessengerMessage(pageId: string, event: any) {
+  if (event.message?.is_echo) return;
+
+  const senderId  = event.sender?.id;
+  const rawText   = event.message?.text || "";
+  const attachments = event.message?.attachments || [];
+  const imageAttachment = attachments.find((a: any) => a.type === "image");
+  const audioAttachment = attachments.find((a: any) => a.type === "audio");
+  const imageUrl  = imageAttachment?.payload?.url || null;
+  const audioUrl  = audioAttachment?.payload?.url || null;
+
+  let text = rawText;
+  if (!text && audioUrl) {
+    console.log(`[MESSENGER] Transcribing voice message from ${senderId}...`);
+    const rawTranscript = await transcribeAudioWithGemini(audioUrl, PAGE_TOKEN);
+    if (rawTranscript) {
+      text = rawTranscript;
+      console.log(`[MESSENGER] Voice transcribed: "${text}"`);
+    } else {
+      text = "[Customer sent a voice message]";
+    }
+  } else if (!text && imageUrl) {
+    text = "[Customer sent a product photo]";
+  }
+
+  const msgId     = event.message?.mid;
+  const timestamp = event.timestamp ?? Date.now();
+
+  if (!senderId || (!text && !imageUrl && !audioUrl)) return;
+
+  // 1. Shared Persistent Deduplication (shared with polling bot across processes)
+  if (msgId) {
+    if (isProcessedId(msgId)) {
+      console.log(`[MESSENGER] Shared DUPLICATE message ${msgId} dropped.`);
+      return;
+    }
+    markProcessedId(msgId);
+  }
+
+  console.log(`[MESSENGER] Page:${pageId} | From:${senderId} | Msg: ${text} | Image: ${imageUrl ? "YES" : "NO"} | Audio: ${audioUrl ? "YES" : "NO"}`);
+
+  // 2. Buffer rapid messages from the same sender (combines text + image + audio within 1.8s into ONE single reply)
+  const existing = pendingSenderEvents.get(senderId);
+  if (existing) {
+    clearTimeout(existing.timer);
+    // Merge text, image and audio
+    if (text && (!existing.text || existing.text.startsWith("["))) {
+      existing.text = text;
+    } else if (text && existing.text) {
+      existing.text = existing.text + " " + text;
+    }
+    if (imageUrl) existing.imageUrl = imageUrl;
+    if (audioUrl) existing.audioUrl = audioUrl;
+    existing.timer = setTimeout(() => flushSenderEvent(senderId), 1800);
+    console.log(`[MESSENGER_BUFFER] Merged rapid message for sender ${senderId}. Waiting 1.8s...`);
+  } else {
+    const lower = text.toLowerCase();
+    const isReferenceQuery = lower.includes("aita") || lower.includes("এইটা") || lower.includes("price") || lower.includes("dam") || lower.includes("দাম") || lower.includes("koto");
+    const delay = (imageUrl || audioUrl || isReferenceQuery) ? 1800 : 500;
+
+    const timer = setTimeout(() => flushSenderEvent(senderId), delay);
+    pendingSenderEvents.set(senderId, {
+      pageId,
+      senderId,
+      text: text,
+      imageUrl,
+      audioUrl,
+      timestamp,
+      timer
+    });
+  }
+
+  // 3. Database & Dashboard Sync (wrapped safely so DB errors never block auto-reply)
+  try {
+    const { prisma } = await import("@/lib/prisma");
+    const { redis }  = await import("@/lib/redis");
+
+    if (msgId) {
+      await (redis as any).set(`fb:msg:processed:${msgId}`, "1", "EX", 60, "NX").catch(() => null);
+    }
+
+    const account = await prisma.connectedAccount.findFirst({
+      where: { pageId, platform: { in: ["MESSENGER", "FACEBOOK"] }, isActive: true },
+    }) as any;
+
+    if (account) {
+      // Fetch Facebook profile name and photo
+      let contactName = senderId;
+      let contactAvatar: string | null = null;
+      try {
+        const profRes = await fetch(`https://graph.facebook.com/v19.0/${senderId}?fields=name,first_name,last_name,profile_pic&access_token=${PAGE_TOKEN}`, {
+          signal: AbortSignal.timeout(2000)
+        });
+        if (profRes.ok) {
+          const profData = await profRes.json();
+          contactName = profData.name || (profData.first_name ? `${profData.first_name} ${profData.last_name || ''}`.trim() : senderId);
+          contactAvatar = profData.profile_pic || null;
+        } else {
+          // Fallback: Query Page Conversations to get participant name for this PSID
+          const convRes = await fetch(`https://graph.facebook.com/v19.0/${pageId}/conversations?fields=participants&limit=30&access_token=${PAGE_TOKEN}`, {
+            signal: AbortSignal.timeout(3000)
+          });
+          if (convRes.ok) {
+            const convData = await convRes.json();
+            for (const c of convData.data || []) {
+              const part = (c.participants?.data || []).find((p: any) => p.id === senderId);
+              if (part && part.name) {
+                contactName = part.name;
+                break;
+              }
+            }
+          }
+        }
+      } catch (profErr) {
+        console.warn("[FB_PROFILE_FETCH_WARN]", profErr);
+      }
+
+      const contact = await prisma.contact.upsert({
+        where: { platformUserId_platform: { platformUserId: senderId, platform: "MESSENGER" } },
+        create: { platformUserId: senderId, platform: "MESSENGER", name: contactName, avatar: contactAvatar },
+        update: { name: contactName, avatar: contactAvatar },
+      });
+
+      const conversation = await prisma.conversation.upsert({
+        where: { id: `conv_${account.id}_${contact.id}` },
+        create: {
+          id: `conv_${account.id}_${contact.id}`,
+          contactId: contact.id,
+          accountId: account.id,
+          status: "OPEN",
+          isRead: 0,
+          lastMessageAt: new Date(timestamp).toISOString(),
+        },
+        update: { lastMessageAt: new Date(timestamp).toISOString(), isRead: 0, status: "OPEN" },
+      });
+
+      await prisma.message.create({
+        data: {
+          conversationId: conversation.id,
+          content: text,
+          mediaUrl: imageUrl,
+          senderType: "CUSTOMER",
+          platformMsgId: msgId,
+        },
+      });
+
+      await redis.publish("new_message", JSON.stringify({
+        conversationId: conversation.id,
+        contactName: contact.name,
+        platform: "MESSENGER",
+        content: text,
+        mediaUrl: imageUrl,
+        timestamp,
+      })).catch(() => null);
+    }
+  } catch (dbErr: any) {
+    console.warn("[DB_SYNC_WARN]", dbErr.message);
+  }
+}
+
+
+async function sendSenderAction(recipientId: string, action: "typing_on" | "typing_off" | "mark_seen" = "typing_on", accessToken: string = PAGE_TOKEN) {
+  try {
+    const url = `https://graph.facebook.com/v19.0/me/messages?access_token=${accessToken}`;
+    await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient: { id: recipientId },
+        sender_action: action,
+      }),
+    });
+  } catch {}
+}
+
+async function sendMessengerReply(pageId: string, recipientId: string, text: string, accessToken: string) {
+  const url = `https://graph.facebook.com/v19.0/me/messages?access_token=${accessToken}`;
+  const body = {
+    recipient: { id: recipientId },
+    message: { text },
+    messaging_type: "RESPONSE",
+  };
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(body),
+    });
+    const data = await res.json().catch(() => null);
+    try {
+      const fs = await import("fs");
+      const path = await import("path");
+      const logFile = path.join(process.cwd(), "data", "webhook_hits.log");
+      fs.appendFileSync(logFile, `[${new Date().toISOString()}] FB_SEND_RESULT: ${res.status} | ${JSON.stringify(data)}\n`);
+    } catch {}
+    if (!res.ok) {
+      console.error("[MESSENGER_AUTO_REPLY_SEND_ERROR]", data);
+    }
+  } catch (err: any) {
+    console.error("[MESSENGER_FETCH_ERROR]", err);
+  }
+}
+
+async function sendMessengerImage(recipientId: string, imageFileOrPath: string, accessToken: string): Promise<boolean> {
+  const url = `https://graph.facebook.com/v19.0/me/messages?access_token=${accessToken}`;
+  const filename = path.basename(imageFileOrPath);
+
+  const candidateDirs = [
+    path.join(process.cwd(), "data", "Product Image"),
+    path.join(process.cwd(), "public", "products"),
+    path.join(process.cwd(), "public", "Product Image"),
+  ];
+
+  let localPath: string | null = null;
+  if (fs.existsSync(imageFileOrPath)) {
+    localPath = imageFileOrPath;
+  } else {
+    for (const dir of candidateDirs) {
+      const p = path.join(dir, filename);
+      if (fs.existsSync(p)) {
+        localPath = p;
+        break;
+      }
+    }
+  }
+
+  // 1. First Priority: Upload attachment via Facebook message_attachments endpoint
+  // This is Facebook's official high-speed attachment upload protocol (verified 100% working)
+  if (localPath) {
+    try {
+      const uploadUrl = `https://graph.facebook.com/v19.0/me/message_attachments?access_token=${accessToken}`;
+      const fileBuffer = fs.readFileSync(localPath);
+      const ext = path.extname(localPath).slice(1).toLowerCase() || "jpeg";
+      const mimeType = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+
+      const upFormData = new FormData();
+      upFormData.append("message", JSON.stringify({
+        attachment: {
+          type: "image",
+          payload: { is_reusable: true }
+        }
+      }));
+      upFormData.append("filedata", new Blob([fileBuffer], { type: mimeType }), filename);
+
+      const upRes = await fetch(uploadUrl, { method: "POST", body: upFormData });
+      const upData = await upRes.json().catch(() => null);
+
+      if (upRes.ok && upData?.attachment_id) {
+        // Send message using the uploaded attachment_id
+        const sendRes = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            recipient: { id: recipientId },
+            message: {
+              attachment: {
+                type: "image",
+                payload: {
+                  attachment_id: upData.attachment_id
+                }
+              }
+            },
+            messaging_type: "RESPONSE"
+          })
+        });
+        const sendData = await sendRes.json().catch(() => null);
+        if (sendRes.ok) {
+          console.log(`[FB_IMAGE_ATTACH_OK] Sent ${filename} (ID: ${upData.attachment_id}) to ${recipientId}`);
+          return true;
+        } else {
+          console.warn(`[FB_IMAGE_ATTACH_SEND_WARN]`, sendData);
+        }
+      } else {
+        console.warn(`[FB_IMAGE_ATTACH_UPLOAD_WARN] Status: ${upRes.status}`, upData);
+      }
+    } catch (upErr: any) {
+      console.warn(`[FB_IMAGE_ATTACH_ERR]`, upErr.message);
+    }
+
+    // 2. Direct multipart/form-data upload fallback
+    try {
+      const fileBuffer = fs.readFileSync(localPath);
+      const ext = path.extname(localPath).slice(1).toLowerCase() || "jpeg";
+      const mimeType = ext === "png" ? "image/png" : ext === "webp" ? "image/webp" : "image/jpeg";
+
+      const formData = new FormData();
+      formData.append("recipient", JSON.stringify({ id: recipientId }));
+      formData.append("message", JSON.stringify({
+        attachment: {
+          type: "image",
+          payload: { is_reusable: true }
+        }
+      }));
+      formData.append("filedata", new Blob([fileBuffer], { type: mimeType }), filename);
+
+      const res = await fetch(url, {
+        method: "POST",
+        body: formData,
+      });
+      const data = await res.json().catch(() => null);
+      if (res.ok) {
+        console.log(`[FB_IMAGE_FILE_OK] Sent direct ${filename} to ${recipientId}`);
+        return true;
+      }
+    } catch (fileErr: any) {
+      console.warn(`[FB_IMAGE_FILE_ERR]`, fileErr.message);
+    }
+  }
+
+  // 3. Fallback: Send via public URL
+  try {
+    const publicUrl = `https://greenhelth.duckdns.org/api/products/image?file=${encodeURIComponent(filename)}`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient: { id: recipientId },
+        message: {
+          attachment: {
+            type: "image",
+            payload: {
+              url: publicUrl,
+              is_reusable: true
+            }
+          }
+        },
+        messaging_type: "RESPONSE"
+      })
+    });
+    const data = await res.json().catch(() => null);
+    if (res.ok) {
+      console.log(`[FB_IMAGE_URL_OK] Sent via URL ${publicUrl} to ${recipientId}`);
+      return true;
+    }
+  } catch (urlErr: any) {
+    console.warn(`[FB_IMAGE_URL_ERR]`, urlErr.message);
+  }
+
+  return false;
+}
+
+function prepareBangladeshiTTSAudioText(rawText: string): string {
+  if (!rawText) return "";
+  let t = rawText.replace(/[*#_~`>|]/g, "").replace(/\s+/g, " ").trim();
+
+  // 1. Correct Persona Name & Titles
+  t = t
+    .replace(/রেজাউল\s*করিম/gi, "রিয়াজুল করিম")
+    .replace(/রেজাউল/gi, "রিয়াজুল")
+    .replace(/re[aj]aul\s*karim/gi, "রিয়াজুল করিম")
+    .replace(/re[aj]aul/gi, "রিয়াজুল");
+
+  // 2. Convert Indian/Kolkata forms → authentic Bangladeshi spoken forms
+  t = t
+    .replace(/\bদেবেন\b/g, "দিবেন")
+    .replace(/\bনেবেন\b/g, "নিবেন")
+    .replace(/\bজল\b/g, "পানি")
+    .replace(/\bদাদা\b/g, "ভাইয়া");
+
+  // 3. Spoken representations of order forms
+  t = t
+    .replace(/নাম\s*=/gi, "নাম, ")
+    .replace(/জেলা\s*=/gi, "জেলা, ")
+    .replace(/থানা\s*=/gi, "থানা, ")
+    .replace(/রিসিভ ঠিকানা\s*=/gi, "রিসিভ ঠিকানা, ")
+    .replace(/নাম্বার\s*=/gi, "মোবাইল নাম্বার, ")
+    .replace(/=/g, " ");
+
+  // 4. Convert digits to spoken Bengali words
+  t = t
+    .replace(/২[,.]?৯০০|2[,.]?900/g, "দুই হাজার নয়শত")
+    .replace(/৩[,.]?৫০০|3[,.]?500/g, "তিন হাজার পাঁচশত")
+    .replace(/৩[,.]?০০০|3[,.]?000/g, "তিন হাজার")
+    .replace(/৪[,.]?৫০০|4[,.]?500/g, "চার হাজার পাঁচশত")
+    .replace(/১[,.]?৫০০|1[,.]?500/g, "এক হাজার পাঁচশত")
+    .replace(/১৫০|150/g, "একশত পঞ্চাশ")
+    .replace(/১২০|120/g, "একশত বিশ")
+    .replace(/১০০|100/g, "একশত");
+  t = t
+    .replace(/জি\s*ভাইয়া(?![,\s]*[,])/gi, "জি ভাইয়া, ")
+    .replace(/রিয়াজুল\s*করিম\s*বলছি(?![,\s]*[,।])/gi, "রিয়াজুল করিম বলছি। ")
+    .replace(/ইনশাআল্লাহ(?![,\s]*[,])/gi, "ইনশাআল্লাহ, ")
+    .replace(/আল্লাহর\s*রহমতে(?![,\s]*[,])/gi, "আল্লাহর রহমতে, ")
+    .replace(/কোনো\s*চিন্তা\s*করবেন\s*না(?![,\s]*[,])/gi, "কোনো চিন্তা করবেন না ভাইয়া, ")
+    .replace(/,\s*,+/g, ",")
+    .replace(/\s+/g, " ")
+    .trim();
+
+  return t;
+}
+
+function splitTextIntoVoiceChunks(text: string, maxChars: number = 800): string[] {
+  if (!text || text.length <= maxChars) return [text];
+
+  const chunks: string[] = [];
+  const sentences = text.split(/(?<=[।?!.\n])/g);
+  let currentChunk = "";
+
+  for (const sentence of sentences) {
+    const trimmed = sentence.trim();
+    if (!trimmed) continue;
+
+    if ((currentChunk + " " + trimmed).trim().length <= maxChars) {
+      currentChunk = currentChunk ? (currentChunk + " " + trimmed) : trimmed;
+    } else {
+      if (currentChunk) chunks.push(currentChunk);
+      if (trimmed.length > maxChars) {
+        const subParts = trimmed.split(/(?<=[,;])/g);
+        let subChunk = "";
+        for (const part of subParts) {
+          if ((subChunk + " " + part).trim().length <= maxChars) {
+            subChunk = subChunk ? (subChunk + " " + part) : part;
+          } else {
+            if (subChunk) chunks.push(subChunk);
+            subChunk = part;
+          }
+        }
+        if (subChunk) currentChunk = subChunk;
+        else currentChunk = "";
+      } else {
+        currentChunk = trimmed;
+      }
+    }
+  }
+
+  if (currentChunk) chunks.push(currentChunk);
+  return chunks.length > 0 ? chunks : [text];
+}
+
+async function sendSingleVoiceNote(recipientId: string, text: string, accessToken: string): Promise<string | null> {
+  const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || "sk_b704126ae6ecca01f041a6505e4e7a695f40df803a4f8bd3";
+  const rawVoiceId = process.env.ELEVENLABS_VOICE_ID;
+  const ELEVENLABS_VOICE_ID = (rawVoiceId && rawVoiceId !== "2RikWi4odb2uhZQb9waV" && rawVoiceId !== "UvaBYZVczBD1eq5jTquX" && rawVoiceId !== "FhOnCtjmaAIRIS1Dg2bk" && rawVoiceId !== "TX3LPaxmHKxFdv7VOQHJ") ? rawVoiceId : "nsJQzXf7dXyDnOFqO3uX";
+
+  if (!ELEVENLABS_API_KEY) return null;
+
+  try {
+    const cleanText = prepareBangladeshiTTSAudioText(text);
+    console.log(`[FB_VOICE_NOTE] Generating Bangladeshi voice note with Voice ID: ${ELEVENLABS_VOICE_ID} | Text: "${cleanText.slice(0, 60)}..."`);
+    const ttsUrl = `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`;
+    const BD_VOICE_SETTINGS = {
+      stability: 0.50
+    };
+
+    let ttsRes = await fetch(ttsUrl, {
+      method: "POST",
+      headers: {
+        "xi-api-key": ELEVENLABS_API_KEY,
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify({
+        text: cleanText,
+        model_id: "eleven_v3",
+        voice_settings: BD_VOICE_SETTINGS
+      })
+    });
+
+    if (!ttsRes.ok) {
+      console.warn("[VOICE_NOTE_ELEVEN_RETRY] Retrying with eleven_turbo_v2_5");
+      ttsRes = await fetch(ttsUrl, {
+        method: "POST",
+        headers: {
+          "xi-api-key": ELEVENLABS_API_KEY,
+          "Content-Type": "application/json"
+        },
+        body: JSON.stringify({
+          text: cleanText,
+          model_id: "eleven_turbo_v2_5",
+          voice_settings: {
+            stability: 0.50,
+            similarity_boost: 0.90,
+            style: 0.0,
+            use_speaker_boost: true
+          }
+        })
+      });
+    }
+
+    if (!ttsRes.ok) {
+      console.warn("[VOICE_NOTE_ELEVEN_FAIL]", await ttsRes.text());
+      return null;
+    }
+
+    const audioBytes = Buffer.from(await ttsRes.arrayBuffer());
+
+    // 2. Upload to Facebook message_attachments
+    const uploadUrl = `https://graph.facebook.com/v19.0/me/message_attachments?access_token=${accessToken}`;
+    const form = new FormData();
+    form.append("message", JSON.stringify({
+      attachment: {
+        type: "audio",
+        payload: { is_reusable: true }
+      }
+    }));
+    form.append("filedata", new Blob([audioBytes], { type: "audio/mp3" }), "doctor_voice.mp3");
+
+    const upRes = await fetch(uploadUrl, { method: "POST", body: form });
+    const upData = await upRes.json().catch(() => null);
+
+    if (upData?.attachment_id) {
+      // 3. Send voice note attachment
+      const sendUrl = `https://graph.facebook.com/v19.0/me/messages?access_token=${accessToken}`;
+      const sendRes = await fetch(sendUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipient: { id: recipientId },
+          message: {
+            attachment: {
+              type: "audio",
+              payload: {
+                attachment_id: upData.attachment_id
+              }
+            }
+          },
+          messaging_type: "RESPONSE"
+        })
+      });
+      const sendData = await sendRes.json().catch(() => null);
+      if (sendRes.ok) {
+        console.log(`[FB_VOICE_NOTE_OK] Sent ElevenLabs voice note to ${recipientId}`);
+        return upData.attachment_id;
+      } else {
+        console.warn(`[FB_VOICE_NOTE_SEND_WARN]`, sendData);
+      }
+    } else {
+      console.warn(`[FB_VOICE_ATTACH_WARN]`, upData);
+    }
+  } catch (err: any) {
+    console.error("[VOICE_NOTE_ERROR]", err.message);
+  }
+  return null;
+}
+
+async function sendMessengerVoiceNote(recipientId: string, text: string, accessToken: string): Promise<string | null> {
+  const chunks = splitTextIntoVoiceChunks(text, 800);
+  if (chunks.length > 1) {
+    console.log(`[VOICE_CHUNK] Long voice response (${text.length} chars) split into ${chunks.length} parts for ${recipientId}`);
+  }
+
+  let lastId: string | null = null;
+  for (let i = 0; i < chunks.length; i++) {
+    const chunkText = chunks[i];
+    lastId = await sendSingleVoiceNote(recipientId, chunkText, accessToken);
+    if (i < chunks.length - 1) {
+      await new Promise((r) => setTimeout(r, 1200));
+    }
+  }
+  return lastId;
+}
+
+async function handleFacebookComment(pageId: string, value: any) {
+  const { prisma } = await import("@/lib/prisma");
+  const { redis }  = await import("@/lib/redis");
+
+  const account = await prisma.connectedAccount.findFirst({
+    where: { pageId, platform: "FACEBOOK", isActive: true },
+  }) as any;
+  if (!account) return;
+
+  const postId    = value.post_id ?? value.parent_id;
+  const commentId = value.comment_id;
+  const text      = value.message;
+  const userName  = value.from?.name ?? "Unknown";
+  const createdAt = new Date(value.created_time * 1000);
+
+  await prisma.comment.upsert({
+    where: { platformCommentId: commentId },
+    create: {
+      accountId: account.id,
+      postId,
+      platformCommentId: commentId,
+      userName,
+      text,
+      status: "PENDING",
+      commentedAt: createdAt,
+    },
+    update: {},
+  });
+
+  // Real-time notification
+  await redis.publish("new_comment", JSON.stringify({
+    accountId: account.id,
+    postId,
+    commentId,
+    userName,
+    text,
+  }));
+
+  console.log(`[FB_COMMENT] Page:${pageId} | Post:${postId} | From:${userName} | "${text}"`);
+}
