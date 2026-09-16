@@ -904,8 +904,8 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 // ── Send Message via Facebook Graph API ──────────────────────────────────────
 async function sendFacebookMessage(recipientId, text, pageAccessToken = PAGE_TOKEN, replyToMid = null) {
   const url = `https://graph.facebook.com/v19.0/me/messages?access_token=${pageAccessToken}`;
+  // Note: reply_to is NOT supported in FB Graph API v19 — removed to prevent 400 errors
   const messageObj = { text };
-  if (replyToMid) messageObj.reply_to = { mid: replyToMid };
   const res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
@@ -1352,6 +1352,9 @@ async function pollOnce() {
               continue;
             }
 
+            const senderId = lastMsg.from?.id ? String(lastMsg.from.id) : null;
+            if (!senderId) continue;
+
             saveProcessedId(lastMsg.id); // Mark in memory & disk immediately
             // Use only name customer told us — NEVER use Facebook profile name for addressing
             const _fbProfile = lastMsg.from?.name || "";
@@ -1359,13 +1362,12 @@ async function pollOnce() {
 
             // Save FB profile name as metadata (internal only, never used to address)
             if (_fbProfile && _memProf && !_memProf.facebookName) {
-              customerMemory.updateCustomerProfile(String(lastMsg.from.id), { facebookName: _fbProfile });
+              customerMemory.updateCustomerProfile(senderId, { facebookName: _fbProfile });
             }
 
             const _memName = _memProf?.name || "";
             const _isRealName = _memName && !["ভাইয়া","Customer","কাস্টমার","NOT PROVIDED YET","customer","vaiya",""].includes(_memName.trim().toLowerCase());
             const customerName = _isRealName ? _memName : "ভাইয়া";
-            const senderId = lastMsg.from.id;
 
             let messageText = (lastMsg.message || "").trim();
 
