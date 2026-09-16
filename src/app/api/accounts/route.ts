@@ -6,10 +6,10 @@ export async function GET(req: Request) {
   try {
     let accounts = await prisma.connectedAccount.findMany();
 
-    // Auto-seed default Green Health Unani Pharma page if no accounts exist
+    // Auto-seed default হেলথ কেয়ার page if no accounts exist
     if (!accounts || accounts.length === 0) {
-      const pageId = process.env.FACEBOOK_PAGE_ID || "110644118793600";
-      const accessToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAW6YWihfogBSY0coWHPtYcw2Gwm11ZAznBKAIcOzhgKQJWYITHuelgvzJfoWl0QjgrsRD5DEViDdpVyQKyvxGkBVJ8saKOzXi4IaXvIwYWuJXVJwNxBGsUdru7NAV9Rk5hrGCJigh9NuX1ury8ATCBYvbjBce885iGjucQ3LSbzYQwqQvNGfcu7GO70jQu3QiwI1";
+      const pageId = process.env.FACEBOOK_PAGE_ID || "932259009980880";
+      const accessToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAjkLPT8UegBSS7FFS7CknaL7eRbabMG9g7TJZCu4SQ20ea2sRDLSEZBX2RJlV0yYXneKCHX50m43kYnNUE6LKE6WizMRwsnoCw7fBzyeF88NEZCdb0nu68OmfDZC6rExH9LiWIjxJTPtZBw9m6cSUT98VoIzToz6ZAGV7BJylUTKo1WZC4wFEBk6aAs9KuhsSN17Jp";
 
       let user = await prisma.user.findFirst();
       if (!user) {
@@ -27,7 +27,7 @@ export async function GET(req: Request) {
         data: {
           platform: "FACEBOOK",
           pageId,
-          pageName: "Green Health Unani Pharma",
+          pageName: "হেলথ কেয়ার",
           accessToken,
           isActive: true,
           aiAutoReply: true,

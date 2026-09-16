@@ -22,8 +22,8 @@ const DEFAULT_ACCOUNTS: Account[] = [
   {
     id: "862a0088-8b13-4b7b-85dd-219140b41abd",
     platform: "FACEBOOK",
-    pageName: "Green Health Unani Pharma",
-    pageId: "110644118793600",
+    pageName: "হেলথ কেয়ার",
+    pageId: "932259009980880",
     isActive: true,
     aiAutoReply: true,
     businessDetails: null,

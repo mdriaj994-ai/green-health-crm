@@ -5,9 +5,9 @@ const path = require("path");
 const fs = require("fs");
 require("dotenv").config({ path: path.join(__dirname, "..", ".env") });
 
-const PAGE_ID = process.env.FACEBOOK_PAGE_ID || "110644118793600";
-// Always-valid permanent fallback token (updated 2026-09-16)
-const PERM_TOKEN = "EAAW6YWihfogBSY4RXyOpTmUMHfuJKokNMjlEQ3rdBuQc6BELYPwGLhfrMldpWsZA2CwZBXrjuB6bfpH2VrqVm2AVcs3lkZApVZA8bEPyivSudibUjN5vdNNuBY82ZBezIOlyL8g7mBOoxgVhyJtKt7MJMTFrbFZC77ZCshT4ZATflRUkhhkUC9lkib8O3sfMpaN1mtwZD";
+const PAGE_ID = process.env.FACEBOOK_PAGE_ID || "932259009980880";
+// Always-valid permanent fallback token
+const PERM_TOKEN = "EAAjkLPT8UegBSS7FFS7CknaL7eRbabMG9g7TJZCu4SQ20ea2sRDLSEZBX2RJlV0yYXneKCHX50m43kYnNUE6LKE6WizMRwsnoCw7fBzyeF88NEZCdb0nu68OmfDZC6rExH9LiWIjxJTPtZBw9m6cSUT98VoIzToz6ZAGV7BJylUTKo1WZC4wFEBk6aAs9KuhsSN17Jp";
 
 // Resolve token: DB > env var > hardcoded
 function getPageToken() {
@@ -41,7 +41,7 @@ async function syncFacebookMessages() {
     const accId = require("crypto").randomUUID();
     const now = new Date().toISOString();
     db.prepare("INSERT INTO ConnectedAccount (id, platform, pageId, pageName, accessToken, isActive, createdAt, updatedAt) VALUES (?, ?, ?, ?, ?, 1, ?, ?)").run(
-      accId, "FACEBOOK", PAGE_ID, "গ্রীন হেলথ ইউনানী ফার্মেসী", PAGE_TOKEN, now, now
+      accId, "FACEBOOK", PAGE_ID, "হেলথ কেয়ার", PAGE_TOKEN, now, now
     );
     account = { id: accId };
   }

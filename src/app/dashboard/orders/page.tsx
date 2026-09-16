@@ -222,7 +222,7 @@ export default function OrdersPage() {
                   {/* Facebook Page Inbox direct link */}
                   {order.senderId && (
                     <a
-                      href={`https://www.facebook.com/${order.pageId || '110644118793600'}/inbox/?selected_item_id=${order.senderId}`}
+                      href={`https://www.facebook.com/${order.pageId || '932259009980880'}/inbox/?selected_item_id=${order.senderId}`}
                       target="_blank"
                       rel="noreferrer"
                       className="bg-blue-600/20 hover:bg-blue-600/30 border border-blue-500/30 text-blue-300 px-3 py-1.5 rounded-lg text-xs transition w-full text-center flex items-center justify-center gap-1.5 font-medium"

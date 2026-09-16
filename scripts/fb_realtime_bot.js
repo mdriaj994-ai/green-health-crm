@@ -12,11 +12,11 @@ const { parseOrderFromMessage, saveOrderToDb } = require("./save_order_to_db.js"
 const { sendTelegramAdminAlert } = require("./telegram_alert.js");
 
 
-const PAGE_ID = process.env.FACEBOOK_PAGE_ID || "110644118793600";
-const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAW6YWihfogBSQuviGfEKqUu33eHxtXp1QlcaY6aIYaWoJoQZCSYyc8zLyMqZBX3pYceTpbNDVZCjDw05l0DrZCzRjeZAMrQ1tbZAlQRyxOaRBCSItnMBZCjKPUVaG0zp1ctR7RCPYAtR9jpkmNoEC8FjEetZAsiqr13Ry7jAbYWuFGsqUZBZBBwmu2QcYkpjKD7Wo3278Q4gX";
-const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID || "1612302413561480";
-const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET || "a41c4fa1bcb53a17c301a2e68263a65c";
-const FACEBOOK_PAGE_ID = process.env.FACEBOOK_PAGE_ID || "110644118793600";
+const PAGE_ID = process.env.FACEBOOK_PAGE_ID || "932259009980880";
+const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAjkLPT8UegBSS7FFS7CknaL7eRbabMG9g7TJZCu4SQ20ea2sRDLSEZBX2RJlV0yYXneKCHX50m43kYnNUE6LKE6WizMRwsnoCw7fBzyeF88NEZCdb0nu68OmfDZC6rExH9LiWIjxJTPtZBw9m6cSUT98VoIzToz6ZAGV7BJylUTKo1WZC4wFEBk6aAs9KuhsSN17Jp";
+const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID || "2502681553555944";
+const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET || "73a482e9d5815a344205c92f1c83d5a8";
+const FACEBOOK_PAGE_ID = process.env.FACEBOOK_PAGE_ID || "932259009980880";
 
 const GEMINI_KEY = process.env.GEMINI_API_KEY || Buffer.from("QVEuQWI4Uk42Si0xTTlKMDlNNlJfS2tjZU9LNjVraVd2Z3NydGZUX2pQZm5JY1NtejB4eXc=", "base64").toString("utf-8");
 
@@ -32,7 +32,7 @@ function getActivePages() {
         return rows.map(r => ({
           id: r.id,
           pageId: String(r.pageId),
-          pageName: r.pageName || "গ্রীন হেলথ ইউনানী ফার্মেসী",
+          pageName: r.pageName || "হেলথ কেয়ার",
           accessToken: r.accessToken,
           aiAutoReply: r.aiAutoReply !== 0
         })).filter(p => p.pageId && p.accessToken);
@@ -45,7 +45,7 @@ function getActivePages() {
   return [{
     id: "default-env",
     pageId: PAGE_ID,
-    pageName: "গ্রীন হেলথ ইউনানী ফার্মেসী",
+    pageName: "হেলথ কেয়ার",
     accessToken: PAGE_TOKEN,
     aiAutoReply: true
   }];
@@ -1923,10 +1923,10 @@ async function startBot() {
 
       if (_appRes.access_token) {
         const _pgRes = await fetch(
-          "https://graph.facebook.com/v19.0/110644118793600?fields=access_token,name&access_token=" + _appRes.access_token
+          "https://graph.facebook.com/v19.0/" + PAGE_ID + "?fields=access_token,name&access_token=" + _appRes.access_token
         ).then(r => r.json()).catch(() => ({}));
         if (_pgRes.access_token) {
-          _db.prepare("UPDATE ConnectedAccount SET accessToken = ? WHERE platform = 'FACEBOOK'").run(_pgRes.access_token);
+          _db.prepare("UPDATE ConnectedAccount SET accessToken = ?, pageId = ?, pageName = ? WHERE platform = 'FACEBOOK'").run(_pgRes.access_token, PAGE_ID, "হেলথ কেয়ার");
           _db.close();
           console.log("[STARTUP] ✅ Token refreshed via app credentials! Page:", _pgRes.name);
           return;
@@ -1944,16 +1944,16 @@ async function startBot() {
 
   // ── SYNC DB TOKEN NOW (before page load) — ensures valid token everywhere ──
   try {
-    const VALID_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAW6YWihfogBSQuviGfEKqUu33eHxtXp1QlcaY6aIYaWoJoQZCSYyc8zLyMqZBX3pYceTpbNDVZCjDw05l0DrZCzRjeZAMrQ1tbZAlQRyxOaRBCSItnMBZCjKPUVaG0zp1ctR7RCPYAtR9jpkmNoEC8FjEetZAsiqr13Ry7jAbYWuFGsqUZBZBBwmu2QcYkpjKD7Wo3278Q4gX";
+    const VALID_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || PAGE_TOKEN;
     const _syncDbPath = path.join(process.cwd(), "prisma", "social_inbox.db");
     if (fs.existsSync(_syncDbPath)) {
       const _syncDb = new Database(_syncDbPath);
-      const _tok = _syncDb.prepare("SELECT accessToken FROM ConnectedAccount WHERE platform='FACEBOOK'").get();
-      if (!_tok?.accessToken || _tok.accessToken !== VALID_TOKEN) {
-        _syncDb.prepare("UPDATE ConnectedAccount SET accessToken=? WHERE platform='FACEBOOK'").run(VALID_TOKEN);
-        console.log("[STARTUP] ✅ Token pre-fixed in DB before page load");
+      const _tok = _syncDb.prepare("SELECT accessToken, pageId FROM ConnectedAccount WHERE platform='FACEBOOK'").get();
+      if (!_tok?.accessToken || _tok.accessToken !== VALID_TOKEN || _tok.pageId !== PAGE_ID) {
+        _syncDb.prepare("UPDATE ConnectedAccount SET accessToken=?, pageId=?, pageName=? WHERE platform='FACEBOOK'").run(VALID_TOKEN, PAGE_ID, "হেলথ কেয়ার");
+        console.log("[STARTUP] ✅ Token and Page details pre-fixed in DB before page load");
       } else {
-        console.log("[STARTUP] ✅ DB token already valid");
+        console.log("[STARTUP] ✅ DB token and Page details already valid");
       }
       _syncDb.close();
     }
