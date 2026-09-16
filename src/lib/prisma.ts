@@ -4,14 +4,18 @@ import path from "path";
 import crypto from "crypto";
 import fs from "fs";
 
-const dbDir = path.resolve(process.cwd(), "prisma");
-const dbFile = path.resolve(dbDir, "social_inbox.db");
+function getDbFile() {
+  const dataDb = path.resolve(process.cwd(), "data", "social_inbox.db");
+  if (fs.existsSync(dataDb)) return dataDb;
+  const prismaDir = path.resolve(process.cwd(), "prisma");
+  if (!fs.existsSync(prismaDir)) {
+    fs.mkdirSync(prismaDir, { recursive: true });
+  }
+  return path.resolve(prismaDir, "social_inbox.db");
+}
 
 function getDb() {
-  if (!fs.existsSync(dbDir)) {
-    fs.mkdirSync(dbDir, { recursive: true });
-  }
-  const db = new Database(dbFile);
+  const db = new Database(getDbFile());
   db.pragma('encoding = "UTF-8"');
   db.pragma('journal_mode = WAL');
   return db;
