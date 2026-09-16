@@ -239,6 +239,17 @@ function createPrismaLike() {
         }
         db.close(); return Promise.resolve(row || null);
       },
+      findFirst: ({ where }: any = {}) => {
+        const db = getDb();
+        let sql = `SELECT * FROM "Contact" WHERE 1=1`;
+        const params: any[] = [];
+        if (where?.platformUserId) { sql += ` AND platformUserId=?`; params.push(where.platformUserId); }
+        if (where?.platform) { sql += ` AND platform=?`; params.push(where.platform); }
+        if (where?.id) { sql += ` AND id=?`; params.push(where.id); }
+        sql += ` LIMIT 1`;
+        const row: any = db.prepare(sql).get(...params);
+        db.close(); return Promise.resolve(row || null);
+      },
       create: ({ data }: any) => {
         const db = getDb();
         const id = crypto.randomUUID(); const now = new Date().toISOString();
