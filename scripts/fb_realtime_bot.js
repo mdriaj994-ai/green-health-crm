@@ -1480,10 +1480,11 @@ async function pollOnce() {
             const lastMsgWasVoice = recentHistory && recentHistory.length > 0 &&
               recentHistory.some(line => line.includes("[ভয়েস") || line.includes("[ভয়েস"));
 
-            if (isTextModeRequested(messageText)) {
-              setVoiceMode(senderId, false);
-            } else if (isOnlyVoiceRequest(messageText) || isVoiceRequested(messageText) || custProf?.prefersVoice || lastMsgWasVoice || audioAttach) {
+            const isAudioOrVoiceReq = Boolean(audioAttach) || isOnlyVoiceRequest(messageText) || isVoiceRequested(messageText);
+            if (isAudioOrVoiceReq) {
               setVoiceMode(senderId, true);
+            } else {
+              setVoiceMode(senderId, false);
             }
 
             const isOnlyVoice = isOnlyVoiceRequest(messageText);
@@ -1657,8 +1658,10 @@ ${errorLines}
             }
             console.log(`[FB_BOT] 🤖 [${page.pageName}] REPLY: "${replyText.slice(0, 70)}..."`);
 
-            if (userInVoiceMode) {
-              console.log(`[FB_BOT] 🎙️ Sending answer as voice note only to ${senderId}: "${replyText.slice(0, 70)}..."`);
+            const shouldSendVoice = Boolean(audioAttach) || isOnlyVoiceRequest(messageText) || isVoiceRequested(messageText);
+
+            if (shouldSendVoice) {
+              console.log(`[FB_BOT] 🎙️ Sending answer as voice note to ${senderId}: "${replyText.slice(0, 70)}..."`);
               await sendSenderAction(senderId, "typing_on", page.accessToken);
               const sentVoice = await sendFacebookVoiceNote(senderId, replyText, page.accessToken);
               if (sentVoice) {
@@ -1669,50 +1672,11 @@ ${errorLines}
                 await sendFacebookMessage(senderId, replyText, page.accessToken);
                 recordOutgoingBotMessageInDb(senderId, replyText, false);
               }
-
-              // ── Text Card 1: Order info card (always send when asking for order details) ──
-              // Detect in BOT REPLY that it's asking customer for name/address/phone
-              const isOrderCollecting =
-                /নাম.*জানান|নাম.*বলুন|নাম.*পাঠান|ঠিকানা|নাম.*দিন/i.test(replyText) ||
-                /(নাম|name).*এবং.*(ঠিকানা|address)/i.test(replyText) ||
-                /(অর্ডার|order).*(করতে|দিতে|নিতে).*(নাম|ঠিকানা|মোবাইল)/i.test(replyText) ||
-                /(পাঠিয়ে|deliver|courier).*(নাম|ঠিকানা|মোবাইল)/i.test(replyText) ||
-                /(নাম|ঠিকানা|মোবাইল).*(পাঠান|জানান|দিন|বলুন)/i.test(replyText) ||
-                /আপনার.*নাম|আপনার.*ঠিকানা|আপনার.*মোবাইল/i.test(replyText);
-
-              if (isOrderCollecting) {
-                await sleep(1200);
-                const orderCard =
-`📋 অর্ডার করতে নিচের তথ্যগুলো এখানে লিখে পাঠান:
-
-১. আপনার পুরো নাম
-২. পূর্ণ ঠিকানা (গ্রাম/রোড, উপজেলা, জেলা)
-৩. মোবাইল নম্বর
-
-✅ তথ্য পেলেই আমরা দ্রুত পাঠিয়ে দেব ইনশাআল্লাহ।`;
-                await sendFacebookMessage(senderId, orderCard, page.accessToken);
-                console.log(`[FB_BOT] 📋 Order info card sent to ${senderId}`);
-              }
-
-              // ── Text Card 2: Contact/phone number card ──
-              // Detect in CUSTOMER MESSAGE or BOT REPLY that phone number is needed
-              const customerAsksPhone = /ফোন|মোবাইল|নম্বর|নাম্বার|যোগাযোগ|contact|phone|number|call/i.test(messageText);
-              const botMentionsPhone = /01[3-9]d{8}|আমাদের নম্বর|যোগাযোগ করতে|ফোন করতে/i.test(replyText);
-              if (customerAsksPhone || botMentionsPhone) {
-                await sleep(1000);
-                const contactCard =
-`📞 গ্রীন হেলথ ইউনানী ফার্মেসী
-যোগাযোগ:
-📱 01XXXXXXXXXX (আপনার নম্বর এখানে)
-
-🕘 সকাল ৯টা – রাত ১০টা
-🏠 সারা দেশে হোম ডেলিভারি আছে`;
-                await sendFacebookMessage(senderId, contactCard, page.accessToken);
-                console.log(`[FB_BOT] 📞 Contact card sent to ${senderId}`);
-              }
-
             } else {
-              const sendResult = await sendFacebookMessage(senderId, replyText, page.accessToken, lastMsg.id);
+              const delay = calculateHumanTypingDelay(replyText);
+              await sendSenderAction(senderId, "typing_on", page.accessToken);
+              await sleep(Math.min(delay, 2500));
+              const sendResult = await sendFacebookMessage(senderId, replyText, page.accessToken);
               console.log(`[FB_BOT] 🚀 [${page.pageName}] SENT [${sendResult.status}]:`, sendResult.data?.message_id || sendResult.data);
               recordOutgoingBotMessageInDb(senderId, replyText, false);
             }

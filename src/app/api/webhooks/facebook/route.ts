@@ -241,10 +241,11 @@ async function flushSenderEvent(senderId: string) {
     const lastMsgWasVoice = chatHistory && chatHistory.length > 0 &&
       chatHistory.slice().reverse().find((m: any) => m.sender === "AGENT")?.text?.includes("[ভয়েস");
 
-    if (isTextModeRequested(text)) {
-      setVoiceMode(senderId, false);
-    } else if (isOnlyVoiceRequest(text) || isVoiceRequested(text) || Boolean(audioUrl) || custProfile?.prefersVoice || lastMsgWasVoice) {
+    const isAudioOrVoiceReq = Boolean(audioUrl) || isOnlyVoiceRequest(text) || isVoiceRequested(text);
+    if (isAudioOrVoiceReq) {
       setVoiceMode(senderId, true);
+    } else {
+      setVoiceMode(senderId, false);
     }
 
     const isOnlyVoice = isOnlyVoiceRequest(text);
