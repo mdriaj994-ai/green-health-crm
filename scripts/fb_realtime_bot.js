@@ -1803,6 +1803,11 @@ async function checkAndSendScheduledReminders() {
 // ── Start Engine ─────────────────────────────────────────────────────────────
 async function startBot() {
 
+  console.log("╔══════════════════════════════════════════════╗");
+  console.log("║  🤖 GREEN HEALTH BOT v2026-09-16             ║");
+  console.log("║  Order Confirm + Smart Address ACTIVE        ║");
+  console.log("╚══════════════════════════════════════════════╝");
+
   // ══ VOLUME DATA AUTO-INIT — runs on first boot after volume mount ══
   // If /app/data is empty (fresh volume), restore from /app/data-init backup
   try {
