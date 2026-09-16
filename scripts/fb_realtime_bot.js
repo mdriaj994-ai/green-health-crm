@@ -9,6 +9,7 @@ const fs = require("fs");
 const Database = require("better-sqlite3");
 const customerMemory = require("./customer_memory.js");
 const { parseOrderFromMessage, saveOrderToDb } = require("./save_order_to_db.js");
+const { sendTelegramAdminAlert } = require("./telegram_alert.js");
 
 
 const PAGE_ID = process.env.FACEBOOK_PAGE_ID || "110644118793600";
@@ -723,6 +724,12 @@ CRITICAL RULES FOR GEMINI FLASH BACKEND:
     - NEVER say "[Facebook Profile Name] ভাইয়া" or any variation using the account name.
     - DEFAULT address: "ভাইয়া" (always safe, always respectful).
 
+20. UNKNOWN QUESTION HANDLING & ADMIN ESCALATION (অজানা/অদ্ভুত প্রশ্ন ও এডমিন অ্যালার্ট):
+    - যদি কাস্টমার এমন কোনো অদ্ভুত, সম্পূর্ণ অপরিচিত, অপ্রাসঙ্গিক বা জটিল প্রশ্ন করে যার সুনির্দিষ্ট উত্তর আমাদের ডাটাবেস বা নলেজ বেইজে নেই:
+    - কোনো ভুল, বানিয়ে বলা বা আজেবাজে উত্তর দেওয়া সম্পূর্ণ নিষিদ্ধ!
+    - কাস্টমারের চ্যাটটি সাময়িক হোল্ডে রেখে হুবহু নিচের ফরম্যাটে উত্তর দাও (উপরে [ADMIN_ALERT] কোডটি অবশ্যই লিখবে যাতে সিস্টেম এডমিনকে টেলিগ্রামে নোটিফিকেশন পাঠাতে পারে):
+      "[ADMIN_ALERT] জি ভাইয়া, আপনার এই বিশেষ প্রশ্নটির সঠিক ও নির্ভুল পরামর্শ নিশ্চিত করতে আমাদের প্রধান বিশেষজ্ঞ ও চিকিৎসকের কাছে মেসেজটি পাঠানো হয়েছে। খুব দ্রুতই আপনাকে সঠিক তথ্য ও পরামর্শ জানানো হচ্ছে, দয়া করে একটু অপেক্ষা করুন।"
+
 ${customerMemoryPrompt ? `\n${customerMemoryPrompt}\n` : ""}
 ${productContext ? `\n--- LIVE MEDICINE DASHBOARD DATA ---\n${productContext}\n-----------------------------------\n` : ""}
 ${masterKB ? `\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\n${masterKB}\n-----------------------------------------------\n` : ""}
@@ -802,7 +809,18 @@ ${voiceModeInstruction}
 
         // Persist model reply to customer permanent memory
         if (senderId) {
-          customerMemory.appendChatMessage(senderId, "model", text, false);
+          // Admin Alert Trigger: Notify admin on Telegram for unknown/out-of-scope questions
+        if (text.includes("[ADMIN_ALERT]")) {
+          text = text.replace(/\[ADMIN_ALERT\]/gi, "").trim();
+          sendTelegramAdminAlert({
+            customerName: _displayName,
+            senderId,
+            question: customerMessage,
+            pageName
+          }).catch(e => console.warn("[ADMIN_ALERT_FIRE_WARN]", e.message));
+        }
+
+        customerMemory.appendChatMessage(senderId, "model", text, false);
         }
 
         return text;
