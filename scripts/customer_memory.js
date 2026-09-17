@@ -88,7 +88,7 @@ function isValidPersonName(n) {
   if (!n) return false;
   const s = String(n).trim();
   if (s.length < 2 || s.length > 30) return false;
-  if (/^(vai|bhai|vaiya|bhaiya|ভাই|ভাইয়া|ভাইয়া|ভায়া|customer|কাস্টমার|doctor|hakim|হাকিম|ডাক্তার|admin|এডমিন|ki|jano|জান|জানো|বলেন|bolo|bolun|ki\s*jano|e\s*ki\s*jano|unknown|অজ্ঞাত|facebook\s*user|facebook\s*customer|user|voice|boyes|audio|ভয়েস|ভয়েস|বয়েজ|বয়েস|অডিও)$/i.test(s)) {
+  if (/^(vai|bhai|vaiya|bhaiya|ভাই|ভাইয়া|ভাইয়া|ভায়া|customer|কাস্টমার|doctor|hakim|হাকিম|ডাক্তার|admin|এডমিন|ki|jano|jaano|janen|জান|জানো|জানেন|বলেন|bolo|bolun|boloto|mone|mon|ase|ache|konta|koto|কি|কী|বলুন|বলো|বলেন|মনে|আছে|ki\s*jano|e\s*ki\s*jano|unknown|অজ্ঞাত|facebook\s*user|facebook\s*customer|user|voice|boyes|audio|ভয়েস|ভয়েস|বয়েজ|বয়েস|অডিও)$/i.test(s)) {
     return false;
   }
   if (/চিকিৎসালয়|ফার্মেসী|হেলথ|health|pharmacy|herbal|ayurvedic|unani|মেডিসিন|ওষুধ|অর্ডার|order|price|দাম|ডেলিভারি|delivery/i.test(s)) {
@@ -751,5 +751,6 @@ module.exports = {
   getEligibleFollowUpCandidates,
   recordFollowUpSent,
   buildPersonalizedFollowUpPrompt,
+  isValidPersonName,
 };
 

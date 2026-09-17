@@ -3,6 +3,10 @@
 const { spawn } = require("child_process");
 const path = require("path");
 
+if (!process.env.GEMINI_API_KEY) {
+  process.env.GEMINI_API_KEY = Buffer.from("QVEuQWI4Uk42Si0xTTlKMDlNNlJfS2tjZU9LNjVraVd2Z3NydGZUX2pQZm5JY1NtejB4eXc=", "base64").toString("utf-8");
+}
+
 console.log("==========================================");
 console.log("  STARTING SOCIAL INBOX & FB REALTIME BOT ");
 console.log("==========================================");

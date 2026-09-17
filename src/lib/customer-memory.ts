@@ -117,7 +117,22 @@ export function saveMemory(): void {
     fs.writeFileSync(memPath, JSON.stringify(obj, null, 2), "utf-8");
   } catch (err: any) {
     console.warn("[CUSTOMER_MEMORY_SAVE_WARN]", err.message);
+}
+}
+
+export function isValidPersonName(n: any): boolean {
+  if (!n) return false;
+  const s = String(n).trim();
+  if (s.length < 2 || s.length > 30) return false;
+  if (/^(vai|bhai|vaiya|bhaiya|ভাই|ভাইয়া|ভাইয়া|ভায়া|customer|কাস্টমার|doctor|hakim|হাকিম|ডাক্তার|admin|এডমিন|ki|jano|jaano|janen|জান|জানো|জানেন|বলেন|bolo|bolun|boloto|mone|mon|ase|ache|konta|koto|কি|কী|বলুন|বলো|বলেন|মনে|আছে|ki\s*jano|e\s*ki\s*jano|unknown|অজ্ঞাত|facebook\s*user|facebook\s*customer|user|voice|boyes|audio|ভয়েস|ভয়েস|বয়েজ|বয়েস|অডিও)$/i.test(s)) {
+    return false;
   }
+  if (/চিকিৎসালয়|ফার্মেসী|হেলথ|health|pharmacy|herbal|ayurvedic|unani|মেডিসিন|ওষুধ|অর্ডার|order|price|দাম|ডেলিভারি|delivery/i.test(s)) {
+    return false;
+  }
+  if (/^[\d\s]+$/.test(s)) return false;
+  if (/^(kemon|valo|kothai|koto|ki|konta|amra|apni|tumi|apnar|amar|আমি|তুমি|আপনি|কেমন|porte|পারিনা|পারি|চাই|chai|bole|বলতে)/i.test(s)) return false;
+  return true;
 }
 
 export function getAllCustomerProfiles(): CustomerProfile[] {

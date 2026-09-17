@@ -891,26 +891,31 @@ ${voiceModeInstruction}
   }
 
   const qLowerFb = (customerMessage || "").toLowerCase();
+  // Check if customer is ASKING what their name is or if bot knows it (e.g. "amar name jano", "আমার নাম কি জানো", "amar name ki")
+  const isAskingName = /(?:name|nam|naam|নাম)\s*(?:ki|konta|koto|jano|jaano|janen|bolen|bolo|bolun|boloto|mone|mon|ase|ache|জান|জানো|জানেন|বলেন|বলো|বলুন|কি|কী|মনে\s*আছে|আছে)/i.test(qLowerFb) ||
+                       /(?:jano|jaano|janen|জান|জানো|জানেন)\s+(?:amar|amr|আমার)\s+(?:name|nam|naam|নাম)/i.test(qLowerFb) ||
+                       /(?:amar|amr|আমার)\s+(?:name|naam|nam|নাম)\s*(?:ki|jano|jaano|janen|bolen|bolo)/i.test(qLowerFb);
+
+  if (isAskingName) {
+    const savedProf = senderId ? customerMemory.getCustomerProfile(senderId) : null;
+    if (savedProf && savedProf.name && !["Customer", "কাস্টমার", "ভাইয়া"].includes(savedProf.name) && customerMemory.isValidPersonName(savedProf.name)) {
+      return `জি ভাইয়া, আপনার নাম তো ${savedProf.name}! বলুন ${savedProf.name} ভাইয়া, কীভাবে সাহায্য করতে পারি?`;
+    }
+    return "জি না ভাইয়া, আপনার শুভ নামটি তো এখনো জানা হয়নি। আপনার নামটি যদি বলতেন, খুব ভালো লাগত।";
+  }
+
   // Check if customer is TELLING their name (e.g., "amar name rakib", "আমার নাম রাকিব", "আমি রাকিব")
   const tellingNameMatch = customerMessage.match(/(?:amar|amr|আমার)\s+(?:name|naam|nam|নাম)\s*(?:is|holo|hlo|হলো|হল)?\s*[:=]?\s*([A-Za-z\u0980-\u09FF\s]{2,25})/i) ||
                            customerMessage.match(/(?:my\s*name\s*is|\bnam\s*[:=]|\bনাম\s*[:=]|\bনামঃ|\bname\s*[:=])\s*([A-Za-z\u0980-\u09FF\s]{2,25})/i) ||
                            customerMessage.match(/(?:^|\s)(?:ami|আমি)\s+([A-Za-z\u0980-\u09FF]{2,20})\s+(?:bolsi|bolchi|বলছি|বলসি)(?:$|[.,!?\s])/i);
   if (tellingNameMatch && tellingNameMatch[1]) {
     const toldName = tellingNameMatch[1].trim().split(/\s+(?:bolsi|bolchi|vai|bhai)\b/i)[0].trim();
-    if (senderId) {
-      try { customerMemory.updateCustomerProfile(senderId, { name: toldName }); } catch (e) {}
+    if (customerMemory.isValidPersonName(toldName)) {
+      if (senderId) {
+        try { customerMemory.updateCustomerProfile(senderId, { name: toldName }); } catch (e) {}
+      }
+      return `জি ${toldName} ভাইয়া! আপনার নামটি জেনে খুব ভালো লাগল। আলহামদুলিল্লাহ, বলুন ভাইয়া কীভাবে সাহায্য করতে পারি?`;
     }
-    return `জি ${toldName} ভাইয়া! আপনার নামটি জেনে খুব ভালো লাগল। আলহামদুলিল্লাহ, বলুন ভাইয়া কীভাবে সাহায্য করতে পারি?`;
-  }
-
-  // Check if customer is ASKING what their name is (e.g., "amar name ki", "আমার নাম কি", "আমার নাম কি জানো")
-  if (/(?:name|nam|naam|নাম)\s*(?:ki|konta|koto|jano|bolen|bolo|জান|জানো|বলেন|বলো|কি|কী|বলুন)/i.test(qLowerFb) ||
-      /(?:amar|amr|আমার)\s+(?:name|naam|nam|নাম)\b/i.test(qLowerFb)) {
-    const savedProf = senderId ? customerMemory.getCustomerProfile(senderId) : null;
-    if (savedProf && savedProf.name && !["Customer", "কাস্টমার", "ভাইয়া"].includes(savedProf.name)) {
-      return `জি ভাইয়া, আপনার নাম তো ${savedProf.name}! বলুন ${savedProf.name} ভাইয়া, কীভাবে সাহায্য করতে পারি?`;
-    }
-    return "জি না ভাইয়া, আপনার শুভ নামটি তো এখনো জানা হয়নি। আপনার নামটি যদি বলতেন, খুব ভালো লাগত।";
   }
   // Address / Home queries (বাসা কোথায়, বাড়ি কোথায়, এলাকা, চেম্বার)
   if (/বাসা|বাড়ি|বাড়ি|ঠিকানা|থাকেন|location|basa|bari|thikana|chamber|চেম্বার/i.test(qLowerFb)) {
