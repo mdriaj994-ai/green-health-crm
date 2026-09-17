@@ -497,6 +497,7 @@ function generateFallbackReply(
   imageUrl?: string | null,
   matchedProduct?: any
 ): string {
+  const lower = message.toLowerCase();
   // ── Phone / Contact Number query ──────────────────────────────────────────
   if (/(?:number|nambor|nombo|phone|contact|whatsapp|call)\s*(?:ta|daon|daow|dao|din|dite|share|jabe|parbe|ki|ase|ache)/i.test(lower) ||
       /apnar\s*(?:number|nambor|phone)/i.test(lower) ||

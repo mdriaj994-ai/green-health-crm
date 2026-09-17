@@ -78,15 +78,71 @@ export function isOnlyVoiceRequest(text: string): boolean {
 
 export function isVoiceRequested(text: string): boolean {
   if (!text) return false;
-  return /voice|boyes|boes|voyes|ভয়েস|ভয়েস|বয়েজ|বয়েজ|বয়েস|বয়েস|কথা বলুন|মুখে বলুন|মুখে বলেন|মুখে বলো|অডিও|audio/i.test(text);
+  const clean = text.trim().toLowerCase();
+
+  // Negative intent: customer wants to STOP voice or doesn't want voice
+  if (
+    /(?:voice|voyes|boyes|বয়েস|ভয়েস|ভয়েস).*(?:dio\s*na|diyo\s*na|lagbe\s*na|bondho|off|চাই\s*না|দিবেন\s*না|দিও\s*না|লাগবে\s*না|বন্ধ|off\s*koro)/i.test(clean) ||
+    /(?:dio\s*na|lagbe\s*na|না\s*দিয়ে|না\s*দিয়ে).*(?:voice|voyes|boyes|বয়েস|ভয়েস|ভয়েস)/i.test(clean)
+  ) {
+    return false;
+  }
+
+  return /voice|boyes|boes|voyes|ভয়েস|ভয়েস|বয়েজ|বয়েজ|বয়েস|বয়েস|কথা বলুন|মুখে বলুন|মুখে বলেন|মুখে বলো|অডিও|audio/i.test(clean);
 }
 
 export function isTextModeRequested(text: string): boolean {
   if (!text) return false;
   const clean = text.trim().toLowerCase();
   return (
-    /\b(text|txt)\b.*(dao|den|din|bolen|bolun|bolo|pathan|koro|koren|দাও|দেন|দিন|বলেন|বলুন|পাঠান)/i.test(clean) ||
-    /(টেক্সট|টেক্সটে|মেসেজে?|লিখে|লেখা)\s*(দাও|দেন|দিন|বলেন|বলুন|বলো|পাঠান|করুন|লিখুন)/i.test(clean) ||
-    /^(text|txt|লিখে|লিখুন|লেখা|মেসেজ|message)$/i.test(clean)
+    // Explicit text / txt / sms / message requests
+    /\b(text|txt|sms|msg|message)\b.*(dao|den|din|bolen|bolun|bolo|pathan|pathao|koro|koren|দাও|দেন|দিন|বলেন|বলুন|পাঠান|পাঠাও)/i.test(clean) ||
+    /(টেক্সট|টেক্সটে|মেসেজ|মেসেজে?|এসএমএস)\s*(দাও|দেন|দিন|বলেন|বলুন|বলো|পাঠান|পাঠাও|করুন|লিখুন)/i.test(clean) ||
+    /^(text|txt|sms|মেসেজ|message)$/i.test(clean) ||
+    // Negative voice expressions ("voice dio na", "voice lagbe na", "voice bondho koro", "ভয়েস বন্ধ", etc.)
+    /(?:voice|voyes|boyes|বয়েস|ভয়েস|ভয়েস)\s*(?:dio\s*na|diyo\s*na|lagbe\s*na|bondho|off|চাই\s*না|দিবেন\s*না|দিও\s*না|লাগবে\s*না|বন্ধ|off\s*koro)/i.test(clean) ||
+    // "lekhe dao" / "lekehe dao" / "likhe dao" / "lekhe pathao" Banglish variations
+    /(?:lekehe|lekhe|lekh[ea]|likhe|likh[ea]|leke|like)\s*(?:dao|den|din|patho|pathao|pathan|de|daw|dile|koro|koren|bolo|bolen|bolun)/i.test(clean) ||
+    /^(?:lekehe|lekhe|likhe|leke)\s*dao$/i.test(clean) ||
+    // Bengali variations ("লিখে দাও", "লেখে দাও", "লিখে পাঠান", etc.)
+    /(লিখে|লেখে|লিখিয়া|লিখিয়ে)\s*(দাও|দেন|দিন|পাঠাও|পাঠান|বলুন|বলেন|বলো|করুন)/i.test(clean) ||
+    /^(লিখে|লেখে|লিখুন|লেখা)$/i.test(clean)
   );
 }
+
+// ── Detect when customer is asking HOW TO ORDER or WHAT IS NEEDED for order ────
+// When this returns true, ALWAYS send text (even in voice mode) so customer can
+// read and copy the order form format. Voice explanation goes first, text second.
+export function isOrderInfoRequest(text: string, replyText?: string): boolean {
+  if (!text && !replyText) return false;
+  const clean = (text || "").trim().toLowerCase();
+
+  // 1. Customer asking how to order, what is needed, or placing order
+  const customerAsked =
+    /(ki\s*ki|কি\s*কি|কী\s*কী)\s*(lagbe|dite|দিতে|দরকার|পাঠাতে)/i.test(clean) ||
+    /(order|অর্ডার)\s*.*(kivabe|ki\s*vabe|kiভাবে|কিভাবে|কীভাবে|korbo|করব|করবো|debo|দেব|দিব|korte|করতে|chai|চাই)/i.test(clean) ||
+    /(kivabe|ki\s*vabe|কিভাবে|কীভাবে)\s*.*(order|অর্ডার|kinbo|kini|কিনব|কিনবো|nibo|nebo|নেব|নেবো|pabo|পাব|পাবো|পাঠাব)/i.test(clean) ||
+    /(order|অর্ডার)\s*(form|ফর্ম|format|ফরম্যাট|ki|কি|কী)/i.test(clean) ||
+    /(nite|নিতে|pete|পেতে|kinte|কিনতে)\s*(chaile?|চাইলে|hole?|হলে)\s*(ki|কি|কী)/i.test(clean) ||
+    /(nam|নাম|phone|ফোন|number|নম্বর|thikana|ঠিকানা).*(dite|দিতে|pathate|পাঠাতে)\s*(hobe|হবে)/i.test(clean) ||
+    /order.*info|order.*detail|অর্ডার.*তথ্য|অর্ডার.*বিস্তারিত/i.test(clean);
+
+  if (customerAsked) return true;
+
+  // 2. The reply itself contains order instructions / asking for name, address, phone
+  if (replyText) {
+    const hasName = /নাম|name/i.test(replyText);
+    const hasAddress = /ঠিকানা|address|জেলা|থানা/i.test(replyText);
+    const hasPhone = /ফোন|নাম্বার|নম্বর|mobile|phone|number/i.test(replyText);
+    const hasOrderWord = /অর্ডার|order|ডেলিভারি|কুরিয়ার|পার্সেল/i.test(replyText);
+    if ((hasName && hasAddress && (hasPhone || hasOrderWord)) ||
+        /অর্ডার\s*(করতে|কনফার্ম\s*করতে|দিতে)/i.test(replyText) ||
+        /(?:নাম|ঠিকানা|নাম্বার|নম্বর)\s*[:=]/i.test(replyText)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+

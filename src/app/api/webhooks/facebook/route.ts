@@ -203,7 +203,7 @@ async function flushSenderEvent(senderId: string) {
     }
 
     // ── Voice Mode & Voice Request Logic ──
-    const { isVoiceMode, setVoiceMode, isOnlyVoiceRequest, isVoiceRequested, isTextModeRequested } = await import("@/lib/voice-mode");
+    const { isVoiceMode, setVoiceMode, isOnlyVoiceRequest, isVoiceRequested, isTextModeRequested, isOrderInfoRequest } = await import("@/lib/voice-mode");
     const { getCustomerProfile, updateCustomerProfile } = await import("@/lib/customer-memory");
 
     const custProfile = getCustomerProfile(senderId);
@@ -309,10 +309,13 @@ async function flushSenderEvent(senderId: string) {
       isVoiceMode: isVoiceReq,
     });
 
+    const userPrefersText = isTextModeRequested(text);
+    const shouldSendVoice = !userPrefersText && (userInVoiceMode || isVoiceRequested(text));
+
     if (replyText && effectiveToken) {
-      if (userInVoiceMode || isVoiceRequested(text)) {
+      if (shouldSendVoice) {
         // Customer is in persistent voice mode OR explicitly asked for voice
-        // → send reply as voice note ONLY
+        // → send reply as voice note FIRST
         console.log(`[VOICE_MODE_ACTIVE] Sending response as voice note to ${senderId}: "${replyText.substring(0, 80)}..."`);
         await sendSenderAction(senderId, "typing_on", effectiveToken);
         const sentVoice = await sendMessengerVoiceNote(senderId, replyText, effectiveToken);
@@ -324,6 +327,16 @@ async function flushSenderEvent(senderId: string) {
           // Fallback to text if voice note generation/upload failed
           console.log(`[VOICE_MODE_ACTIVE] Voice failed, fallback to text for ${senderId}`);
           await sendMessengerReply(pageId, senderId, replyText, effectiveToken);
+        } else {
+          // Voice sent — but if customer asked HOW TO ORDER / WHAT IS NEEDED or reply has order form,
+          // ALSO send the text so they can READ and COPY the order form format
+          const isOrderInfoReq = isOrderInfoRequest(text, replyText);
+          if (isOrderInfoReq) {
+            await new Promise(r => setTimeout(r, 1500));
+            await sendSenderAction(senderId, "typing_on", effectiveToken);
+            await sendMessengerReply(pageId, senderId, replyText, effectiveToken);
+            console.log(`[ORDER_INFO] 📝 Also sent text version (order form) to ${senderId}`);
+          }
         }
       } else {
         const charCount = replyText.length;
