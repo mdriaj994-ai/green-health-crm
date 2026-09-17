@@ -441,7 +441,12 @@ function generateFallbackReply(
   imageUrl?: string | null,
   matchedProduct?: any
 ): string {
-  const lower = message.toLowerCase().trim();
+  // ── Phone / Contact Number query ──────────────────────────────────────────
+  if (/(?:number|nambor|nombo|phone|contact|whatsapp|call)\s*(?:ta|daon|daow|dao|din|dite|share|jabe|parbe|ki|ase|ache)/i.test(lower) ||
+      /apnar\s*(?:number|nambor|phone)/i.test(lower) ||
+      /(?:number|nambor)\s*(?:ta\s*)?(?:daow|daoa|dao|daon)/i.test(lower)) {
+    return "জি ভাইয়া, সরাসরি যোগাযোগের জন্য আমাদের Facebook পেজে মেসেজ করুন বা এখানেই আপনার প্রশ্নটি জানান — আমি সাথে সাথে উত্তর দেব।";
+  }
 
   // Check if customer is ASKING what their name is or if bot knows it (e.g. "amar name jano", "আমার নাম কি জানো", "amar name ki")
   const isAskingName = /(?:name|nam|naam|নাম)\s*(?:ki|konta|koto|jano|jaano|janen|bolen|bolo|bolun|boloto|mone|mon|ase|ache|জান|জানো|জানেন|বলেন|বলো|বলুন|কি|কী|মনে\s*আছে|আছে)/i.test(lower) ||
@@ -452,9 +457,11 @@ function generateFallbackReply(
   }
 
   // Check if customer is TELLING their name (e.g., "amar name rakib", "আমার নাম রাকিব", "আমি রাকিব")
-  const tellingNameMatch = message.match(/(?:amar|amr|আমার)\s+(?:name|naam|nam|নাম)\s*(?:is|holo|hlo|হলো|হল)?\s*[:=]?\s*([A-Za-z\u0980-\u09FF\s]{2,25})/i) ||
-                           message.match(/(?:my\s*name\s*is|\bnam\s*[:=]|\bনাম\s*[:=]|\bনামঃ|\bname\s*[:=])\s*([A-Za-z\u0980-\u09FF\s]{2,25})/i) ||
-                           message.match(/(?:^|\s)(?:ami|আমি)\s+([A-Za-z\u0980-\u09FF]{2,20})\s+(?:bolsi|bolchi|বলছি|বলসি)(?:$|[.,!?\s])/i);
+  const tellingNameMatch = !isAskingName && (
+    message.match(/(?:amar|amr|আমার)\s+(?:name|naam|nam|নাম)\s*(?:is|holo|hlo|হলো|হল)?\s*[:=]?\s*([A-Za-z\u0980-\u09FF]{2,20})(?:\s|$|[.,!?])/i) ||
+    message.match(/(?:my\s*name\s*is|\bnam\s*[:=]|\bনাম\s*[:=]|\bনামঃ|\bname\s*[:=])\s*([A-Za-z\u0980-\u09FF]{2,20})(?:\s|$|[.,!?])/i) ||
+    message.match(/(?:^|\s)(?:ami|আমি)\s+([A-Za-z\u0980-\u09FF]{2,20})\s+(?:bolsi|bolchi|বলছি|বলসি)(?:$|[.,!?\s])/i)
+  );
   if (tellingNameMatch && tellingNameMatch[1]) {
     const toldName = tellingNameMatch[1].trim().split(/\s+(?:bolsi|bolchi|vai|bhai)\b/i)[0].trim();
     if (isValidPersonName(toldName)) {

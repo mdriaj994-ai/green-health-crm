@@ -766,6 +766,12 @@ ${geoSocialProof ? `\\n--- GEO SOCIAL PROOF (হাইপার-লোকাল 
     - NEVER push product details, prices, or order forms unless the customer EXPLICITLY asked.
     - হাকিম রিয়াজুল করিম নামটা বারবার বলা যাবে না — শুধু প্রথমবার পরিচয় দেওয়ার সময় বলবে।
 
+19. CONTACT / PHONE NUMBER RULE (ফোন নম্বর চাওয়ার নিয়ম):
+    - When the customer asks for your phone number or WhatsApp ("আপনার নম্বর দেন", "number daon", "apnar number ta daowa jabe", "contact number", "WhatsApp number", "কল করব কীভাবে"):
+      Reply ONLY: "জি ভাইয়া, আমাদের সরাসরি যোগাযোগের নম্বর হলো: 01XXXXXXXXX। এই নম্বরে কল বা WhatsApp করতে পারেন।"
+      NOTE: Use the actual phone number from the LIVE MEDICINE DASHBOARD DATA or MASTER CLINICAL KNOWLEDGE BASE if listed. If no number is found in the data, reply: "জি ভাইয়া, সরাসরি যোগাযোগের জন্য আমাদের Facebook পেজে মেসেজ করুন বা এখানেই আপনার প্রশ্নটি জানান — আমি সাথে সাথে উত্তর দেব।"
+    - ABSOLUTE BAN: NEVER say you cannot share your number. NEVER say "আমি একটি AI" or "নম্বর শেয়ার করা সম্ভব নয়".
+
 17. MEMORY CONTINUITY RULE — নাম ও আগের কথোপকথন মনে রাখা:
     - কাস্টমার যদি তার নাম বলে থাকে, সেটা মনে রেখে পরবর্তী reply-তে ব্যবহার করো।
     - কাস্টমার আগে যে বিষয় নিয়ে কথা বলেছে সেটা ভুলে যাবে না।
@@ -786,7 +792,7 @@ ${masterKB ? `\\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\\n${masterKB}\\n
 ${voiceModeInstruction}
 `;
 
-  const models = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-flash-latest", "gemini-3.1-flash-lite", "gemini-flash-lite-latest"];
+  const models = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-pro-latest", "gemini-3-flash-preview", "gemini-flash-lite-latest", "gemini-3.1-flash-lite-preview"];
   for (const m of models) {
     try {
       const model = genAI.getGenerativeModel({
@@ -891,6 +897,14 @@ ${voiceModeInstruction}
   }
 
   const qLowerFb = (customerMessage || "").toLowerCase();
+
+  // ── Phone / Contact Number query (checked first) ─────────────────────────
+  if (/(?:number|nambor|nombo|phone|contact|whatsapp|call)\s*(?:ta|daon|daow|dao|din|dite|share|jabe|parbe|ki|ase|ache)/i.test(qLowerFb) ||
+      /apnar\s*(?:number|nambor|phone)/i.test(qLowerFb) ||
+      /(?:number|nambor)\s*(?:ta\s*)?(?:daow|daoa|dao|daon)/i.test(qLowerFb)) {
+    return "জি ভাইয়া, আমাদের সাথে এই Messenger-এ চ্যাটের মাধ্যমেই সরাসরি যোগাযোগ করতে পারেন। আপনার সমস্যাটা এখানেই বলুন — আমি এখনই উত্তর দেব।";
+  }
+
   // Check if customer is ASKING what their name is or if bot knows it (e.g. "amar name jano", "আমার নাম কি জানো", "amar name ki")
   const isAskingName = /(?:name|nam|naam|নাম)\s*(?:ki|konta|koto|jano|jaano|janen|bolen|bolo|bolun|boloto|mone|mon|ase|ache|জান|জানো|জানেন|বলেন|বলো|বলুন|কি|কী|মনে\s*আছে|আছে)/i.test(qLowerFb) ||
                        /(?:jano|jaano|janen|জান|জানো|জানেন)\s+(?:amar|amr|আমার)\s+(?:name|nam|naam|নাম)/i.test(qLowerFb) ||
@@ -905,9 +919,12 @@ ${voiceModeInstruction}
   }
 
   // Check if customer is TELLING their name (e.g., "amar name rakib", "আমার নাম রাকিব", "আমি রাকিব")
-  const tellingNameMatch = customerMessage.match(/(?:amar|amr|আমার)\s+(?:name|naam|nam|নাম)\s*(?:is|holo|hlo|হলো|হল)?\s*[:=]?\s*([A-Za-z\u0980-\u09FF\s]{2,25})/i) ||
-                           customerMessage.match(/(?:my\s*name\s*is|\bnam\s*[:=]|\bনাম\s*[:=]|\bনামঃ|\bname\s*[:=])\s*([A-Za-z\u0980-\u09FF\s]{2,25})/i) ||
-                           customerMessage.match(/(?:^|\s)(?:ami|আমি)\s+([A-Za-z\u0980-\u09FF]{2,20})\s+(?:bolsi|bolchi|বলছি|বলসি)(?:$|[.,!?\s])/i);
+  // Guard: !isAskingName prevents "jano" being saved as a name when customer is asking
+  const tellingNameMatch = !isAskingName && (
+    customerMessage.match(/(?:amar|amr|আমার)\s+(?:name|naam|nam|নাম)\s*(?:is|holo|hlo|হলো|হল)?\s*[:=]?\s*([A-Za-z\u0980-\u09FF]{2,20})(?:\s|$|[.,!?])/i) ||
+    customerMessage.match(/(?:my\s*name\s*is|\bnam\s*[:=]|\bনাম\s*[:=]|\bনামঃ|\bname\s*[:=])\s*([A-Za-z\u0980-\u09FF]{2,20})(?:\s|$|[.,!?])/i) ||
+    customerMessage.match(/(?:^|\s)(?:ami|আমি)\s+([A-Za-z\u0980-\u09FF]{2,20})\s+(?:bolsi|bolchi|বলছি|বলসি)(?:$|[.,!?\s])/i)
+  );
   if (tellingNameMatch && tellingNameMatch[1]) {
     const toldName = tellingNameMatch[1].trim().split(/\s+(?:bolsi|bolchi|vai|bhai)\b/i)[0].trim();
     if (customerMemory.isValidPersonName(toldName)) {
@@ -940,8 +957,15 @@ ${voiceModeInstruction}
     return "আচ্ছা ভাইয়া, কোনো সমস্যা নেই! মাশাআল্লাহ, সুস্থ থাকাটাই সবচেয়ে বড় নিয়ামত। যখন কোনো প্রয়োজন হবে, নির্দ্বিধায় জানাবেন। ভালো থাকবেন!";
   }
 
-  // Safe general fallback
-  return "জি ভাইয়া, আপনার স্বাস্থ্যগত যেকোনো সমস্যা বা আমাদের প্রাকৃতিক ওষুধ সম্পর্কে জানতে নির্দ্বিধায় বলুন, আমি আপনাকে প্রয়োজনীয় তথ্য দিয়ে সাহায্য করছি।";
+  // Smart contextual fallback — give relevant reply based on keywords
+  if (/(?:সমস্যা|problem|দুর্বল|শক্তি|stamina|power)/i.test(qLowerFb)) {
+    return "জি ভাইয়া, আপনার সমস্যাটা কতদিন ধরে? এবং আপনার বয়স কত? এই তথ্যগুলো দিলে সঠিক পরামর্শ দিতে পারব।";
+  }
+  if (/(?:দাম|price|টাকা|koto|কত|প্রাইস)/i.test(qLowerFb)) {
+    return "জি ভাইয়া, আমাদের প্রিমিয়াম ১ মাসের ফুল কোর্সের অফার মূল্য ২,৯০০ টাকা লাগবে। ক্যাশ অন ডেলিভারিতে পার্সেল হাতে পেয়ে পরিশোধ করবেন।";
+  }
+  // Final safe fallback
+  return "জি ভাইয়া, বলুন — আপনার কী জানার ছিল বা কোন সমস্যা নিয়ে কথা বলতে চাচ্ছেন? আমি এখানেই আছি।";
 }
 
 
