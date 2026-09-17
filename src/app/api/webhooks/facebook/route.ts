@@ -242,11 +242,19 @@ async function flushSenderEvent(senderId: string) {
       chatHistory.slice().reverse().find((m: any) => m.sender === "AGENT")?.text?.includes("[ভয়েস");
 
     const isAudioOrVoiceReq = Boolean(audioUrl) || isOnlyVoiceRequest(text) || isVoiceRequested(text);
-    if (isAudioOrVoiceReq) {
-      setVoiceMode(senderId, true);
-    } else {
+
+    // ── PERSISTENT VOICE MODE CONTROL ────────────────────────────────────
+    // If customer says "text koro" / "lekhe pathao" → switch back to text
+    // If customer says "voice dao" / "buji na" / "porte pari na" → voice mode ON
+    // Otherwise → keep existing preference (NEVER reset mid-conversation!)
+    if (isTextModeRequested(text)) {
       setVoiceMode(senderId, false);
+      console.log(`[VOICE_MODE] ${senderId} switched to TEXT mode`);
+    } else if (isAudioOrVoiceReq) {
+      setVoiceMode(senderId, true);
+      console.log(`[VOICE_MODE] ${senderId} switched to VOICE mode`);
     }
+    // else: preserve existing voice mode preference unchanged
 
     const isOnlyVoice = isOnlyVoiceRequest(text);
 
@@ -302,9 +310,10 @@ async function flushSenderEvent(senderId: string) {
     });
 
     if (replyText && effectiveToken) {
-      if (userInVoiceMode) {
-        // Customer is in voice mode: send reply directly as voice note ONLY (no text)
-        console.log(`[VOICE_MODE_ACTIVE] Customer is in voice mode. Sending response as voice note only to ${senderId}: "${replyText.substring(0, 80)}..."`);
+      if (userInVoiceMode || isVoiceRequested(text)) {
+        // Customer is in persistent voice mode OR explicitly asked for voice
+        // → send reply as voice note ONLY
+        console.log(`[VOICE_MODE_ACTIVE] Sending response as voice note to ${senderId}: "${replyText.substring(0, 80)}..."`);
         await sendSenderAction(senderId, "typing_on", effectiveToken);
         const sentVoice = await sendMessengerVoiceNote(senderId, replyText, effectiveToken);
         try {
@@ -313,6 +322,7 @@ async function flushSenderEvent(senderId: string) {
         } catch {}
         if (!sentVoice) {
           // Fallback to text if voice note generation/upload failed
+          console.log(`[VOICE_MODE_ACTIVE] Voice failed, fallback to text for ${senderId}`);
           await sendMessengerReply(pageId, senderId, replyText, effectiveToken);
         }
       } else {
@@ -397,8 +407,18 @@ async function flushSenderEvent(senderId: string) {
 💚 সুস্থ থাকুন, ভালো থাকুন।`;
 
               await sendSenderAction(senderId, "typing_on", effectiveToken);
+              // ── ORDER CONFIRM: Always send TEXT receipt ────────────────
               await sendMessengerReply(pageId, senderId, confirmMsg, effectiveToken);
-              console.log(`[ORDER_CONFIRM] ✅ Confirmation sent to ${senderId}`);
+              console.log(`[ORDER_CONFIRM] ✅ Confirmation (text) sent to ${senderId}`);
+
+              // ── ORDER CONFIRM: Also send VOICE note if customer is in voice mode
+              if (isVoiceMode(senderId)) {
+                const voiceConfirm = `আলহামদুলিল্লাহ ভাইয়া! আপনার অর্ডারটি কনফার্ম হয়ে গেছে। ${orderData.customerName} ভাইয়ার নামে ${orderData.product} অর্ডার নেওয়া হয়েছে। আপনার মোবাইল নম্বরে ডেলিভারিম্যান কল করবে সরাসরি। ধন্যবাদ ভাইয়া, সুস্থ থাকুন।`;
+                await new Promise(r => setTimeout(r, 1200));
+                await sendSenderAction(senderId, "typing_on", effectiveToken);
+                await sendMessengerVoiceNote(senderId, voiceConfirm, effectiveToken);
+                console.log(`[ORDER_CONFIRM] 🎙️ Confirmation (voice) sent to ${senderId}`);
+              }
             } else {
               console.warn(`[ORDER_SAVE_FAIL] API returned:`, JSON.stringify(orderRes));
             }

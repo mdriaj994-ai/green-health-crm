@@ -1655,11 +1655,19 @@ async function pollOnce() {
               recentHistory.some(line => line.includes("[ভয়েস") || line.includes("[ভয়েস"));
 
             const isAudioOrVoiceReq = Boolean(audioAttach) || isOnlyVoiceRequest(messageText) || isVoiceRequested(messageText);
-            if (isAudioOrVoiceReq) {
-              setVoiceMode(senderId, true);
-            } else {
+
+            // ── PERSISTENT VOICE MODE CONTROL ────────────────────────────────────
+            // If customer says "text koro" / "lekhe pathao" → switch to text mode
+            // If customer says "voice dao" / "buji na" / "porte pari na" → switch to voice mode
+            // Otherwise → keep EXISTING mode (don't reset it every message!)
+            if (isTextModeRequested(messageText)) {
               setVoiceMode(senderId, false);
+              console.log(`[VOICE_MODE] Customer ${senderId} switched to TEXT mode`);
+            } else if (isAudioOrVoiceReq) {
+              setVoiceMode(senderId, true);
+              console.log(`[VOICE_MODE] Customer ${senderId} switched to VOICE mode`);
             }
+            // else: keep existing voice mode preference unchanged
 
             const isOnlyVoice = isOnlyVoiceRequest(messageText);
 
@@ -1811,8 +1819,18 @@ ${errorLines}
 কোনো প্রশ্ন থাকলে মেসেজ করুন — আমরা সাহায্য করব ইনশাআল্লাহ। 💚`;
 
                   await sendSenderAction(senderId, "typing_on", page.accessToken);
+                  // ── ORDER CONFIRM: Always send TEXT version ───────────────────
                   await sendFacebookMessage(senderId, confirmMsg, page.accessToken);
-                  console.log(`[ORDER_CONFIRM] ✅ Confirmation sent to ${senderId}`);
+                  console.log(`[ORDER_CONFIRM] ✅ Confirmation (text) sent to ${senderId}`);
+
+                  // ── ORDER CONFIRM: Also send VOICE version if customer prefers voice
+                  if (isVoiceMode(senderId)) {
+                    const voiceConfirm = `আলহামদুলিল্লাহ ভাইয়া! আপনার অর্ডারটি কনফার্ম হয়ে গেছে। ${orderData.customerName} ভাইয়ার নামে ${orderData.product} অর্ডার নেওয়া হয়েছে। আপনার মোবাইলে ${orderData.phone} নম্বরে ডেলিভারিম্যান কল করবে। ধন্যবাদ ভাইয়া, সুস্থ থাকুন।`;
+                    await sleep(1200);
+                    await sendSenderAction(senderId, "typing_on", page.accessToken);
+                    await sendFacebookVoiceNote(senderId, voiceConfirm, page.accessToken);
+                    console.log(`[ORDER_CONFIRM] 🎙️ Confirmation (voice) sent to ${senderId}`);
+                  }
                 }
               } catch (orderErr) {
                 console.warn("[ORDER_SAVE_ERR]", orderErr.message);
@@ -1832,17 +1850,26 @@ ${errorLines}
             }
             console.log(`[FB_BOT] 🤖 [${page.pageName}] REPLY: "${replyText.slice(0, 70)}..."`);
 
-            const shouldSendVoice = Boolean(audioAttach) || isOnlyVoiceRequest(messageText) || isVoiceRequested(messageText);
+            // ── DECIDE: Voice or Text? ────────────────────────────────────────
+            // shouldSendVoice = true if:
+            //   • Customer sent a voice/audio attachment
+            //   • Customer explicitly requested voice in THIS message
+            //   • Customer is in PERSISTENT voice mode (set in a previous message)
+            const shouldSendVoice = Boolean(audioAttach)
+              || isOnlyVoiceRequest(messageText)
+              || isVoiceRequested(messageText)
+              || isVoiceMode(senderId);   // ← persistent mode across all messages
 
             if (shouldSendVoice) {
-              console.log(`[FB_BOT] 🎙️ Sending answer as voice note to ${senderId}: "${replyText.slice(0, 70)}..."`);
+              console.log(`[FB_BOT] 🎙️ [VOICE_MODE] Sending voice note to ${senderId}: "${replyText.slice(0, 70)}..."`);
               await sendSenderAction(senderId, "typing_on", page.accessToken);
               const sentVoice = await sendFacebookVoiceNote(senderId, replyText, page.accessToken);
               if (sentVoice) {
                 customerMemory.appendChatMessage(senderId, "model", replyText, true);
                 recordOutgoingBotMessageInDb(senderId, replyText, true);
               } else {
-                // Voice failed → send text instead
+                // Voice generation failed → fallback to text
+                console.log(`[FB_BOT] ⚠️ Voice note failed, falling back to text for ${senderId}`);
                 await sendFacebookMessage(senderId, replyText, page.accessToken);
                 recordOutgoingBotMessageInDb(senderId, replyText, false);
               }
