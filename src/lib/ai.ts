@@ -484,6 +484,14 @@ function generateFallbackReply(
   if (lower.includes("hi") || lower.includes("hello") || lower.includes("হাই") || lower.includes("হ্যালো")) {
     return "জি ভাইয়া, আসসালামু আলাইকুম। বলুন, কীভাবে সাহায্য করতে পারি?";
   }
+  // Available products / Catalog query ("ki ki paoya jai", "ki ki product ase", "কি কি প্রোডাক্ট আছে", "কি কি ওষুধ আছে", etc.)
+  if (/(?:ki\s*ki|kiki|কী\s*কী|কি\s*কি)\s*(?:product|item|osudh|oushodh|medicine|মেডিসিন|ওষুধ|ঔষধ|আইটেম|প্রোডাক্ট|মাল)/i.test(lower) ||
+      /(?:product|item|osudh|oushodh|medicine|ওষুধ|ঔষধ)\s*(?:list|ক্যাটালগ|catalog|নাম|name|ki\s*ki)/i.test(lower) ||
+      /(?:akhane|ekhane|এখানে|ফার্মেসীতে|কাছে|kache)\s*(?:ki\s*ki|kiki|কী\s*কী|কি\s*কি)\s*(?:paoya|pawa|আছে|ase|ache|পাওয়া|পাওয়া)/i.test(lower) ||
+      /(?:ki\s*ki|kiki|কী\s*কী|কি\s*কি)\s*(?:paoya|pawa|পাওয়া|পাওয়া)\s*(?:jai|jay|যায়|যায়)/i.test(lower) ||
+      /(?:ki\s*ki|kiki|কী\s*কী|কি\s*কি)\s*(?:ase|ache|আছে)/i.test(lower)) {
+    return "জি ভাইয়া, আমাদের এখানে মূলত পুরুষদের যৌন স্বাস্থ্য, দ্রুত বীর্যপাত রোধ, শুক্রাণু বৃদ্ধি ও দীর্ঘস্থায়ী স্ট্যামিনা বাড়ানোর ১০০% প্রাকৃতিক ইউনানী ও আয়ুর্বেদিক ওষুধ পাওয়া যায়।\n\nআমাদের মূল ৩টি কোর্স হলো:\n১. অম্বর প্রিমিয়াম (যৌবনের রাজা - দ্রুত বীর্যপাত রোধ ও শক্তিবর্ধক)\n২. খাঁটি জাফরানি কস্তুরী ও শিলাজিৎ কম্বো\n৩. বাজীকরণ হালুয়া ও ভেষজ কোর্স\n\nআপনার শারীরিক কী ধরনের সমস্যা হচ্ছে ভাইয়া, খুলে বলুন — আমি সঠিক সমাধান বলে দিচ্ছি।";
+  }
 
   // Picture Request
   if (lower.includes("ছবি") || lower.includes("chobi") || lower.includes("pic") || lower.includes("photo") || lower.includes("পিক") || lower.includes("dekhte kemon") || lower.includes("দেখতে কেমন")) {

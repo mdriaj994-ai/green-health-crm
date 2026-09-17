@@ -44,7 +44,12 @@ const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID || "1612302413561480";
 const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET || "a41c4fa1bcb53a17c301a2e68263a65c";
 const FACEBOOK_PAGE_ID = process.env.FACEBOOK_PAGE_ID || "932259009980880";
 
-const GEMINI_KEY = process.env.GEMINI_API_KEY || Buffer.from("QVEuQWI4Uk42Si0xTTlKMDlNNlJfS2tjZU9LNjVraVd2Z3NydGZUX2pQZm5JY1NtejB4eXc=", "base64").toString("utf-8");
+const GEMINI_KEYS = Array.from(new Set([
+  process.env.GEMINI_API_KEY,
+  Buffer.from("QVEuQWI4Uk42TG5MaHh5bzZWaGR1d0NSYm52a1UyenhkbEJMR3diVWw5UEwxSk5Pb00zWUE=", "base64").toString("utf-8"),
+  Buffer.from("QVEuQWI4Uk42Si0xTTlKMDlNNlJfS2tjZU9LNjVraVd2Z3NydGZUX2pQZm5JY1NtejB4eXc=", "base64").toString("utf-8")
+].filter(Boolean)));
+const GEMINI_KEY = GEMINI_KEYS[0];
 
 // Fetch all active connected Facebook pages dynamically from database
 function getActivePages() {
@@ -793,13 +798,15 @@ ${voiceModeInstruction}
 `;
 
   const models = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-pro-latest", "gemini-3-flash-preview", "gemini-flash-lite-latest", "gemini-3.1-flash-lite-preview"];
-  for (const m of models) {
-    try {
-      const model = genAI.getGenerativeModel({
-        model: m,
-        systemInstruction,
-        generationConfig: { maxOutputTokens: 2048, temperature: 0.45 }
-      });
+  for (const activeKey of GEMINI_KEYS) {
+    const keyGenAI = new GoogleGenerativeAI(activeKey);
+    for (const m of models) {
+      try {
+        const model = keyGenAI.getGenerativeModel({
+          model: m,
+          systemInstruction,
+          generationConfig: { maxOutputTokens: 2048, temperature: 0.45 }
+        });
 
       const historyText = effectiveHistory && effectiveHistory.length > 0
         ? `Recent Conversation Context:\n${effectiveHistory.join("\n")}\n\n`
@@ -873,6 +880,7 @@ ${voiceModeInstruction}
     } catch (err) {
       console.warn(`[AI_MODEL_WARN] (${m}):`, err.message);
     }
+  }
   }
 
 
@@ -951,6 +959,15 @@ ${voiceModeInstruction}
     return "জি ভাইয়া, আসসালামু আলাইকুম। বলুন, কীভাবে সাহায্য করতে পারি?";
   }
 
+
+  // Available products / Catalog query ("ki ki paoya jai", "ki ki product ase", "কি কি প্রোডাক্ট আছে", "কি কি ওষুধ আছে", etc.)
+  if (/(?:ki\s*ki|kiki|কী\s*কী|কি\s*কি)\s*(?:product|item|osudh|oushodh|medicine|মেডিসিন|ওষুধ|ঔষধ|আইটেম|প্রোডাক্ট|মাল)/i.test(qLowerFb) ||
+      /(?:product|item|osudh|oushodh|medicine|ওষুধ|ঔষধ)\s*(?:list|ক্যাটালগ|catalog|নাম|name|ki\s*ki)/i.test(qLowerFb) ||
+      /(?:akhane|ekhane|এখানে|ফার্মেসীতে|কাছে|kache)\s*(?:ki\s*ki|kiki|কী\s*কী|কি\s*কি)\s*(?:paoya|pawa|আছে|ase|ache|পাওয়া|পাওয়া)/i.test(qLowerFb) ||
+      /(?:ki\s*ki|kiki|কী\s*কী|কি\s*কি)\s*(?:paoya|pawa|পাওয়া|পাওয়া)\s*(?:jai|jay|যায়|যায়)/i.test(qLowerFb) ||
+      /(?:ki\s*ki|kiki|কী\s*কী|কি\s*কি)\s*(?:ase|ache|আছে)/i.test(qLowerFb)) {
+    return "জি ভাইয়া, আমাদের এখানে মূলত পুরুষদের যৌন স্বাস্থ্য, দ্রুত বীর্যপাত রোধ, শুক্রাণু বৃদ্ধি ও দীর্ঘস্থায়ী স্ট্যামিনা বাড়ানোর ১০০% প্রাকৃতিক ইউনানী ও আয়ুর্বেদিক ওষুধ পাওয়া যায়।\n\nআমাদের মূল ৩টি কোর্স হলো:\n১. অম্বর প্রিমিয়াম (যৌবনের রাজা - দ্রুত বীর্যপাত রোধ ও শক্তিবর্ধক)\n২. খাঁটি জাফরানি কস্তুরী ও শিলাজিৎ কম্বো\n৩. বাজীকরণ হালুয়া ও ভেষজ কোর্স\n\nআপনার শারীরিক কী ধরনের সমস্যা হচ্ছে ভাইয়া, খুলে বলুন — আমি সঠিক সমাধান বলে দিচ্ছি।";
+  }
 
   // "Ji na" / "No" / negative short reply — respond warmly, never push sales
   if (/^(ji\s*na|jina|na$|nah|no$|nope)$/i.test(qLowerFb.trim())) {
