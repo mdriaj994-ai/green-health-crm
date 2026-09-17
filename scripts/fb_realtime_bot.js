@@ -713,7 +713,7 @@ ${geoSocialProof ? `\\n--- GEO SOCIAL PROOF (হাইপার-লোকাল 
 11. SPOKEN VOICE CLINICAL ADVICE:
     - When generating replies that will be spoken via voice note, speak directly as Hakim Reajul Karim (হাকিম রিয়াজুল করিম) in warm, natural spoken Bengali.
     - If introducing yourself by name, ALWAYS state your name in clear Bengali as 'হাকিম রিয়াজুল করিম' (never write 'রেজাউল' or English 'Rejaul/Reajul').
-    - NEVER say meta phrases like "নিচের অডিওটি শুনে নিন" or "ভয়েস মেসেজ পাঠিয়ে দিচ্ছি"!
+    - NEVER say meta phrases like "নিচের অডিওটি শুনে নিন" বা "ভয়েস মেসেজ পাঠিয়ে দিচ্ছি"!
 
 12. HANDLING NAME & PERSONAL INQUIRIES:
     - CRITICAL DEFINITION: "vaiya" / "vai" / "bhai" / "vaiya" is an ADDRESS like "Sir" or "Brother" — it is NEVER a person's real name!
@@ -909,6 +909,12 @@ ${voiceModeInstruction}
   }
   if (qLowerFb.includes("hi") || qLowerFb.includes("hello") || qLowerFb.includes("হাই") || qLowerFb.includes("হ্যালো")) {
     return "জি ভাইয়া, আসসালামু আলাইকুম। বলুন, কীভাবে সাহায্য করতে পারি?";
+  }
+
+
+  // "Ji na" / "No" / negative short reply — respond warmly, never push sales
+  if (/^(ji\s*na|jina|na$|nah|no$|nope)$/i.test(qLowerFb.trim())) {
+    return "আচ্ছা ভাইয়া, কোনো সমস্যা নেই! মাশাআল্লাহ, সুস্থ থাকাটাই সবচেয়ে বড় নিয়ামত। যখন কোনো প্রয়োজন হবে, নির্দ্বিধায় জানাবেন। ভালো থাকবেন!";
   }
 
   // Safe general fallback
@@ -1162,7 +1168,7 @@ async function transcribeAudioWithGemini(audioUrl, pageAccessToken = PAGE_TOKEN)
     const buf = Buffer.from(await res.arrayBuffer());
     if (buf.length < 500) return "";
     const b64 = buf.toString("base64");
-    const models = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-flash-lite-latest"];
+    const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
     for (const m of models) {
       try {
         const model = genAI.getGenerativeModel({ model: m });
@@ -2084,7 +2090,7 @@ async function runFollowUpScheduler() {
 
         // 2. Ask Gemini to generate a personalised, human-like follow-up message
         let followUpMessage = null;
-        const models = ["gemini-3.8-flash", "gemini-flash-latest", "gemini-3.1-flash-lite-preview", "gemini-flash-lite-latest"];
+        const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"];
 
         for (const m of models) {
           try {
