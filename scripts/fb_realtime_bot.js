@@ -786,7 +786,7 @@ ${masterKB ? `\\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\\n${masterKB}\\n
 ${voiceModeInstruction}
 `;
 
-  const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"];
+  const models = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-flash-latest", "gemini-3.1-flash-lite", "gemini-flash-lite-latest"];
   for (const m of models) {
     try {
       const model = genAI.getGenerativeModel({
@@ -891,7 +891,25 @@ ${voiceModeInstruction}
   }
 
   const qLowerFb = (customerMessage || "").toLowerCase();
-  if (/\b(name|naam|nam|নাম|jano|jaano|জানো|আমার নাম|amar naam|amar name)\b/i.test(qLowerFb)) {
+  // Check if customer is TELLING their name (e.g., "amar name rakib", "আমার নাম রাকিব", "আমি রাকিব")
+  const tellingNameMatch = customerMessage.match(/(?:amar|amr|আমার)\s+(?:name|naam|nam|নাম)\s*(?:is|holo|hlo|হলো|হল)?\s*[:=]?\s*([A-Za-z\u0980-\u09FF\s]{2,25})/i) ||
+                           customerMessage.match(/(?:my\s*name\s*is|\bnam\s*[:=]|\bনাম\s*[:=]|\bনামঃ|\bname\s*[:=])\s*([A-Za-z\u0980-\u09FF\s]{2,25})/i) ||
+                           customerMessage.match(/(?:^|\s)(?:ami|আমি)\s+([A-Za-z\u0980-\u09FF]{2,20})\s+(?:bolsi|bolchi|বলছি|বলসি)(?:$|[.,!?\s])/i);
+  if (tellingNameMatch && tellingNameMatch[1]) {
+    const toldName = tellingNameMatch[1].trim().split(/\s+(?:bolsi|bolchi|vai|bhai)\b/i)[0].trim();
+    if (senderId) {
+      try { customerMemory.updateCustomerProfile(senderId, { name: toldName }); } catch (e) {}
+    }
+    return `জি ${toldName} ভাইয়া! আপনার নামটি জেনে খুব ভালো লাগল। আলহামদুলিল্লাহ, বলুন ভাইয়া কীভাবে সাহায্য করতে পারি?`;
+  }
+
+  // Check if customer is ASKING what their name is (e.g., "amar name ki", "আমার নাম কি", "আমার নাম কি জানো")
+  if (/(?:name|nam|naam|নাম)\s*(?:ki|konta|koto|jano|bolen|bolo|জান|জানো|বলেন|বলো|কি|কী|বলুন)/i.test(qLowerFb) ||
+      /(?:amar|amr|আমার)\s+(?:name|naam|nam|নাম)\b/i.test(qLowerFb)) {
+    const savedProf = senderId ? customerMemory.getCustomerProfile(senderId) : null;
+    if (savedProf && savedProf.name && !["Customer", "কাস্টমার", "ভাইয়া"].includes(savedProf.name)) {
+      return `জি ভাইয়া, আপনার নাম তো ${savedProf.name}! বলুন ${savedProf.name} ভাইয়া, কীভাবে সাহায্য করতে পারি?`;
+    }
     return "জি না ভাইয়া, আপনার শুভ নামটি তো এখনো জানা হয়নি। আপনার নামটি যদি বলতেন, খুব ভালো লাগত।";
   }
   // Address / Home queries (বাসা কোথায়, বাড়ি কোথায়, এলাকা, চেম্বার)
@@ -1168,7 +1186,7 @@ async function transcribeAudioWithGemini(audioUrl, pageAccessToken = PAGE_TOKEN)
     const buf = Buffer.from(await res.arrayBuffer());
     if (buf.length < 500) return "";
     const b64 = buf.toString("base64");
-    const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-pro"];
+    const models = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"];
     for (const m of models) {
       try {
         const model = genAI.getGenerativeModel({ model: m });
@@ -2090,7 +2108,7 @@ async function runFollowUpScheduler() {
 
         // 2. Ask Gemini to generate a personalised, human-like follow-up message
         let followUpMessage = null;
-        const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-1.5-flash-8b", "gemini-1.5-pro"];
+        const models = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-flash-latest", "gemini-3.1-flash-lite", "gemini-flash-lite-latest"];
 
         for (const m of models) {
           try {
