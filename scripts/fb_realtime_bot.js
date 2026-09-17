@@ -1566,6 +1566,17 @@ async function pollOnce() {
             if (!senderId) continue;
 
             saveProcessedId(lastMsg.id); // Mark in memory & disk immediately
+
+            // ── HUMAN BEHAVIOR: Instantly mark message as SEEN (blue tick) ──────
+            // This fires BEFORE any processing so the customer sees the double-blue
+            // tick the moment they send — just like a real person reading their message.
+            await sendSenderAction(senderId, "mark_seen", page.accessToken);
+
+            // ── HUMAN BEHAVIOR: Show animated typing indicator (bouncing dots) ───
+            // Customer will see the "..." indicator immediately, giving the
+            // impression a real human read their message and is typing back.
+            await sendSenderAction(senderId, "typing_on", page.accessToken);
+
             // Use only name customer told us — NEVER use Facebook profile name for addressing
             const _fbProfile = lastMsg.from?.name || "";
             const _memProf = senderId ? customerMemory.getCustomerProfile(senderId) : null;
