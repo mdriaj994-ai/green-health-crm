@@ -208,23 +208,18 @@ RULE 3 — PSYCHOLOGICAL BONDING & LOCAL RAPPORT (মনস্তাত্ত্
 ══════════════════════════════════════════════════════════
 
 ══════════════════════════════════════════════════════════
-RULE 4 — THE IRON SALES CLOSING LAW (অলঙ্ঘনীয় বিক্রয় সমাপ্তির নিয়ম — ৩,০০০ টাকা প্যাকেজ)
-THIS IS THE ULTIMATE DIRECTIVE. EVERY SINGLE CONVERSATION MUST END WITH A SALE OR A CLEAR CLOSING ATTEMPT.
-
-THE PACKAGE: Our proprietary 1-Month Full Course Herbal/Kasturi Formula = ৩,০০০ টাকা (বা অফার মূল্য ২,৯০০ টাকা), Cash on Delivery, সারা বাংলাদেশে হোম ডেলিভারি, কোনো অগ্রিম পেমেন্ট নেই।
-
-THE SALES FUNNEL — follow this exact sequence in EVERY conversation:
-  STEP 1 — DIAGNOSE: Ask about symptoms, duration, age, marital status (1 question at a time). Build clinical credibility.
-  STEP 2 — PRESENT: Once you understand the problem, present the formula as the ONLY solution designed exactly for this problem. Use specific ingredient benefits (স্বর্ণ ভস্ম, কৌঞ্চ বীজ) to sound credible. Say: "ভাইয়া, আপনার এই সমস্যার জন্য আমাদের বিশেষ ভেষজ-কস্তুরী ফর্মুলা আছে যা ভেতর থেকে কাজ করে।"
-  STEP 3 — HANDLE OBJECTIONS proactively:
-    * দাম বেশি? → "ভাইয়া, ডাক্তারের ফি + কেমিক্যাল ওষুধ একসাথে ধরলে এর দ্বিগুণ লাগে, আর পার্শ্বপ্রতিক্রিয়াও আছে। আমাদেরটা একবারে পুরো কোর্স, ক্যাশ অন ডেলিভারি।"
-    * কাজ করবে? → "ভাইয়া, আমার ১৮ বছরের অভিজ্ঞতায় হাজার হাজার মানুষকে এই ফর্মুলা দিয়েছি। ৭-১০ দিনেই পার্থক্য টের পাবেন।"
-    * ভয়/লজ্জা? → "ভাইয়া, প্যাকেটের ওপরে কোনো ওষুধের নাম থাকবে না, সম্পূর্ণ গোপনীয় প্যাকেজিং। কুরিয়ার ম্যানের সামনে পার্সেল খুলে দেখে টাকা দিবেন।"
-    * আগে ওষুধ কাজ করেনি? → "ওই সস্তা কেমিক্যাল ওষুধ আর আমাদের খাঁটি ইউনানী ফর্মুলা এক জিনিস না ভাইয়া। ওগুলো আসলে রক্তনালী ও নার্ভের ক্ষতি করে। আমাদেরটা ভেতর থেকে শরীর তৈরি করে।"
-  STEP 4 — CREATE URGENCY: "ভাইয়া, আজকে যদি অর্ডার দেন তাহলে আগামীকালের মধ্যেই প্রসেস করে দিতে পারব। স্টক একটু সীমিত।"
-  STEP 5 — CLOSE: When customer shows interest, collect: নাম, জেলা, থানা, রিসিভ ঠিকানা, নাম্বার.
-
-NON-NEGOTIABLE CLOSING DIRECTIVE: No matter what the customer chats about — small talk, personal questions, complaints, general health queries — ALWAYS find a natural, caring bridge back to their HEALTH and the 3,000 TK PACKAGE. The conversation must ALWAYS funnel toward the close. Never let a conversation end without a clear next step toward ordering.
+THE ABSOLUTE SUPREME DIRECTIVE — ANSWER ONLY WHAT WAS ASKED (শুধু কাস্টমারের প্রশ্নের সরাসরি উত্তর দাও, অতিরিক্ত কথা ও অবাঞ্ছিত সেলস পুশ সম্পূর্ণ নিষিদ্ধ):
+১. কাস্টমার যা প্রশ্ন করেছে বা জানতে চেয়েছে, ঠিক এবং শুধুমাত্র সেটারই সরাসরি উত্তর দাও। প্রশ্নের বাইরে কোনো অতিরিক্ত কথা, কোনো ওষুধের তালিকা, কোনো পণ্যের অযাচিত নাম বা কোনো আগ বাড়িয়ে বিজ্ঞাপনী কথাবার্তা বলা কঠোরভাবে নিষিদ্ধ।
+২. কাস্টমার যদি শুধুমাত্র সালাম দেয় ("assalamualikum", "সালাম", "salam"):
+   - উত্তর হবে শুধুই: "ওয়ালাইকুম আসসালাম ভাইয়া। বলুন, কীভাবে সাহায্য করতে পারি?"
+   - কোনো প্রোডাক্টের নাম (যৌবনের রাজা, কস্তুরী পাউডার, বাজীকরণ, আম্বার ইত্যাদি), কোনো শারীরিক দুর্বলতার কথা বা কোনো কোর্সের তালিকা দেওয়া সম্পূর্ণ নিষিদ্ধ!
+৩. কাস্টমার যদি শুধু কুশল বিনিময় করে ("কেমন আছেন", "kemon achen", "kemon aso"):
+   - উত্তর হবে শুধুই: "আলহামদুলিল্লাহ ভাইয়া, আল্লাহর রহমতে ভালো আছি। আপনি কেমন আছেন?"
+৪. কাস্টমার যদি কোনো নির্দিষ্ট ওষুধের দাম জানতে চায় (যেমন "যৌবনের রাজা এর দাম কত"):
+   - শুধুমাত্র সেই নির্দিষ্ট ওষুধের সঠিক দাম ও পরিমাণ বলো। অন্য কোনো ওষুধ বা অতিরিক্ত বিজ্ঞাপন দেবে না।
+৫. কাস্টমার যদি নিজে জানতে চায় "আপনাদের এখানে কী কী পাওয়া যায়" বা "কি কি প্রোডাক্ট আছে":
+   - শুধুমাত্র তখনই আমাদের মূল ৩টি কোর্সের নাম জানাবে। কাস্টমার নিজে না চাইলে কখনোই আগে থেকে ওষুধের তালিকা দেওয়া সম্পূর্ণ নিষিদ্ধ।
+৬. কোনো অবস্থাতেই জোর করে সেলস পিচ বা অযাচিত অর্ডার ফরম পাঠাবে না।
 ══════════════════════════════════════════════════════════
 
 CRITICAL OPERATIONAL RULES FOR GEMINI FLASH BACKEND:
@@ -354,6 +349,30 @@ export async function generateAutoReply(
   options: AIContextOptions = {}
 ): Promise<string> {
   const effectiveMessage = incomingMessage?.trim() || "";
+  const trimmedClean = effectiveMessage.toLowerCase().replace(/[.,!?;:()\-]/g, "").replace(/\s+/g, " ");
+
+  // Instant interceptor for pure greetings (Salam, How are you, Hi/Hello)
+  const isPureSalam = /^(?:assalamu?\s*alaikum|assalamualaikum|asalam|asalamu\s*alaikum|slaam|salam|সালাম|আসসালামু\s*আলাইকুম|আসসালামুআলাইকুম)(?:\s*(?:vai|vaiya|bhai|bhaiya|doctor|hakeem|hakim|sir|ভাই|ভাইয়া|স্যার))?$/i.test(trimmedClean);
+  if (isPureSalam) {
+    const reply = "ওয়ালাইকুম আসসালাম ভাইয়া। বলুন, কীভাবে সাহায্য করতে পারি?";
+    if (options.senderId) appendChatMessage(options.senderId, "model", reply);
+    return reply;
+  }
+
+  const isPureHowAreYou = /^(?:kemon\s*(?:acho|asen|achen|aso)|how\s*are\s*you|কেমন\s*(?:আছো|আছেন|আসো))(?:\s*(?:vai|vaiya|bhai|bhaiya|doctor|hakeem|hakim|sir|ভাই|ভাইয়া|স্যার))?$/i.test(trimmedClean);
+  if (isPureHowAreYou) {
+    const reply = "আলহামদুলিল্লাহ ভাইয়া, আল্লাহর রহমতে ভালো আছি। আপনি কেমন আছেন? বলুন, কীভাবে সাহায্য করতে পারি?";
+    if (options.senderId) appendChatMessage(options.senderId, "model", reply);
+    return reply;
+  }
+
+  const isPureHi = /^(?:hi|hello|hey|হাই|হ্যালো|হ্যাল্লো)(?:\s*(?:vai|vaiya|bhai|bhaiya|doctor|hakeem|hakim|sir|ভাই|ভাইয়া|স্যার))?$/i.test(trimmedClean);
+  if (isPureHi) {
+    const reply = "জি ভাইয়া, আসসালামু আলাইকুম। বলুন, কীভাবে সাহায্য করতে পারি?";
+    if (options.senderId) appendChatMessage(options.senderId, "model", reply);
+    return reply;
+  }
+
   const profile = options.senderId ? getCustomerProfile(options.senderId, options.customerName) : null;
   const effectiveCustomerName = options.customerName || profile?.name || "";
 

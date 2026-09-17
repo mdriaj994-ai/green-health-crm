@@ -562,6 +562,31 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     customerMemory.appendChatMessage(senderId, "user", customerMessage, false);
   }
 
+  // Instant interceptor for pure greetings (Salam, How are you, Hi/Hello)
+  // Ensures 100% adherence to "ONLY answer what was asked — never add extra sales pitches"
+  const trimmedClean = (customerMessage || "").trim().toLowerCase().replace(/[.,!?;:()\-]/g, "").replace(/\s+/g, " ");
+
+  const isPureSalam = /^(?:assalamu?\s*alaikum|assalamualaikum|asalam|asalamu\s*alaikum|slaam|salam|সালাম|আসসালামু\s*আলাইকুম|আসসালামুআলাইকুম)(?:\s*(?:vai|vaiya|bhai|bhaiya|doctor|hakeem|hakim|sir|ভাই|ভাইয়া|স্যার))?$/i.test(trimmedClean);
+  if (isPureSalam) {
+    const reply = "ওয়ালাইকুম আসসালাম ভাইয়া। বলুন, কীভাবে সাহায্য করতে পারি?";
+    if (senderId) customerMemory.appendChatMessage(senderId, "model", reply, false);
+    return reply;
+  }
+
+  const isPureHowAreYou = /^(?:kemon\s*(?:acho|asen|achen|aso)|how\s*are\s*you|কেমন\s*(?:আছো|আছেন|আসো))(?:\s*(?:vai|vaiya|bhai|bhaiya|doctor|hakeem|hakim|sir|ভাই|ভাইয়া|স্যার))?$/i.test(trimmedClean);
+  if (isPureHowAreYou) {
+    const reply = "আলহামদুলিল্লাহ ভাইয়া, আল্লাহর রহমতে ভালো আছি। আপনি কেমন আছেন? বলুন, কীভাবে সাহায্য করতে পারি?";
+    if (senderId) customerMemory.appendChatMessage(senderId, "model", reply, false);
+    return reply;
+  }
+
+  const isPureHi = /^(?:hi|hello|hey|হাই|হ্যালো|হ্যাল্লো)(?:\s*(?:vai|vaiya|bhai|bhaiya|doctor|hakeem|hakim|sir|ভাই|ভাইয়া|স্যার))?$/i.test(trimmedClean);
+  if (isPureHi) {
+    const reply = "জি ভাইয়া, আসসালামু আলাইকুম। বলুন, কীভাবে সাহায্য করতে পারি?";
+    if (senderId) customerMemory.appendChatMessage(senderId, "model", reply, false);
+    return reply;
+  }
+
   // Detect if this is a personal/greeting query — skip product context for these
   const qLowerCheck = (customerMessage || "").toLowerCase();
   const isPersonalQuery = /\b(name|naam|nam|নাম|jano|jaano|জানো|আমার নাম|amar naam|amar name|kemon acho|kemon achen|কেমন আছ|কেমন আছেন|hello|hi\b|হ্যালো|হাই|salam|সালাম|assalam|ভালো আছ|valo acho)/.test(qLowerCheck);
@@ -600,7 +625,22 @@ THIS REPLY WILL BE SPOKEN DIRECTLY TO THE CUSTOMER AS A REAL DOCTOR VOICE NOTE (
 - Answer what the customer asked directly in 2-3 warm, caring, natural spoken sentences.\n`
     : "";
 
-  const systemInstruction = `You are an elite Senior Hakim, Certified Medical Researcher, and Master Sales Closer representing ${pageName} in Bangladesh.
+  const systemInstruction = `You are an elite Senior Hakim and Certified Medical Researcher representing ${pageName} in Bangladesh.
+
+══════════════════════════════════════════════════════════
+THE ABSOLUTE SUPREME DIRECTIVE — ANSWER ONLY WHAT WAS ASKED (শুধু কাস্টমারের প্রশ্নের সরাসরি উত্তর দাও, অতিরিক্ত কথা ও অবাঞ্ছিত সেলস পুশ সম্পূর্ণ নিষিদ্ধ):
+১. কাস্টমার যা প্রশ্ন করেছে বা জানতে চেয়েছে, ঠিক এবং শুধুমাত্র সেটারই সরাসরি উত্তর দাও। প্রশ্নের বাইরে কোনো অতিরিক্ত কথা, কোনো ওষুধের তালিকা, কোনো পণ্যের অযাচিত নাম বা কোনো আগ বাড়িয়ে বিজ্ঞাপনী কথাবার্তা বলা কঠোরভাবে নিষিদ্ধ।
+২. কাস্টমার যদি শুধুমাত্র সালাম দেয় ("assalamualikum", "সালাম", "salam"):
+   - উত্তর হবে শুধুই: "ওয়ালাইকুম আসসালাম ভাইয়া। বলুন, কীভাবে সাহায্য করতে পারি?"
+   - কোনো প্রোডাক্টের নাম (যৌবনের রাজা, কস্তুরী পাউডার, বাজীকরণ, আম্বার ইত্যাদি), কোনো শারীরিক দুর্বলতার কথা বা কোনো কোর্সের তালিকা দেওয়া সম্পূর্ণ নিষিদ্ধ!
+৩. কাস্টমার যদি শুধু কুশল বিনিময় করে ("কেমন আছেন", "kemon achen", "kemon aso"):
+   - উত্তর হবে শুধুই: "আলহামদুলিল্লাহ ভাইয়া, আল্লাহর রহমতে ভালো আছি। আপনি কেমন আছেন?"
+৪. কাস্টমার যদি কোনো নির্দিষ্ট ওষুধের দাম জানতে চায় (যেমন "যৌবনের রাজা এর দাম কত"):
+   - শুধুমাত্র সেই নির্দিষ্ট ওষুধের সঠিক দাম ও পরিমাণ বলো। অন্য কোনো ওষুধ বা অতিরিক্ত বিজ্ঞাপন দেবে না।
+৫. কাস্টমার যদি নিজে জানতে চায় "আপনাদের এখানে কী কী পাওয়া যায়" বা "কি কি প্রোডাক্ট আছে":
+   - শুধুমাত্র তখনই আমাদের মূল ৩টি কোর্সের নাম জানাবে। কাস্টমার নিজে না চাইলে কখনোই আগে থেকে ওষুধের তালিকা দেওয়া সম্পূর্ণ নিষিদ্ধ।
+৬. কোনো অবস্থাতেই জোর করে সেলস পিচ বা অযাচিত অর্ডার ফরম পাঠাবে না।
+══════════════════════════════════════════════════════════
 
 OUR VERIFIED PRODUCT INVENTORY (আমাদের ফার্মেসীর অনুমোদিত ওষুধের তালিকা):
 ${catalogSummary}
