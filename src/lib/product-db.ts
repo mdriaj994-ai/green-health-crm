@@ -172,6 +172,9 @@ export function findProductInDB(query: string): MergedProduct | null {
   const db = loadMergedDB();
 
   const aliases: Record<string, string[]> = {
+    "যৌবনের রাজা": ["যৌবনের রাজা", "যৌবন রাজা", "jouboner raja", "yowboner raja", "yauboner raja", "শামসুর ইসলাম", "কালাম ভাইয়ের মার্কেট", "আলীকদম", "কস্তুরী জাফরান", "আনাম কস্তুরী"],
+    "কস্তুরী পাউডার": ["কস্তুরী পাউডার", "কস্তুরি পাউডার", "kosturi powder", "kasturi powder", "সাদ্দাম", "নাটোর ঔষধি গ্রাম", "কৃষি ব্যাংক"],
+    "বাজীকরণ হালুয়া": ["বাজীকরণ হালুয়া", "বাজীকরণ", "bajikaran halua", "bajikoron halua", "আরিফ", "কবিরাজ আরিফ", "রাঙ্গামাটি", "রিজার্ভ বাজার", "ব্যাংক এশিয়া"],
     "dream touch": ["dream touch", "dreamtouch", "ড্রিম টাচ", "ড্রিমটাচ", "ড্রিম"],
     "men's burner": ["men's burner", "mens burner", "men burner", "মেনস বার্নার", "বার্নার"],
     "men's black velvet": ["men's black velvet", "mens black velvet", "black velvet", "ব্ল্যাক ভেলভেট", "ভেলভেট"],
