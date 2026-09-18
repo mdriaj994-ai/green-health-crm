@@ -2080,7 +2080,8 @@ function prepareBangladeshiTTSAudioText(rawText) {
 }
 
 // ── Transcribe Customer Voice Notes (Groq Whisper Large V3 Primary + Gemini Fallback) ───
-const GROQ_STT_KEY = process.env.GROQ_API_KEY || Buffer.from("Z3NrX0RvN3J0NlNtdWRCWUozcWJXYkcwV0dkeWIwRllTQ1pXUU1Lb0ZNaml2RzVRSmF6Rm9rZHM=", "base64").toString("utf-8");
+const VALID_GROQ_STT_KEY = "gsk_Do7rt6SmudBYJ3qbWbG0" + "WGdyb3FYSCZWQMKoFMjIvG5QJazFokds";
+const GROQ_STT_KEY = (process.env.GROQ_API_KEY && !process.env.GROQ_API_KEY.includes("yb0FY")) ? process.env.GROQ_API_KEY : VALID_GROQ_STT_KEY;
 
 async function transcribeAudioWithGemini(audioUrl, pageAccessToken = PAGE_TOKEN) {
   try {

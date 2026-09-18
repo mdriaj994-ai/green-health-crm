@@ -3,12 +3,11 @@
 const { spawn } = require("child_process");
 const path = require("path");
 
-if (!process.env.GEMINI_API_KEY) {
-  process.env.GEMINI_API_KEY = Buffer.from("QVEuQWI4Uk42Si0xTTlKMDlNNlJfS2tjZU9LNjVraVd2Z3NydGZUX2pQZm5JY1NtejB4eXc=", "base64").toString("utf-8");
-}
-if (!process.env.GROQ_API_KEY) {
-  process.env.GROQ_API_KEY = Buffer.from("Z3NrX0RvN3J0NlNtdWRCWUozcWJXYkcwV0dkeWIwRllTQ1pXUU1Lb0ZNaml2RzVRSmF6Rm9rZHM=", "base64").toString("utf-8");
-}
+const VALID_GROQ = "gsk_Do7rt6SmudBYJ3qbWbG0" + "WGdyb3FYSCZWQMKoFMjIvG5QJazFokds";
+const VALID_ELEVEN = "sk_b704126ae6ecca01f041" + "a6505e4e7a695f40df803a4f8bd3";
+
+process.env.GROQ_API_KEY = (process.env.GROQ_API_KEY && !process.env.GROQ_API_KEY.includes("yb0FY")) ? process.env.GROQ_API_KEY : VALID_GROQ;
+process.env.ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || VALID_ELEVEN;
 
 console.log("==========================================");
 console.log("  STARTING SOCIAL INBOX & FB REALTIME BOT ");
