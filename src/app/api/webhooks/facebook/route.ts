@@ -8,6 +8,8 @@ try {
   startMessengerPoller();
 } catch {}
 
+const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
+
 const VERIFY_TOKEN = process.env.FACEBOOK_WEBHOOK_VERIFY_TOKEN ?? "social_inbox_verify_token";
 
 // ── GET: Facebook Webhook Verification ──────────────────────────
@@ -123,14 +125,19 @@ function markProcessedId(id: string) {
   } catch {}
 }
 
+interface PendingMessageItem {
+  mid?: string;
+  text: string;
+  imageUrl?: string | null;
+  audioUrl?: string | null;
+  timestamp: number;
+}
+
 // Smart message buffer per sender to combine rapid text + image + audio events (within 2.0s)
 interface PendingSenderEvent {
   pageId: string;
   senderId: string;
-  text: string;
-  imageUrl: string | null;
-  audioUrl: string | null;
-  timestamp: number;
+  items: PendingMessageItem[];
   timer: NodeJS.Timeout;
 }
 const pendingSenderEvents = new Map<string, PendingSenderEvent>();
@@ -140,9 +147,16 @@ async function flushSenderEvent(senderId: string) {
   if (!pending) return;
   pendingSenderEvents.delete(senderId);
 
-  const { pageId, text, imageUrl, audioUrl, timestamp } = pending;
+  const { pageId, items } = pending;
+  if (!items || items.length === 0) return;
 
-  console.log(`[AUTO_REPLY] Processing message from ${senderId} | Text: "${text}" | Image: ${imageUrl ? "YES" : "NO"}`);
+  const fullBatchText = items.map(i => i.text).filter(Boolean).join(" ");
+  const text = fullBatchText;
+  const imageUrl = items.find(i => i.imageUrl)?.imageUrl || null;
+  const audioUrl = items.find(i => i.audioUrl)?.audioUrl || null;
+  const timestamp = items[items.length - 1].timestamp;
+
+  console.log(`[AUTO_REPLY] Processing message(s) from ${senderId} | Batch Count: ${items.length} | Text: "${text}"`);
 
   // Generate AI reply using Gemini (Hakim Rejaul Karim persona)
   try {
@@ -330,6 +344,106 @@ async function flushSenderEvent(senderId: string) {
       return;
     }
 
+    // ── MULTI-MESSAGE BATCH HANDLING (Customer sent 2 or more messages together) ──
+    if (items.length > 1) {
+      console.log(`[FB_WEBHOOK] 🔔 Multi-message batch detected from ${senderId} with ${items.length} messages.`);
+      // Check if all messages together form an order submission
+      let isBatchOrder = false;
+      try {
+        const { parseOrderFromMessage } = require("../../../../../scripts/save_order_to_db.js");
+        const parsedBatchOrder = parseOrderFromMessage(fullBatchText);
+        const enText = fullBatchText.replace(/[০-৯]/g, (d: string) => "০১২৩৪৫৬৭৮৯".indexOf(d).toString());
+        const phoneMatch = enText.match(/(?:\+?880|0)?1[3-9]\d{8}/);
+        const hasOrderForm = /(?:নাম\s*[=:]|নাম্বার\s*[=:]|ঠিকানা\s*[=:]|জেলা\s*[=:]|থানা\s*[=:])/.test(fullBatchText);
+        if (parsedBatchOrder?.phone || (hasOrderForm && phoneMatch)) {
+          isBatchOrder = true;
+        }
+      } catch {}
+
+      if (!isBatchOrder) {
+        // Customer asked multiple separate questions: ANSWER EVERY SINGLE QUESTION INDIVIDUALLY WITH QUOTE!
+        console.log(`[FB_WEBHOOK] Answering ${items.length} customer messages individually with quoted mention...`);
+        const { isPictureRequest, isMultiplePicturesRequest, getNextKasturiImages, isCertificateOrLicenseRequest, isReviewRequest, CUSTOMER_REVIEW_IMAGES } = await import("@/lib/product-db");
+        const { appendChatMessage } = await import("@/lib/customer-memory");
+
+        for (let bIdx = 0; bIdx < items.length; bIdx++) {
+          const bItem = items[bIdx];
+          const bText = bItem.text;
+          if (!bText && !bItem.imageUrl) continue;
+
+          // 1. Deliver requested media if this specific message asks for it
+          if (bText && isPictureRequest(bText)) {
+            try {
+              const isMultiple = isMultiplePicturesRequest(bText);
+              const { getCustomerProfile, updateCustomerProfile } = await import("@/lib/customer-memory");
+              const custProf = getCustomerProfile(senderId);
+              const previouslySent = Array.isArray(custProf?.sentKasturiImages) ? custProf.sentKasturiImages : [];
+              const { imagesToSend, updatedHistory } = getNextKasturiImages(previouslySent, isMultiple);
+              updateCustomerProfile(senderId, { sentKasturiImages: updatedHistory });
+              for (let idx = 0; idx < imagesToSend.length; idx++) {
+                await sendMessengerImage(senderId, imagesToSend[idx], effectiveToken);
+                if (idx < imagesToSend.length - 1) await sleep(800);
+              }
+            } catch (e) {}
+          }
+          if (bText && isCertificateOrLicenseRequest(bText)) {
+            try {
+              await sendMessengerImage(senderId, "hakim_abdul_karim_certificate.jpg", effectiveToken);
+              await sleep(800);
+              await sendMessengerImage(senderId, "hakim_abdul_karim_license.jpg", effectiveToken);
+            } catch (e) {}
+          }
+          if (bText && isReviewRequest(bText)) {
+            try {
+              for (const revImg of CUSTOMER_REVIEW_IMAGES) {
+                await sendMessengerImage(senderId, revImg, effectiveToken);
+                await sleep(800);
+              }
+            } catch (e) {}
+          }
+
+          // 2. Generate focused answer for this exact message
+          const itemReply = await generateAutoReply(bText || "ছবি পাঠালাম", {
+            imageUrl: bItem.imageUrl || null,
+            chatHistory,
+            senderId,
+            customerName: resolvedCustomerName || undefined,
+            isVoiceMode: false,
+          });
+
+          // 3. Format quoted reply mention
+          const cleanQuote = (bText || "আপনার মেসেজ").length > 70 ? ((bText || "").slice(0, 67) + "...") : (bText || "আপনার মেসেজ");
+          const formattedItemReply = `💬 "${cleanQuote}"\n👉 ${itemReply}`;
+
+          // 4. Send quoting the exact message ID
+          await sendMessengerReply(pageId, senderId, formattedItemReply, effectiveToken, bItem.mid || null);
+          appendChatMessage(senderId, "model", formattedItemReply, false);
+
+          if (bIdx < items.length - 1) {
+            await sleep(1000);
+          }
+        }
+
+        // If customer is in voice mode, also send a unified doctor voice note explaining all answers
+        if (isVoiceMode(senderId)) {
+          try {
+            const combinedVoiceReply = await generateAutoReply(fullBatchText, {
+              chatHistory,
+              senderId,
+              customerName: resolvedCustomerName || undefined,
+              isVoiceMode: true,
+            });
+            await sendMessengerVoiceNote(senderId, combinedVoiceReply, effectiveToken);
+            appendChatMessage(senderId, "model", combinedVoiceReply, true);
+          } catch (vErr: any) {
+            console.warn("[FB_WEBHOOK_MULTI_VOICE_ERR]", vErr.message);
+          }
+        }
+
+        return; // Finished handling batch!
+      }
+    }
+
     // CASE 2: Normal inquiry or Question while in Voice Mode
     const userInVoiceMode = isVoiceMode(senderId);
     const isVoiceReq = userInVoiceMode || isVoiceRequested(text) || isOnlyVoice;
@@ -343,7 +457,7 @@ async function flushSenderEvent(senderId: string) {
     });
 
     const mentionsCertInReply = /(?:৫৮৪২|5842|সনদপত্র|লাইসেন্স|সার্টিফিকেট|certificate|license|অনুমোদন|ট্রেড\s*লাইসেন্স)/i.test(replyText);
-    if (!certImagesSent && (mentionsCertInReply || (text && isCertificateOrLicenseRequest(text)))) {
+    if (!certImagesSent && (mentionsCertInReply || (text && (await import("@/lib/product-db")).isCertificateOrLicenseRequest(text)))) {
       if (effectiveToken) {
         try {
           console.log(`[AUTO_REPLY_CERT_SAFETY] Credentials referenced in reply/context. Ensuring certificates sent to ${senderId}`);
@@ -417,7 +531,7 @@ async function flushSenderEvent(senderId: string) {
         if (!sentVoice) {
           // Fallback to text if voice note generation/upload failed
           console.log(`[VOICE_MODE_ACTIVE] Voice failed, fallback to text for ${senderId}`);
-          await sendMessengerReply(pageId, senderId, replyText, effectiveToken);
+          await sendMessengerReply(pageId, senderId, replyText, effectiveToken, items[items.length - 1].mid || null);
         } else {
           // Voice sent — but if customer asked HOW TO ORDER / WHAT IS NEEDED or reply has order form,
           // ALSO send the text so they can READ and COPY the order form format
@@ -425,7 +539,7 @@ async function flushSenderEvent(senderId: string) {
           if (isOrderInfoReq) {
             await new Promise(r => setTimeout(r, 1500));
             await sendSenderAction(senderId, "typing_on", effectiveToken);
-            await sendMessengerReply(pageId, senderId, replyText, effectiveToken);
+            await sendMessengerReply(pageId, senderId, replyText, effectiveToken, items[items.length - 1].mid || null);
             console.log(`[ORDER_INFO] 📝 Also sent text version (order form) to ${senderId}`);
           }
         }
@@ -443,7 +557,7 @@ async function flushSenderEvent(senderId: string) {
           await new Promise(r => setTimeout(r, delayMs));
         }
 
-        await sendMessengerReply(pageId, senderId, replyText, effectiveToken);
+        await sendMessengerReply(pageId, senderId, replyText, effectiveToken, items[items.length - 1].mid || null);
         console.log(`[AUTO_REPLY_SENT] To: ${senderId} | Reply: "${replyText.substring(0, 80)}..."`);
       }
 
@@ -707,33 +821,31 @@ export async function handleMessengerMessage(pageId: string, event: any) {
 
   console.log(`[MESSENGER] Page:${pageId} | From:${senderId} | Msg: ${text} | Image: ${imageUrl ? "YES" : "NO"} | Audio: ${audioUrl ? "YES" : "NO"}`);
 
-  // 2. Buffer rapid messages from the same sender (combines text + image + audio within 1.8s into ONE single reply)
+  // 2. Buffer rapid messages from the same sender (collects each individual message within 2.0s window)
   const existing = pendingSenderEvents.get(senderId);
+  const newItem: PendingMessageItem = {
+    mid: msgId,
+    text: text || "",
+    imageUrl: imageUrl || null,
+    audioUrl: audioUrl || null,
+    timestamp,
+  };
+
   if (existing) {
     clearTimeout(existing.timer);
-    // Merge text, image and audio
-    if (text && (!existing.text || existing.text.startsWith("["))) {
-      existing.text = text;
-    } else if (text && existing.text) {
-      existing.text = existing.text + " " + text;
-    }
-    if (imageUrl) existing.imageUrl = imageUrl;
-    if (audioUrl) existing.audioUrl = audioUrl;
-    existing.timer = setTimeout(() => flushSenderEvent(senderId), 1800);
-    console.log(`[MESSENGER_BUFFER] Merged rapid message for sender ${senderId}. Waiting 1.8s...`);
+    existing.items.push(newItem);
+    existing.timer = setTimeout(() => flushSenderEvent(senderId), 2000);
+    console.log(`[MESSENGER_BUFFER] Appended rapid message from ${senderId} (Total in batch: ${existing.items.length}). Waiting 2.0s...`);
   } else {
-    const lower = text.toLowerCase();
+    const lower = (text || "").toLowerCase();
     const isReferenceQuery = lower.includes("aita") || lower.includes("এইটা") || lower.includes("price") || lower.includes("dam") || lower.includes("দাম") || lower.includes("koto");
-    const delay = (imageUrl || audioUrl || isReferenceQuery) ? 1800 : 500;
+    const delay = (imageUrl || audioUrl || isReferenceQuery) ? 2000 : 1200;
 
     const timer = setTimeout(() => flushSenderEvent(senderId), delay);
     pendingSenderEvents.set(senderId, {
       pageId,
       senderId,
-      text: text,
-      imageUrl,
-      audioUrl,
-      timestamp,
+      items: [newItem],
       timer
     });
   }
@@ -841,20 +953,36 @@ async function sendSenderAction(recipientId: string, action: "typing_on" | "typi
   } catch {}
 }
 
-async function sendMessengerReply(pageId: string, recipientId: string, text: string, accessToken: string) {
+async function sendMessengerReply(pageId: string, recipientId: string, text: string, accessToken: string, replyToMid: string | null = null) {
   const url = `https://graph.facebook.com/v19.0/me/messages?access_token=${accessToken}`;
-  const body = {
+  const messageObj: any = { text };
+  if (replyToMid) {
+    messageObj.reply_to = { mid: replyToMid };
+  }
+  const body: any = {
     recipient: { id: recipientId },
-    message: { text },
+    message: messageObj,
     messaging_type: "RESPONSE",
   };
   try {
-    const res = await fetch(url, {
+    let res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify(body),
     });
-    const data = await res.json().catch(() => null);
+    let data = await res.json().catch(() => null);
+
+    // If Facebook rejects reply_to parameter, fall back automatically to standard send
+    if (!res.ok && replyToMid && data?.error) {
+      delete body.message.reply_to;
+      res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body),
+      });
+      data = await res.json().catch(() => null);
+    }
+
     try {
       const fs = await import("fs");
       const path = await import("path");
@@ -1025,26 +1153,26 @@ const BENGALI_WORDS_1_TO_100 = {
   91: 'একানব্বই', 92: 'বিরানব্বই', 93: 'তিরানব্বই', 94: 'চুরানব্বই', 95: 'পঁচানব্বই', 96: 'ছিয়ানব্বই', 97: 'সাতানব্বই', 98: 'আটানব্বই', 99: 'নিরানব্বই', 100: 'একশত'
 };
 
-function convertBengaliNumbersToWords(text) {
+function convertBengaliNumbersToWords(text: string): string {
   if (!text) return '';
   let t = text;
 
   // 1. Phone numbers: 01XXXXXXXXX or ০১৮XXXXXXXX
-  t = t.replace(/(?:\+?880|0)?1[3-9]\d{2}[-\s]?\d{6}/g, (match) => {
+  t = t.replace(/(?:\+?880|0)?1[3-9]\d{2}[-\s]?\d{6}/g, (match: string) => {
     const digits = match.replace(/\D/g, '');
     const digitWords = ['শূন্য', 'এক', 'দুই', 'তিন', 'চার', 'পাঁচ', 'ছয়', 'সাত', 'আট', 'নয়'];
     const clean = digits.length === 11 ? digits : ('0' + digits);
-    const p1 = clean.slice(0, 5).split('').map(d => digitWords[parseInt(d, 10)]).join(' ');
-    const p2 = clean.slice(5).split('').map(d => digitWords[parseInt(d, 10)]).join(' ');
+    const p1 = clean.slice(0, 5).split('').map((d: string) => digitWords[parseInt(d, 10)]).join(' ');
+    const p2 = clean.slice(5).split('').map((d: string) => digitWords[parseInt(d, 10)]).join(' ');
     return p1 + ', ' + p2;
   });
 
-  t = t.replace(/(?:০)?১[৩-৯][০-৯]{2}[-\s]?[০-৯]{6}/g, (match) => {
-    const en = match.replace(/[০-৯]/g, d => '০১২৩৪৫৬৭৮৯'.indexOf(d)).replace(/\D/g, '');
+  t = t.replace(/(?:০)?১[৩-৯][০-৯]{2}[-\s]?[০-৯]{6}/g, (match: string) => {
+    const en = match.replace(/[০-৯]/g, (d: string) => '০১২৩৪৫৬৭৮৯'.indexOf(d).toString()).replace(/\D/g, '');
     const digitWords = ['শূন্য', 'এক', 'দুই', 'তিন', 'চার', 'পাঁচ', 'ছয়', 'সাত', 'আট', 'নয়'];
     const clean = en.length === 11 ? en : ('0' + en);
-    const p1 = clean.slice(0, 5).split('').map(d => digitWords[parseInt(d, 10)]).join(' ');
-    const p2 = clean.slice(5).split('').map(d => digitWords[parseInt(d, 10)]).join(' ');
+    const p1 = clean.slice(0, 5).split('').map((d: string) => digitWords[parseInt(d, 10)]).join(' ');
+    const p2 = clean.slice(5).split('').map((d: string) => digitWords[parseInt(d, 10)]).join(' ');
     return p1 + ', ' + p2;
   });
 
@@ -1113,19 +1241,19 @@ function convertBengaliNumbersToWords(text) {
   t = t.replace(/[১1][০0]\s*টি/g, 'দশটি');
 
   // 7. Numbers 0-100 (both Bengali and English digits)
-  t = t.replace(/[০-৯0-9]{1,3}/g, (match) => {
-    const en = match.replace(/[০-৯]/g, d => '০১২৩৪৫৬৭৮৯'.indexOf(d));
+  t = t.replace(/[০-৯0-9]{1,3}/g, (match: string) => {
+    const en = match.replace(/[০-৯]/g, (d: string) => '০১২৩৪৫৬৭৮৯'.indexOf(d).toString());
     const num = parseInt(en, 10);
-    if (!isNaN(num) && BENGALI_WORDS_1_TO_100[num]) {
-      return BENGALI_WORDS_1_TO_100[num];
+    if (!isNaN(num) && (BENGALI_WORDS_1_TO_100 as Record<number, string>)[num]) {
+      return (BENGALI_WORDS_1_TO_100 as Record<number, string>)[num];
     }
     return match;
   });
 
   // 8. Any remaining single digits
   const singleDigits = ['শূন্য', 'এক', 'দুই', 'তিন', 'চার', 'পাঁচ', 'ছয়', 'সাত', 'আট', 'নয়'];
-  t = t.replace(/[০-৯]/g, d => singleDigits['০১২৩৪৫৬৭৮৯'.indexOf(d)] || d);
-  t = t.replace(/[0-9]/g, d => singleDigits[parseInt(d, 10)] || d);
+  t = t.replace(/[০-৯]/g, (d: string) => singleDigits['০১২৩৪৫৬৭৮৯'.indexOf(d)] || d);
+  t = t.replace(/[0-9]/g, (d: string) => singleDigits[parseInt(d, 10)] || d);
 
   return t;
 }

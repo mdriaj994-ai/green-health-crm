@@ -44,6 +44,7 @@ export interface CustomerProfile {
   followUpCount?: number;
   lastFollowUpTime?: number;
   followUpHistory?: FollowUpRecord[];
+  sentKasturiImages?: string[];
   prefersVoice?: boolean;
   scheduledFollowUpAt?: number;
   followUpReason?: string;

@@ -31,26 +31,26 @@ const BENGALI_WORDS_1_TO_100 = {
   91: 'একানব্বই', 92: 'বিরানব্বই', 93: 'তিরানব্বই', 94: 'চুরানব্বই', 95: 'পঁচানব্বই', 96: 'ছিয়ানব্বই', 97: 'সাতানব্বই', 98: 'আটানব্বই', 99: 'নিরানব্বই', 100: 'একশত'
 };
 
-function convertBengaliNumbersToWords(text) {
+function convertBengaliNumbersToWords(text: string): string {
   if (!text) return '';
   let t = text;
 
   // 1. Phone numbers: 01XXXXXXXXX or ০১৮XXXXXXXX
-  t = t.replace(/(?:\+?880|0)?1[3-9]\d{2}[-\s]?\d{6}/g, (match) => {
+  t = t.replace(/(?:\+?880|0)?1[3-9]\d{2}[-\s]?\d{6}/g, (match: string) => {
     const digits = match.replace(/\D/g, '');
     const digitWords = ['শূন্য', 'এক', 'দুই', 'তিন', 'চার', 'পাঁচ', 'ছয়', 'সাত', 'আট', 'নয়'];
     const clean = digits.length === 11 ? digits : ('0' + digits);
-    const p1 = clean.slice(0, 5).split('').map(d => digitWords[parseInt(d, 10)]).join(' ');
-    const p2 = clean.slice(5).split('').map(d => digitWords[parseInt(d, 10)]).join(' ');
+    const p1 = clean.slice(0, 5).split('').map((d: string) => digitWords[parseInt(d, 10)]).join(' ');
+    const p2 = clean.slice(5).split('').map((d: string) => digitWords[parseInt(d, 10)]).join(' ');
     return p1 + ', ' + p2;
   });
 
-  t = t.replace(/(?:০)?১[৩-৯][০-৯]{2}[-\s]?[০-৯]{6}/g, (match) => {
-    const en = match.replace(/[০-৯]/g, d => '০১২৩৪৫৬৭৮৯'.indexOf(d)).replace(/\D/g, '');
+  t = t.replace(/(?:০)?১[৩-৯][০-৯]{2}[-\s]?[০-৯]{6}/g, (match: string) => {
+    const en = match.replace(/[০-৯]/g, (d: string) => '০১২৩৪৫৬৭৮৯'.indexOf(d).toString()).replace(/\D/g, '');
     const digitWords = ['শূন্য', 'এক', 'দুই', 'তিন', 'চার', 'পাঁচ', 'ছয়', 'সাত', 'আট', 'নয়'];
     const clean = en.length === 11 ? en : ('0' + en);
-    const p1 = clean.slice(0, 5).split('').map(d => digitWords[parseInt(d, 10)]).join(' ');
-    const p2 = clean.slice(5).split('').map(d => digitWords[parseInt(d, 10)]).join(' ');
+    const p1 = clean.slice(0, 5).split('').map((d: string) => digitWords[parseInt(d, 10)]).join(' ');
+    const p2 = clean.slice(5).split('').map((d: string) => digitWords[parseInt(d, 10)]).join(' ');
     return p1 + ', ' + p2;
   });
 
@@ -119,19 +119,19 @@ function convertBengaliNumbersToWords(text) {
   t = t.replace(/[১1][০0]\s*টি/g, 'দশটি');
 
   // 7. Numbers 0-100 (both Bengali and English digits)
-  t = t.replace(/[০-৯0-9]{1,3}/g, (match) => {
-    const en = match.replace(/[০-৯]/g, d => '০১২৩৪৫৬৭৮৯'.indexOf(d));
+  t = t.replace(/[০-৯0-9]{1,3}/g, (match: string) => {
+    const en = match.replace(/[০-৯]/g, (d: string) => '০১২৩৪৫৬৭৮৯'.indexOf(d).toString());
     const num = parseInt(en, 10);
-    if (!isNaN(num) && BENGALI_WORDS_1_TO_100[num]) {
-      return BENGALI_WORDS_1_TO_100[num];
+    if (!isNaN(num) && (BENGALI_WORDS_1_TO_100 as Record<number, string>)[num]) {
+      return (BENGALI_WORDS_1_TO_100 as Record<number, string>)[num];
     }
     return match;
   });
 
   // 8. Any remaining single digits
   const singleDigits = ['শূন্য', 'এক', 'দুই', 'তিন', 'চার', 'পাঁচ', 'ছয়', 'সাত', 'আট', 'নয়'];
-  t = t.replace(/[০-৯]/g, d => singleDigits['০১২৩৪৫৬৭৮৯'.indexOf(d)] || d);
-  t = t.replace(/[0-9]/g, d => singleDigits[parseInt(d, 10)] || d);
+  t = t.replace(/[০-৯]/g, (d: string) => singleDigits['০১২৩৪৫৬৭৮৯'.indexOf(d)] || d);
+  t = t.replace(/[0-9]/g, (d: string) => singleDigits[parseInt(d, 10)] || d);
 
   return t;
 }

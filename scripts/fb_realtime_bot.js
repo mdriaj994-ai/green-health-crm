@@ -1341,9 +1341,11 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 async function sendFacebookMessage(recipientId, text, pageAccessToken = PAGE_TOKEN, replyToMid = null) {
   const url = `https://graph.facebook.com/v19.0/me/messages?access_token=${pageAccessToken}`;
   const messageObj = { text };
-  // Note: reply_to is NOT supported in FB Graph API v19
-  // if (replyToMid) messageObj.reply_to = { mid: replyToMid };
-  const res = await fetch(url, {
+  if (replyToMid) {
+    messageObj.reply_to = { mid: replyToMid };
+  }
+
+  let res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
@@ -1352,7 +1354,24 @@ async function sendFacebookMessage(recipientId, text, pageAccessToken = PAGE_TOK
       messaging_type: "RESPONSE"
     })
   });
-  return { status: res.status, data: await res.json() };
+  let data = await res.json().catch(() => null);
+
+  // If Facebook rejects reply_to parameter, fall back automatically to standard send
+  if (!res.ok && replyToMid && data?.error) {
+    delete messageObj.reply_to;
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        recipient: { id: recipientId },
+        message: messageObj,
+        messaging_type: "RESPONSE"
+      })
+    });
+    data = await res.json().catch(() => null);
+  }
+
+  return { status: res.status, data };
 }
 
 // Send Product Video via Facebook
@@ -2002,77 +2021,177 @@ async function pollOnce() {
           const msgs = conv.messages?.data || [];
           if (msgs.length === 0) continue;
 
-          const lastMsg = msgs[0];
-          const isFromCustomer = lastMsg.from?.id && String(lastMsg.from.id) !== String(page.pageId);
+          // 1. Collect ALL consecutive unprocessed messages from this customer (newest down to bot/agent reply or processed id)
+          const unrepliedCustomerMsgs = [];
+          for (const m of msgs) {
+            const isFromCustomer = m.from?.id && String(m.from.id) !== String(page.pageId);
+            if (!isFromCustomer) break; // reached bot/agent reply!
+            if (isProcessedId(m.id)) break; // already processed!
+            unrepliedCustomerMsgs.push(m);
+          }
 
-          if (isFromCustomer && lastMsg.id) {
-            // 1. Check if already processed by Webhook or previous poll
-            if (isProcessedId(lastMsg.id)) {
-              continue;
-            }
+          if (unrepliedCustomerMsgs.length === 0) continue;
 
-            // 2. Webhook Priority Buffer:
-            // If the message arrived less than 15 seconds ago, let the real-time Webhook handle it!
-            // Poller is strictly a resilient FALLBACK in case Webhooks drop.
-            const msgAge = Date.now() - new Date(lastMsg.created_time).getTime();
-            if (msgAge < 15000) {
-              continue;
-            }
+          // 2. Webhook Priority Buffer:
+          // If the newest message arrived less than 15 seconds ago, let the real-time Webhook handle it!
+          const newestMsg = unrepliedCustomerMsgs[0];
+          const newestAge = Date.now() - new Date(newestMsg.created_time).getTime();
+          if (newestAge < 15000) {
+            continue;
+          }
 
-            const senderId = lastMsg.from?.id ? String(lastMsg.from.id) : null;
-            if (!senderId) continue;
+          const senderId = newestMsg.from?.id ? String(newestMsg.from.id) : null;
+          if (!senderId) continue;
 
-            saveProcessedId(lastMsg.id); // Mark in memory & disk immediately
+          // Mark all batch message IDs as processed immediately
+          for (const m of unrepliedCustomerMsgs) {
+            saveProcessedId(m.id);
+          }
 
-            // ── HUMAN BEHAVIOR: Instantly mark message as SEEN (blue tick) ──────
-            // This fires BEFORE any processing so the customer sees the double-blue
-            // tick the moment they send — just like a real person reading their message.
-            await sendSenderAction(senderId, "mark_seen", page.accessToken);
+          // ── HUMAN BEHAVIOR: Instantly mark message as SEEN (blue tick) ──────
+          await sendSenderAction(senderId, "mark_seen", page.accessToken);
+          await sendSenderAction(senderId, "typing_on", page.accessToken);
 
-            // ── HUMAN BEHAVIOR: Show animated typing indicator (bouncing dots) ───
-            // Customer will see the "..." indicator immediately, giving the
-            // impression a real human read their message and is typing back.
-            await sendSenderAction(senderId, "typing_on", page.accessToken);
+          // Use only name customer told us — NEVER use Facebook profile name for addressing
+          const _fbProfile = newestMsg.from?.name || "";
+          const _memProf = senderId ? customerMemory.getCustomerProfile(senderId) : null;
 
-            // Use only name customer told us — NEVER use Facebook profile name for addressing
-            const _fbProfile = lastMsg.from?.name || "";
-            const _memProf = senderId ? customerMemory.getCustomerProfile(senderId) : null;
+          if (_fbProfile && _memProf && !_memProf.facebookName) {
+            customerMemory.updateCustomerProfile(String(newestMsg.from.id), { facebookName: _fbProfile });
+          }
 
-            // Save FB profile name as metadata (internal only, never used to address)
-            if (_fbProfile && _memProf && !_memProf.facebookName) {
-              customerMemory.updateCustomerProfile(String(lastMsg.from.id), { facebookName: _fbProfile });
-            }
+          const _memName = _memProf?.name || "";
+          const _isRealName = _memName && !["ভাইয়া","Customer","কাস্টমার","NOT PROVIDED YET","customer","vaiya",""].includes(_memName.trim().toLowerCase());
+          const customerName = _isRealName ? _memName : "ভাইয়া";
 
-            const _memName = _memProf?.name || "";
-            const _isRealName = _memName && !["ভাইয়া","Customer","কাস্টমার","NOT PROVIDED YET","customer","vaiya",""].includes(_memName.trim().toLowerCase());
-            const customerName = _isRealName ? _memName : "ভাইয়া";
-            
+          // Sort batch into chronological order (oldest unreplied first, newest last)
+          const customerBatch = [...unrepliedCustomerMsgs].reverse();
 
-            let messageText = (lastMsg.message || "").trim();
-
-            // Detect and transcribe customer voice notes
-            const audioAttach = lastMsg.attachments?.data?.find(a => a.mime_type?.includes("audio") || a.type === "audio");
-            if (!messageText && audioAttach?.file_url) {
+          // Resolve text and transcribe voice notes for each message in the batch
+          const resolvedItems = [];
+          for (const item of customerBatch) {
+            let itemText = (item.message || "").trim();
+            const audioAttach = item.attachments?.data?.find(a => a.mime_type?.includes("audio") || a.type === "audio");
+            if (!itemText && audioAttach?.file_url) {
               console.log(`[FB_BOT] Transcribing customer voice note from ${customerName} (${senderId})...`);
               const transcribed = await transcribeAudioWithGemini(audioAttach.file_url, page.accessToken);
-              if (transcribed) {
-                messageText = transcribed;
-                console.log(`[FB_BOT] Customer voice note transcribed: "${messageText}"`);
-              } else {
-                messageText = "[Customer sent a voice message]";
-              }
+              itemText = transcribed || "[Customer sent a voice message]";
               setVoiceMode(senderId, true);
             }
+            if (itemText || item.attachments?.data?.length > 0) {
+              resolvedItems.push({
+                id: item.id,
+                text: itemText,
+                created_time: item.created_time,
+                hasAudio: Boolean(audioAttach),
+                hasImage: Boolean(item.attachments?.data?.some(a => a.type === "image" || a.mime_type?.includes("image"))),
+                rawItem: item,
+              });
+            }
+          }
 
-            console.log(`[FB_BOT] 🔔 [${page.pageName}] FALLBACK NEW MESSAGE from ${customerName} (${senderId}): "${messageText}"`);
+          if (resolvedItems.length === 0) continue;
 
-            // Format recent messages for multi-turn dialogue context (oldest first, up to 10 turns)
-            const previousMsgs = msgs.slice(1, 11).reverse();
-            const recentHistory = previousMsgs.map(m => {
-              const isBot = String(m.from?.id) === String(page.pageId);
-              const author = isBot ? page.pageName : (m.from?.name || "কাস্টমার");
-              return `${author}: "${(m.message || '').trim()}"`;
-            }).filter(line => line.length > 5);
+          // Format recent messages for multi-turn dialogue context (excluding current batch)
+          const previousMsgs = msgs.slice(unrepliedCustomerMsgs.length, unrepliedCustomerMsgs.length + 10).reverse();
+          const recentHistory = previousMsgs.map(m => {
+            const isBot = String(m.from?.id) === String(page.pageId);
+            const author = isBot ? page.pageName : (m.from?.name || "কাস্টমার");
+            return `${author}: "${(m.message || '').trim()}"`;
+          }).filter(line => line.length > 5);
+
+          // ── MULTI-MESSAGE BATCH HANDLING (Customer sent 2 or more messages together) ──
+          if (resolvedItems.length > 1) {
+            console.log(`[FB_BOT] 🔔 Multi-message batch detected from ${customerName} (${senderId}) with ${resolvedItems.length} messages.`);
+            const fullBatchText = resolvedItems.map(i => i.text).filter(Boolean).join(" ");
+
+            // Check if all messages together form an order submission (e.g. name + phone + address sent across multiple msgs)
+            const parsedBatchOrder = parseOrderFromMessage(fullBatchText);
+            const isBatchOrderPlaced = isOrderPlaced(fullBatchText);
+
+            if (parsedBatchOrder && (parsedBatchOrder.phone || isBatchOrderPlaced)) {
+              console.log(`[FB_BOT] Combined batch forms an order submission. Processing order...`);
+              const replyText = await generateReply(fullBatchText, customerName, senderId, recentHistory, page.pageName, isVoiceMode(senderId));
+              await sendFacebookMessage(senderId, replyText, page.accessToken, newestMsg.id);
+              recordOutgoingBotMessageInDb(senderId, replyText, false);
+              customerMemory.appendChatMessage(senderId, "model", replyText, false);
+              continue;
+            }
+
+            // Customer asked multiple separate questions: ANSWER EVERY SINGLE QUESTION INDIVIDUALLY!
+            console.log(`[FB_BOT] Answering ${resolvedItems.length} messages individually with quoted mention...`);
+            for (let bIdx = 0; bIdx < resolvedItems.length; bIdx++) {
+              const bItem = resolvedItems[bIdx];
+              const bText = bItem.text;
+              if (!bText) continue;
+
+              // 1. Deliver requested media if this specific message asks for it
+              if (isPictureRequest(bText)) {
+                try {
+                  const isMultiple = isMultiplePicturesRequest(bText);
+                  const custProf = customerMemory.getCustomerProfile(senderId);
+                  const previouslySent = Array.isArray(custProf?.sentKasturiImages) ? custProf.sentKasturiImages : [];
+                  const { imagesToSend, updatedHistory } = getNextKasturiImages(previouslySent, isMultiple);
+                  customerMemory.updateCustomerProfile(senderId, { sentKasturiImages: updatedHistory });
+                  for (let idx = 0; idx < imagesToSend.length; idx++) {
+                    await sendFacebookImage(senderId, imagesToSend[idx], page.accessToken);
+                    if (idx < imagesToSend.length - 1) await sleep(800);
+                  }
+                } catch (e) {}
+              }
+              if (isCertificateOrLicenseRequest(bText)) {
+                try {
+                  await sendFacebookImage(senderId, "hakim_abdul_karim_certificate.jpg", page.accessToken);
+                  await sleep(800);
+                  await sendFacebookImage(senderId, "hakim_abdul_karim_license.jpg", page.accessToken);
+                } catch (e) {}
+              }
+              if (isReviewRequest(bText)) {
+                try {
+                  for (const revImg of CUSTOMER_REVIEW_IMAGES) {
+                    await sendFacebookImage(senderId, revImg, page.accessToken);
+                    await sleep(800);
+                  }
+                } catch (e) {}
+              }
+
+              // 2. Generate focused answer for this exact message
+              const itemReply = await generateReply(bText, customerName, senderId, recentHistory, page.pageName, false);
+
+              // 3. Construct quoted reply format (showing quote header so customer sees which message is being answered)
+              const cleanQuote = bText.length > 70 ? (bText.slice(0, 67) + "...") : bText;
+              const formattedItemReply = `💬 "${cleanQuote}"\n👉 ${itemReply}`;
+
+              // 4. Send quoting the exact message ID
+              await sendFacebookMessage(senderId, formattedItemReply, page.accessToken, bItem.id);
+              recordOutgoingBotMessageInDb(senderId, formattedItemReply, false);
+              customerMemory.appendChatMessage(senderId, "model", formattedItemReply, false);
+
+              if (bIdx < resolvedItems.length - 1) {
+                await sleep(1000); // 1s pause between answers
+              }
+            }
+
+            // If customer is in voice mode, also send a unified doctor voice note explaining all answers
+            if (isVoiceMode(senderId)) {
+              try {
+                const combinedVoiceText = await generateReply(fullBatchText, customerName, senderId, recentHistory, page.pageName, true);
+                await sendFacebookVoiceNote(senderId, combinedVoiceText, page.accessToken);
+                recordOutgoingBotMessageInDb(senderId, combinedVoiceText, true);
+              } catch (vErr) {
+                console.warn("[FB_BOT_MULTI_VOICE_ERR]", vErr.message);
+              }
+            }
+
+            continue; // Multi-message batch finished!
+          }
+
+          // ── SINGLE MESSAGE FLOW (When exactly 1 message was sent) ──
+          const lastMsg = resolvedItems[0].rawItem;
+          let messageText = resolvedItems[0].text;
+          const audioAttach = resolvedItems[0].hasAudio;
+
+          console.log(`[FB_BOT] 🔔 [${page.pageName}] FALLBACK NEW MESSAGE from ${customerName} (${senderId}): "${messageText}"`);
 
             // Check if customer asked for a video
             if (isVideoRequest(messageText)) {
@@ -2520,7 +2639,6 @@ ${paymentLine}
             }
 
             saveProcessedId(lastMsg.id); // Persist to file once successfully attempted
-          }
         }
       } catch (pageErr) {
         // Log individual page poll error without breaking others
