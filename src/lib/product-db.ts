@@ -363,3 +363,21 @@ export function isReviewRequest(text: string): boolean {
     /(?:কাস্টমার|গ্রাহক).*(?:মতামত|ছবি|সবি|রিভিউ|উপকার|রেজাল্ট)/i.test(q)
   );
 }
+
+
+// Authentic shop / chamber photo of Janata Unani Chikitsaloy, Alikadam, Bandarban
+export const DOKAN_IMAGE_FILE = "jonota_unani_dokan.jpg";
+
+export function isDokanOrChamberRequest(text: string): boolean {
+  if (!text) return false;
+  const q = text.toLowerCase();
+  return (
+    /dokan|chamber|thikana|address|location|chember|shorashori/i.test(q) ||
+    /দোকান|চেম্বার|ঠিকানা|লোকেশন|সরাসরি|আলীকদম|বান্দরবান/i.test(q) ||
+    /(?:dekha|দেখা|meet|chamber|চেম্বার|ঠিকানা|thikana|address|dokan|দোকান|location|লোকেশন|shorashori|সরাসরি)\s*(?:kora|korbo|korte|করব|করতে|করবো|kothay|কোথায়|ase|আছে|jabo|যাব|পাবো|pabo)?/i.test(q) ||
+    /(?:kothay|কোথায়|koy|কই)\s*(?:dekha|chamber|চেম্বার|dokan|দোকান|apnader|আপনাদের|pabo|পাবো)/i.test(q) ||
+    /(?:apnader\s*bari|আপনার\s*বাড়ি|apnar\s*bari|আপনাদের\s*বাসা)/i.test(q) ||
+    /(?:দোকান|চেম্বার|দোকানের|চেম্বারের|ঠিকানার).*(?:ছবি|ফটো|পিক|পিকচার|pic|photo|image|view|দেখান|পাঠান|দেন)/i.test(q) ||
+    /(?:ছবি|ফটো|পিক|পিকচার|pic|photo).*(?:দোকান|চেম্বার|দোকানের|চেম্বারের)/i.test(q)
+  );
+}

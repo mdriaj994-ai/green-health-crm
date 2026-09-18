@@ -205,8 +205,9 @@ async function flushSenderEvent(senderId: string) {
     let certImagesSent = false;
     let productImagesSent = false;
     let reviewImagesSent = false;
+    let dokanImagesSent = false;
     try {
-      const { isPictureRequest, isMultiplePicturesRequest, getNextKasturiImages, findProductForImage, isCertificateOrLicenseRequest, isReviewRequest, CUSTOMER_REVIEW_IMAGES } = await import("@/lib/product-db");
+      const { isPictureRequest, isMultiplePicturesRequest, getNextKasturiImages, findProductForImage, isCertificateOrLicenseRequest, isReviewRequest, CUSTOMER_REVIEW_IMAGES, isDokanOrChamberRequest } = await import("@/lib/product-db");
       if (isPictureRequest(text)) {
         const isMultiple = isMultiplePicturesRequest(text);
         const { getCustomerProfile, updateCustomerProfile } = await import("@/lib/customer-memory");
@@ -243,6 +244,14 @@ async function flushSenderEvent(senderId: string) {
             await sleep(800);
           }
           reviewImagesSent = true;
+        }
+      }
+
+      if (isDokanOrChamberRequest(text)) {
+        if (effectiveToken) {
+          console.log(`[AUTO_REPLY_DOKAN] Customer requested shop/chamber/address. Sending shop photo to ${senderId}`);
+          await sendMessengerImage(senderId, "jonota_unani_dokan.jpg", effectiveToken);
+          dokanImagesSent = true;
         }
       }
     } catch (picErr: any) {
@@ -363,7 +372,7 @@ async function flushSenderEvent(senderId: string) {
       if (!isBatchOrder) {
         // Customer asked multiple separate questions: ANSWER EVERY SINGLE QUESTION INDIVIDUALLY WITH QUOTE!
         console.log(`[FB_WEBHOOK] Answering ${items.length} customer messages individually with quoted mention...`);
-        const { isPictureRequest, isMultiplePicturesRequest, getNextKasturiImages, isCertificateOrLicenseRequest, isReviewRequest, CUSTOMER_REVIEW_IMAGES } = await import("@/lib/product-db");
+        const { isPictureRequest, isMultiplePicturesRequest, getNextKasturiImages, isCertificateOrLicenseRequest, isReviewRequest, CUSTOMER_REVIEW_IMAGES, isDokanOrChamberRequest } = await import("@/lib/product-db");
         const { appendChatMessage } = await import("@/lib/customer-memory");
 
         for (let bIdx = 0; bIdx < items.length; bIdx++) {
@@ -1005,6 +1014,8 @@ async function sendMessengerImage(recipientId: string, imageFileOrPath: string, 
     path.join(process.cwd(), "data", "Product Image"),
     path.join(process.cwd(), "public", "products"),
     path.join(process.cwd(), "public", "Product Image"),
+    path.join(process.cwd(), "public", "dokan"),
+    path.join(process.cwd(), "data", "dokan"),
   ];
 
   let localPath: string | null = null;
