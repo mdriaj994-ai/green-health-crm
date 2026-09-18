@@ -190,8 +190,9 @@ async function flushSenderEvent(senderId: string) {
     let picProduct: any = null;
     let certImagesSent = false;
     let productImagesSent = false;
+    let reviewImagesSent = false;
     try {
-      const { isPictureRequest, isMultiplePicturesRequest, getNextKasturiImages, findProductForImage, isCertificateOrLicenseRequest } = await import("@/lib/product-db");
+      const { isPictureRequest, isMultiplePicturesRequest, getNextKasturiImages, findProductForImage, isCertificateOrLicenseRequest, isReviewRequest, CUSTOMER_REVIEW_IMAGES } = await import("@/lib/product-db");
       if (isPictureRequest(text)) {
         const isMultiple = isMultiplePicturesRequest(text);
         const { getCustomerProfile, updateCustomerProfile } = await import("@/lib/customer-memory");
@@ -217,6 +218,17 @@ async function flushSenderEvent(senderId: string) {
           await sleep(800);
           await sendMessengerImage(senderId, "hakim_abdul_karim_license.jpg", effectiveToken);
           certImagesSent = true;
+        }
+      }
+
+      if (isReviewRequest(text)) {
+        if (effectiveToken) {
+          console.log(`[AUTO_REPLY_REVIEW] Customer requested reviews/feedback. Sending real customer review to ${senderId}`);
+          for (const revImg of CUSTOMER_REVIEW_IMAGES) {
+            await sendMessengerImage(senderId, revImg, effectiveToken);
+            await sleep(800);
+          }
+          reviewImagesSent = true;
         }
       }
     } catch (picErr: any) {
@@ -366,6 +378,24 @@ async function flushSenderEvent(senderId: string) {
           productImagesSent = true;
         } catch (picSafeErr) {
           console.warn("[AUTO_REPLY_PIC_SAFETY_ERR]", picSafeErr);
+        }
+      }
+    }
+
+    const mentionsReviewInReply = /(?:রিভিউ|ফিডব্যাক|প্রমাণ|প্রমান).*(?:পাঠিয়ে|দিচ্ছি|দিলাম|পাঠাচ্ছি|দিব|পাঠাব|দেখুন|দেওয়া হলো)/i.test(replyText) ||
+                                  /(?:পাঠিয়ে|দিচ্ছি|দিলাম|পাঠাচ্ছি|দিব|পাঠাব).*(?:রিভিউ|ফিডব্যাক|প্রমাণ)/i.test(replyText);
+    if (!reviewImagesSent && (mentionsReviewInReply || (text && (await import("@/lib/product-db")).isReviewRequest(text)))) {
+      if (effectiveToken) {
+        try {
+          const { CUSTOMER_REVIEW_IMAGES } = await import("@/lib/product-db");
+          console.log(`[AUTO_REPLY_REVIEW_SAFETY] Customer reviews referenced in reply/context. Ensuring review image sent to ${senderId}`);
+          for (const revImg of CUSTOMER_REVIEW_IMAGES) {
+            await sendMessengerImage(senderId, revImg, effectiveToken);
+            await sleep(800);
+          }
+          reviewImagesSent = true;
+        } catch (revSafeErr) {
+          console.warn("[AUTO_REPLY_REVIEW_SAFETY_ERR]", revSafeErr);
         }
       }
     }
@@ -844,6 +874,8 @@ async function sendMessengerImage(recipientId: string, imageFileOrPath: string, 
   const filename = path.basename(imageFileOrPath);
 
   const candidateDirs = [
+    path.join(process.cwd(), "public", "reviews"),
+    path.join(process.cwd(), "data", "reviews"),
     path.join(process.cwd(), "public", "certificates"),
     path.join(process.cwd(), "data", "certificates"),
     path.join(process.cwd(), "data", "Product Image"),

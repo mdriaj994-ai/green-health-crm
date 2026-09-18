@@ -785,6 +785,16 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     return reply;
   }
 
+  // 11. Customer Reviews / Social Proof / Anyone took it before? (আগে কেউ নিয়েছে? কোনো রিভিউ আছে?)
+  const isReviewInquiry = isReviewRequest(trimmedClean) ||
+                          /(?:age\s*keu|keu\s*ki|keu\s*koreche|keu\s*khaise)\s*(?:nise|niyeche|babsar|upokar|result|paise|paice|khaise|khawa)/i.test(trimmedClean) ||
+                          /(?:আগে|এর\s*আগে)\s*(?:কেউ|কেহ)\s*(?:নিয়েছে|নিছে|ব্যবহার|উপকার|পাইছে|পেয়েছে)/i.test(trimmedClean) ||
+                          /(?:রিভিউ|ফিডব্যাক|প্রমাণ|প্রমান).*(?:দেখান|দেখবো|দেখব|পাঠান|দেন|দাও|আছে|আসে)/i.test(trimmedClean);
+  if (isReviewInquiry) {
+    const reply = "আলহামদুলিল্লাহ ভাইয়া, সারাদেশে আমাদের শত শত সম্মানিত ভাই কস্তুরী পাউডার নিয়মিত সেবন করে অসাধারণ রেজাল্ট ও শারীরিক সক্ষমতা ফিরে পেয়েছেন। এই যে দেখুন, ইনবক্সে আমাদের একজন নিয়মিত সম্মানিত কাস্টমার ভাইয়ের রিভিউ ও প্রোডাক্ট হাতে পাওয়ার বাস্তব ছবিটি পাঠিয়ে দিয়েছি। উনি মাত্র ২-৩ সপ্তাহ নিয়ম মতো সেবন করেই চমৎকার উপকার পেয়েছেন। আপনিও ইনশাআল্লাহ সম্পূর্ণ নিশ্চিন্তে ও আস্থার সাথে অর্ডার করতে পারেন।";
+    if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", reply, false);
+    return reply;
+  }
 
   // Detect if this is a personal/greeting query — skip product context for these
   const qLowerCheck = (customerMessage || "").toLowerCase();
@@ -1452,11 +1462,31 @@ function isCertificateOrLicenseRequest(text) {
   );
 }
 
+const CUSTOMER_REVIEW_IMAGES = [
+  "customer_review_1.jpg",
+];
+
+function isReviewRequest(text) {
+  if (!text) return false;
+  const q = text.toLowerCase();
+  return (
+    /review|riview|rebiw|feed\s*back|customer\s*review|client\s*review/i.test(q) ||
+    /রিভিউ|রিভিউস|ফিডব্যাক|প্রুফ|কাস্টমার\s*রিভিউ/i.test(q) ||
+    /(?:আগে|আগে\s*কেহ|এর\s*আগে)\s*(?:কেউ|কেহ|কোনো\s*ভাই|কোন\s*ভাই)\s*(?:নিয়েছে|নিছে|নিছেন|ব্যবহার|উপকার|পাইছে|পেয়েছে|খাইছে|খেয়েছে)/i.test(q) ||
+    /(?:কেউ\s*কি|কেহ\s*কি)\s*(?:উপকার|রেজাল্ট|ফল)\s*(?:পাইছে|পেয়েছে|পায়|পেয়েছেন|পাইছেন)/i.test(q) ||
+    /(?:age\s*keu|keu\s*ki)\s*(?:nise|babsar|upokar|result|paise|paice|khaise)/i.test(q) ||
+    /(?:রিভিউ|ফিডব্যাক|প্রমাণ|প্রমান).*(?:দেখান|দেখবো|দেখব|পাঠান|দেন|দাও|আছে|আসে|হবে|পাব|দেখতে)/i.test(q) ||
+    /(?:কাস্টমার|গ্রাহক).*(?:মতামত|ছবি|সবি|রিভিউ|উপকার|রেজাল্ট)/i.test(q)
+  );
+}
+
 async function sendFacebookImage(recipientId, imageFileOrPath, pageAccessToken = PAGE_TOKEN) {
   const url = `https://graph.facebook.com/v19.0/me/messages?access_token=${pageAccessToken}`;
   const filename = path.basename(imageFileOrPath);
 
   const candidateDirs = [
+    path.join(process.cwd(), "public", "reviews"),
+    path.join(process.cwd(), "data", "reviews"),
     path.join(process.cwd(), "public", "certificates"),
     path.join(process.cwd(), "data", "certificates"),
     path.join(process.cwd(), "data", "Product Image"),
@@ -2109,6 +2139,21 @@ async function pollOnce() {
               }
             }
 
+            // Check if customer asked for reviews / proof / results / feedback
+            let reviewImagesSent = false;
+            if (isReviewRequest(messageText)) {
+              try {
+                console.log(`[FB_BOT] Customer asked for reviews/feedback/social proof. Sending real customer review to ${senderId}...`);
+                for (const revImg of CUSTOMER_REVIEW_IMAGES) {
+                  await sendFacebookImage(senderId, revImg, page.accessToken);
+                  await sleep(800);
+                }
+                reviewImagesSent = true;
+              } catch (revErr) {
+                console.warn("[FB_BOT_REVIEW_ERR]", revErr.message);
+              }
+            }
+
             // ── Voice Mode & Voice Request Logic ──
             const custProf = customerMemory.getCustomerProfile(senderId);
             const lastMsgWasVoice = recentHistory && recentHistory.length > 0 &&
@@ -2205,6 +2250,22 @@ async function pollOnce() {
                 }
               } catch (picSafeErr) {
                 console.warn("[FB_BOT_PIC_SAFETY_ERR]", picSafeErr.message);
+              }
+            }
+
+            // Guarantee: If bot reply mentions customer reviews/feedback OR customer asked for reviews and not sent yet, ALWAYS deliver review images
+            const mentionsReviewInReply = /(?:রিভিউ|ফিডব্যাক|প্রমাণ|প্রমান).*(?:পাঠিয়ে|দিচ্ছি|দিলাম|পাঠাচ্ছি|দিব|পাঠাব|দেখুন|দেওয়া হলো)/i.test(replyText) ||
+                                          /(?:পাঠিয়ে|দিচ্ছি|দিলাম|পাঠাচ্ছি|দিব|পাঠাব).*(?:রিভিউ|ফিডব্যাক|প্রমাণ)/i.test(replyText);
+            if (!reviewImagesSent && (mentionsReviewInReply || isReviewRequest(messageText))) {
+              try {
+                console.log(`[FB_BOT] Customer reviews referenced in reply/context. Ensuring review image sent to ${senderId}...`);
+                for (const revImg of CUSTOMER_REVIEW_IMAGES) {
+                  await sendFacebookImage(senderId, revImg, page.accessToken);
+                  await sleep(800);
+                }
+                reviewImagesSent = true;
+              } catch (revErr) {
+                console.warn("[FB_BOT_REVIEW_SAFETY_ERR]", revErr.message);
               }
             }
 

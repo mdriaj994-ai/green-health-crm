@@ -344,3 +344,22 @@ export function isCertificateOrLicenseRequest(text: string): boolean {
     /(?:হাকিম|ডাক্তার|কবিরাজ|চিকিৎসক).*(?:সার্টিফিকেট|সাটিফিকেট|লাইসেন্স|লাইসন্স|সনদ|কাগজ|প্রমাণ|প্রমান)/i.test(q)
   );
 }
+
+// Authentic customer review photos showing real patients with Kasturi Powder
+export const CUSTOMER_REVIEW_IMAGES = [
+  "customer_review_1.jpg",
+];
+
+export function isReviewRequest(text: string): boolean {
+  if (!text) return false;
+  const q = text.toLowerCase();
+  return (
+    /review|riview|rebiw|feed\s*back|customer\s*review|client\s*review/i.test(q) ||
+    /রিভিউ|রিভিউস|ফিডব্যাক|প্রুফ|কাস্টমার\s*রিভিউ/i.test(q) ||
+    /(?:আগে|আগে\s*কেহ|এর\s*আগে)\s*(?:কেউ|কেহ|কোনো\s*ভাই|কোন\s*ভাই)\s*(?:নিয়েছে|নিছে|নিছেন|ব্যবহার|উপকার|পাইছে|পেয়েছে|খাইছে|খেয়েছে)/i.test(q) ||
+    /(?:কেউ\s*কি|কেহ\s*কি)\s*(?:উপকার|রেজাল্ট|ফল)\s*(?:পাইছে|পেয়েছে|পায়|পেয়েছেন|পাইছেন)/i.test(q) ||
+    /(?:age\s*keu|keu\s*ki)\s*(?:nise|babsar|upokar|result|paise|paice|khaise)/i.test(q) ||
+    /(?:রিভিউ|ফিডব্যাক|প্রমাণ|প্রমান).*(?:দেখান|দেখবো|দেখব|পাঠান|দেন|দাও|আছে|আসে|হবে|পাব|দেখতে)/i.test(q) ||
+    /(?:কাস্টমার|গ্রাহক).*(?:মতামত|ছবি|সবি|রিভিউ|উপকার|রেজাল্ট)/i.test(q)
+  );
+}
