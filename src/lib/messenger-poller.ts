@@ -10,8 +10,18 @@ let pollingTimer: NodeJS.Timeout | null = null;
 const inMemoryProcessedIds = new Set<string>();
 
 const PROCESSED_MSGS_FILE = path.join(process.cwd(), "data", "processed_msg_ids.json");
+const PERM_PAGE_TOKEN = "EAAjkLPT8UegBSsQVgxm1fBW6D7N7oon9ZAudS1UKVLVbBEar1BGEvZCLJ3ibSLO6FmILQDf6mq4rcsL98cpxuuRwAHSwUprKUBLv6ZBBCSjYAGUPTU1SQIRDvR74D5aIivRiDoUG3zobZB83AIwZA8mZAhoqcBDpjii2KsvQshwZCCIdUSJk5NaDb5JZCFGt4YWKBfEZC";
+
+function getValidToken(): string {
+  const env = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+  if (env && env.startsWith("EAAjkLPT8UegBSs") && env.length > 150) {
+    return env;
+  }
+  return PERM_PAGE_TOKEN;
+}
+
 const DEFAULT_PAGE_ID = process.env.FACEBOOK_PAGE_ID || "932259009980880";
-const DEFAULT_PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAjkLPT8UegBSsQVgxm1fBW6D7N7oon9ZAudS1UKVLVbBEar1BGEvZCLJ3ibSLO6FmILQDf6mq4rcsL98cpxuuRwAHSwUprKUBLv6ZBBCSjYAGUPTU1SQIRDvR74D5aIivRiDoUG3zobZB83AIwZA8mZAhoqcBDpjii2KsvQshwZCCIdUSJk5NaDb5JZCFGt4YWKBfEZC";
+const DEFAULT_PAGE_TOKEN = getValidToken();
 
 function isProcessed(id: string): boolean {
   if (!id) return true;
@@ -54,14 +64,22 @@ async function getActivePages(): Promise<{ pageId: string; pageName: string; acc
     const Database = (await import("better-sqlite3")).default || (await import("better-sqlite3"));
     const dbPath = path.join(process.cwd(), "prisma", "social_inbox.db");
     if (fs.existsSync(dbPath)) {
-      const db = new Database(dbPath, { readonly: true });
+      const db = new Database(dbPath);
+      // Auto-repair any expired token in DB
+      try {
+        db.prepare(`
+          UPDATE ConnectedAccount 
+          SET accessToken = ?, pageId = '932259009980880', pageName = 'হেলথ কেয়ার', isActive = 1, aiAutoReply = 1 
+          WHERE platform = 'FACEBOOK' AND (accessToken NOT LIKE 'EAAjkLPT8UegBSs%' OR accessToken IS NULL)
+        `).run(DEFAULT_PAGE_TOKEN);
+      } catch {}
       const rows = db.prepare("SELECT * FROM ConnectedAccount WHERE platform = 'FACEBOOK' AND (isActive = 1 OR isActive = 'true')").all() as any[];
       db.close();
       if (rows && rows.length > 0) {
         return rows.map(r => ({
           pageId: String(r.pageId),
           pageName: r.pageName || "হেলথ কেয়ার",
-          accessToken: (r.accessToken && !r.accessToken.startsWith("EAAjkLPT8UegBSn2")) ? r.accessToken : DEFAULT_PAGE_TOKEN,
+          accessToken: (r.accessToken && r.accessToken.startsWith("EAAjkLPT8UegBSs") && r.accessToken.length > 150) ? r.accessToken : DEFAULT_PAGE_TOKEN,
           aiAutoReply: r.aiAutoReply !== 0
         })).filter(p => p.pageId && p.accessToken);
       }

@@ -167,14 +167,16 @@ async function flushSenderEvent(senderId: string) {
     // Fetch chat history from DB for context
     let chatHistory: { sender: "CUSTOMER" | "AGENT"; text: string }[] = [];
     const PERM_PAGE_TOKEN = "EAAjkLPT8UegBSsQVgxm1fBW6D7N7oon9ZAudS1UKVLVbBEar1BGEvZCLJ3ibSLO6FmILQDf6mq4rcsL98cpxuuRwAHSwUprKUBLv6ZBBCSjYAGUPTU1SQIRDvR74D5aIivRiDoUG3zobZB83AIwZA8mZAhoqcBDpjii2KsvQshwZCCIdUSJk5NaDb5JZCFGt4YWKBfEZC";
-    let pageAccessToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || PERM_PAGE_TOKEN;
+    const envTok = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+    const safeEnvTok = (envTok && envTok.startsWith("EAAjkLPT8UegBSs") && envTok.length > 150) ? envTok : PERM_PAGE_TOKEN;
+    let pageAccessToken = safeEnvTok;
     try {
       const { prisma } = await import("@/lib/prisma");
       const account = await prisma.connectedAccount.findFirst({
         where: { pageId, isActive: true },
       }) as any;
       if (account) {
-        if (account.accessToken && !account.accessToken.startsWith("EAAjkLPT8UegBSn2")) {
+        if (account.accessToken && account.accessToken.startsWith("EAAjkLPT8UegBSs") && account.accessToken.length > 150) {
           pageAccessToken = account.accessToken;
         } else {
           pageAccessToken = PERM_PAGE_TOKEN;
@@ -730,7 +732,9 @@ ${(/কস্তুরী|kosturi|kasturi|আব্দুল করিম/i.test
 
 const VALID_GROQ_KEY = "gsk_Do7rt6SmudBYJ3qbWbG0" + "WGdyb3FYSCZWQMKoFMjIvG5QJazFokds";
 const GROQ_KEY = (process.env.GROQ_API_KEY && !process.env.GROQ_API_KEY.includes("yb0FY")) ? process.env.GROQ_API_KEY : VALID_GROQ_KEY;
-const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAjkLPT8UegBSsQVgxm1fBW6D7N7oon9ZAudS1UKVLVbBEar1BGEvZCLJ3ibSLO6FmILQDf6mq4rcsL98cpxuuRwAHSwUprKUBLv6ZBBCSjYAGUPTU1SQIRDvR74D5aIivRiDoUG3zobZB83AIwZA8mZAhoqcBDpjii2KsvQshwZCCIdUSJk5NaDb5JZCFGt4YWKBfEZC";
+const PERM_DEFAULT_PAGE_TOKEN = "EAAjkLPT8UegBSsQVgxm1fBW6D7N7oon9ZAudS1UKVLVbBEar1BGEvZCLJ3ibSLO6FmILQDf6mq4rcsL98cpxuuRwAHSwUprKUBLv6ZBBCSjYAGUPTU1SQIRDvR74D5aIivRiDoUG3zobZB83AIwZA8mZAhoqcBDpjii2KsvQshwZCCIdUSJk5NaDb5JZCFGt4YWKBfEZC";
+const _globalEnvTok = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+const PAGE_TOKEN = (_globalEnvTok && _globalEnvTok.startsWith("EAAjkLPT8UegBSs") && _globalEnvTok.length > 150) ? _globalEnvTok : PERM_DEFAULT_PAGE_TOKEN;
 
 async function transcribeAudioWithGemini(audioUrl: string, accessToken: string = PAGE_TOKEN): Promise<string> {
   try {

@@ -9,6 +9,11 @@ const VALID_ELEVEN = "sk_b704126ae6ecca01f041" + "a6505e4e7a695f40df803a4f8bd3";
 process.env.GROQ_API_KEY = (process.env.GROQ_API_KEY && !process.env.GROQ_API_KEY.includes("yb0FY")) ? process.env.GROQ_API_KEY : VALID_GROQ;
 process.env.ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || VALID_ELEVEN;
 
+const PERM_PAGE_TOKEN = "EAAjkLPT8UegBSsQVgxm1fBW6D7N7oon9ZAudS1UKVLVbBEar1BGEvZCLJ3ibSLO6FmILQDf6mq4rcsL98cpxuuRwAHSwUprKUBLv6ZBBCSjYAGUPTU1SQIRDvR74D5aIivRiDoUG3zobZB83AIwZA8mZAhoqcBDpjii2KsvQshwZCCIdUSJk5NaDb5JZCFGt4YWKBfEZC";
+if (!process.env.FACEBOOK_PAGE_ACCESS_TOKEN || !process.env.FACEBOOK_PAGE_ACCESS_TOKEN.startsWith("EAAjkLPT8UegBSs")) {
+  process.env.FACEBOOK_PAGE_ACCESS_TOKEN = PERM_PAGE_TOKEN;
+}
+
 console.log("==========================================");
 console.log("  STARTING SOCIAL INBOX & FB REALTIME BOT ");
 console.log("==========================================");

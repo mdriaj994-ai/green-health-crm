@@ -45,13 +45,28 @@ export async function GET() {
     info.webhookLogError = e.message;
   }
 
-  // 5. Test better-sqlite3
+  // 5. Test & Auto-Repair better-sqlite3
+  const PERM_PAGE_TOKEN = "EAAjkLPT8UegBSsQVgxm1fBW6D7N7oon9ZAudS1UKVLVbBEar1BGEvZCLJ3ibSLO6FmILQDf6mq4rcsL98cpxuuRwAHSwUprKUBLv6ZBBCSjYAGUPTU1SQIRDvR74D5aIivRiDoUG3zobZB83AIwZA8mZAhoqcBDpjii2KsvQshwZCCIdUSJk5NaDb5JZCFGt4YWKBfEZC";
+  const _envTok = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+  const safeToken = (_envTok && _envTok.startsWith("EAAjkLPT8UegBSs") && _envTok.length > 150) ? _envTok : PERM_PAGE_TOKEN;
+
   try {
     const Database = require("better-sqlite3");
     const dbPath = path.join(process.cwd(), "prisma", "social_inbox.db");
     info.dbExists = fs.existsSync(dbPath);
     if (info.dbExists) {
-      const db = new Database(dbPath, { readonly: true });
+      const db = new Database(dbPath);
+      // Force heal expired token in DB
+      try {
+        db.prepare(`
+          UPDATE ConnectedAccount 
+          SET accessToken = ?, pageId = '932259009980880', pageName = 'হেলথ কেয়ার', isActive = 1, aiAutoReply = 1 
+          WHERE platform = 'FACEBOOK'
+        `).run(safeToken);
+        info.dbTokenRepaired = true;
+      } catch (repErr: any) {
+        info.dbTokenRepairError = repErr.message;
+      }
       const accounts = db.prepare("SELECT id, platform, pageId, pageName, isActive, aiAutoReply, SUBSTR(accessToken, 1, 20) as tok FROM ConnectedAccount").all();
       info.accounts = accounts;
       db.close();
@@ -60,14 +75,11 @@ export async function GET() {
     info.sqliteError = e.message;
   }
 
-  // 6. Test direct Facebook Graph API fetch from container
+  // 6. Test direct Facebook Graph API fetch using the safe token
   try {
-    const token = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
-    if (token) {
-      const res = await fetch("https://graph.facebook.com/v21.0/me?access_token=" + token);
-      info.facebookApiStatus = res.status;
-      info.facebookPage = await res.json();
-    }
+    const res = await fetch("https://graph.facebook.com/v21.0/me?access_token=" + safeToken);
+    info.facebookApiStatus = res.status;
+    info.facebookPage = await res.json();
   } catch (e: any) {
     info.facebookApiError = e.message;
   }

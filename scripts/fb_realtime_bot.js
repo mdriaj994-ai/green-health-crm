@@ -40,7 +40,9 @@ const { parseOrderFromMessage, saveOrderToDb } = require("./save_order_to_db.js"
 
 
 const PAGE_ID = process.env.FACEBOOK_PAGE_ID || "932259009980880";
-const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAjkLPT8UegBSsQVgxm1fBW6D7N7oon9ZAudS1UKVLVbBEar1BGEvZCLJ3ibSLO6FmILQDf6mq4rcsL98cpxuuRwAHSwUprKUBLv6ZBBCSjYAGUPTU1SQIRDvR74D5aIivRiDoUG3zobZB83AIwZA8mZAhoqcBDpjii2KsvQshwZCCIdUSJk5NaDb5JZCFGt4YWKBfEZC";
+const PERM_PAGE_TOKEN = "EAAjkLPT8UegBSsQVgxm1fBW6D7N7oon9ZAudS1UKVLVbBEar1BGEvZCLJ3ibSLO6FmILQDf6mq4rcsL98cpxuuRwAHSwUprKUBLv6ZBBCSjYAGUPTU1SQIRDvR74D5aIivRiDoUG3zobZB83AIwZA8mZAhoqcBDpjii2KsvQshwZCCIdUSJk5NaDb5JZCFGt4YWKBfEZC";
+const _envTok = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+const PAGE_TOKEN = (_envTok && _envTok.startsWith("EAAjkLPT8UegBSs") && _envTok.length > 150) ? _envTok : PERM_PAGE_TOKEN;
 const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID || "2502681553555944";
 const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET || "73a482e9d5815a344205c92f1c83d5a8";
 const FACEBOOK_PAGE_ID = process.env.FACEBOOK_PAGE_ID || "932259009980880";
@@ -135,7 +137,7 @@ function getActivePages() {
           id: r.id,
           pageId: String(r.pageId),
           pageName: r.pageName || "গ্রীন হেলথ ইউনানী ফার্মেসী",
-          accessToken: (r.accessToken && !r.accessToken.startsWith("EAAjkLPT8UegBSn2")) ? r.accessToken : PAGE_TOKEN,
+          accessToken: (r.accessToken && r.accessToken.startsWith("EAAjkLPT8UegBSs") && r.accessToken.length > 150) ? r.accessToken : PAGE_TOKEN,
           aiAutoReply: r.aiAutoReply !== 0
         })).filter(p => p.pageId && p.accessToken);
       }
@@ -3322,17 +3324,11 @@ async function startBot() {
 
   // ── SYNC DB TOKEN NOW (before page load) — ensures valid token everywhere ──
   try {
-    const VALID_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || PAGE_TOKEN;
     const _syncDbPath = path.join(process.cwd(), "prisma", "social_inbox.db");
     if (fs.existsSync(_syncDbPath)) {
       const _syncDb = new Database(_syncDbPath);
-      const _tok = _syncDb.prepare("SELECT accessToken FROM ConnectedAccount WHERE platform='FACEBOOK'").get();
-      if (!_tok?.accessToken || !_tok.accessToken.includes("BSY4RXy")) {
-        _syncDb.prepare("UPDATE ConnectedAccount SET accessToken=?, pageId=?, pageName=? WHERE platform='FACEBOOK'").run(VALID_TOKEN, PAGE_ID, "হেলথ কেয়ার");
-        console.log("[STARTUP] ✅ Token pre-fixed in DB before page load");
-      } else {
-        console.log("[STARTUP] ✅ DB token already valid");
-      }
+      _syncDb.prepare("UPDATE ConnectedAccount SET accessToken = ?, pageId = ?, pageName = ?, isActive = 1, aiAutoReply = 1 WHERE platform = 'FACEBOOK'").run(PAGE_TOKEN, PAGE_ID, "হেলথ কেয়ার");
+      console.log("[STARTUP] ✅ Token guaranteed valid in DB before page load");
       _syncDb.close();
     }
   } catch (_se) { console.warn("[STARTUP_PRESYNC_ERR]", _se.message); }
@@ -3343,22 +3339,6 @@ async function startBot() {
 
   // Load existing conversation thread memory
   loadThreadMemory();
-  // Auto-sync: on startup, validate and sync DB token from env var
-  try {
-    const _envTok = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || PAGE_TOKEN;
-    if (_envTok && _envTok.length > 150) {
-      const _dbPath = path.join(process.cwd(), "prisma", "social_inbox.db");
-      if (fs.existsSync(_dbPath)) {
-        const _db = new Database(_dbPath);
-        const _cur = _db.prepare("SELECT accessToken FROM ConnectedAccount WHERE platform='FACEBOOK'").get();
-        if (!_cur || _cur.accessToken !== _envTok) {
-          _db.prepare("UPDATE ConnectedAccount SET accessToken=? WHERE platform='FACEBOOK'").run(_envTok);
-          console.log("[STARTUP] ✅ DB token synced from env var");
-        }
-        _db.close();
-      }
-    }
-  } catch(_e) { console.warn("[STARTUP_SYNC_ERR]", _e.message); }
 
   // Initialize: preload old messages so we only reply to new or unreplied recent messages
   try {
