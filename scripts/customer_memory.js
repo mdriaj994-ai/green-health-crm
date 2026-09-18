@@ -133,6 +133,13 @@ function getCustomerProfile(senderId, defaultName = "") {
       previousMedication: "",
       marriageDuration: "",
       diagnosticStage: 0,
+      timing: "",
+      erectionQuality: "",
+      semenQuality: "",
+      preCum: "",
+      sleepQuality: "",
+      gastric: "",
+      probashi: "",
     };
     memoryCache.set(idStr, newProfile);
     saveMemory();
@@ -352,12 +359,12 @@ function extractCustomerFacts(senderId, text, senderName) {
 
   // 4. BLOOD GROUP
   if (!profile.bloodGroup) {
-    const bgMatch = clean.match(/\b(A|B|AB|O)\s*[\(+-]\s*(?:positive|negative|পজিটিভ|নেগেটিভ|\+|\-)?\b/i) ||
-                    clean.match(/(?:রক্তের\s*গ্রুপ|blood\s*group)\s*[:=]?\s*([A-Za-z+-]{1,5}|[^\n,.!?]+)/i) ||
-                    clean.match(/\b(ও|বি|এ|এবি)\s*(?:পজিটিভ|নেগেটিভ|\+|\-)\b/i);
+    const bgMatch = clean.match(/(?:ব্লাড\s*গ্রুপ|রক্তের\s*গ্রুপ|blood\s*group)?\s*([A-Za-zএবিও\s+-]{1,6})\s*(?:পজিটিভ|নেগেটিভ|positive|negative|\+|\-)/i) ||
+                    clean.match(/\b(A|B|AB|O)\s*[\(+-]\s*(?:positive|negative|\+|\-)?\b/i) ||
+                    clean.match(/(?:রক্তের\s*গ্রুপ|blood\s*group)\s*[:=]?\s*([A-Za-z+-]{1,5}|[^\n,.!?]+)/i);
     if (bgMatch) {
       profile.bloodGroup = bgMatch[0].trim();
-    } else if (/রক্তের\s*গ্রুপ.*(?:জানা\s*নেই|জানা\s*নাই|জানি\s*না|mone\s*nai|jani\s*na)/i.test(clean)) {
+    } else if (/(?:রক্তের\s*গ্রুপ|ব্লাড\s*গ্রুপ).*?(?:জানা\s*নেই|জানা\s*নাই|জানি\s*না|mone\s*nai|jani\s*na)/i.test(clean)) {
       profile.bloodGroup = "জানা নেই";
     }
   }
@@ -427,6 +434,61 @@ function extractCustomerFacts(senderId, text, senderName) {
                clean.match(/([\u09e6-\u09ef0-9]+)\s*(?:বছর|মাস|দিন|bochor|year|mash|month)\s*(?:ধরে|যাবত|থেকে|হলো|হচ্ছে)/i) ||
                clean.match(/(?:কয়েক|অনেক|কিছু)\s*(?:বছর|মাস|দিন)\s*(?:ধরে|যাবত|হলো)/i);
     if (dm) profile.duration = dm[0].trim();
+  }
+
+  // 9. TIMING / DURATION OF INTERCOURSE
+  if (!profile.timing) {
+    const tm = clean.match(/([০-৯0-9]+)\s*(?:মিনিট|সেকেন্ড|min|minute|sec)/i) ||
+               clean.match(/(?:প্রবেশের\s*আগেই|ঢুকানোর\s*সাথেই|সাথে\s*সাথেই|১-২\s*মিনিট|১\s*মিনিট|২\s*মিনিট|time\s*kom|timing\s*kom)/i);
+    if (tm) profile.timing = tm[0].trim();
+  }
+
+  // 10. ERECTION QUALITY
+  if (!profile.erectionQuality) {
+    if (/(?:মাঝপথে\s*নরম|করার\s*সময়\s*নরম|ঢুকানোর\s*পর\s*নরম|হঠাৎ\s*নরম|majhpoth|naram\s*hoye\s*jay)/i.test(clean)) {
+      profile.erectionQuality = "মাঝপথে নরম হয়ে যায়";
+    } else if (/(?:একেবারেই\s*দাঁড়ায়\s*না|একদম\s*দাঁড়ায়\s*না|দাঁড়ায়\s*না|shokto\s*hoy\s*na|daray\s*na)/i.test(clean)) {
+      profile.erectionQuality = "উত্থান হয় না (নিস্তেজ)";
+    } else if (/(?:আংশিক\s*শক্ত|অল্প\s*শক্ত|পুরো\s*শক্ত\s*হয়\s*না|shithil)/i.test(clean)) {
+      profile.erectionQuality = "আংশিক শক্ত (শিথিল)";
+    }
+  }
+
+  // 11. SEMEN QUALITY & PRE-CUM
+  if (!profile.semenQuality) {
+    if (/(?:পানির\s*মতো\s*পাতলা|অতিরিক্ত\s*পাতলা|birjo\s*patla|pani\s*moto|পাতলা\s*পানি)/i.test(clean)) {
+      profile.semenQuality = "পানির মতো পাতলা";
+    }
+  }
+  if (!profile.preCum) {
+    if (/(?:উত্তেজিত\s*হলেই\s*পানি|কথা\s*বললেই\s*পানি|আঠালো\s*পানি|কামরস|আগাম\s*পানি|pani\s*ber\s*hoy)/i.test(clean)) {
+      profile.preCum = "উত্তেজিত হলে আগাম কামরস/পানি আসে";
+    }
+  }
+
+  // 12. SLEEP & GASTRIC
+  if (!profile.sleepQuality) {
+    if (/(?:ঘুম\s*কম\s*হয়|ঘুম\s*হয়\s*না|রাত\s*জাগা|রাত\s*জাগি|অনিদ্রা|insomnia|ghumer\s*problem)/i.test(clean)) {
+      profile.sleepQuality = "ঘুমের সমস্যা / রাত জাগার অভ্যাস";
+    } else if (/(?:ঘুম\s*ভালো\s*হয়|ঘুম\s*ঠিক\s*আছে|ঘুম\s*স্বাভাবিক|sleep\s*normal)/i.test(clean)) {
+      profile.sleepQuality = "ঘুম স্বাভাবিক";
+    }
+  }
+  if (!profile.gastric) {
+    if (/(?:গ্যাস্ট্রিক\s*আছে|গ্যাস\s*আছে|কোষ্ঠকাঠিন্য|পায়খানা\s*শক্ত|বদহজম|gastric\s*ase)/i.test(clean)) {
+      profile.gastric = "গ্যাস্ট্রিক বা হজমের সমস্যা আছে";
+    } else if (/(?:গ্যাস্ট্রিক\s*নাই|গ্যাস\s*নেই|পেট\s*ভালো|gastric\s*nei)/i.test(clean)) {
+      profile.gastric = "গ্যাস্ট্রিক নেই";
+    }
+  }
+
+  // 13. PROBASHI / EXPATRIATE
+  if (!profile.probashi) {
+    if (/(?:প্রবাসী|সৌদি|দুবাই|কাতার|ওমান|মালয়েশিয়া|বাহরাইন|কুয়েত|ইতালি|লন্ডন|সিঙ্গাপুর|বদেশে\s*থাকি|probashi|bideshe\s*thaki)/i.test(clean)) {
+      profile.probashi = "প্রবাসী";
+    } else if (/(?:দেশেই\s*থাকি|দেশে\s*আছি|বাংলাদেশেই\s*থাকি|deshe\s*asi)/i.test(clean)) {
+      profile.probashi = "দেশেই আছেন";
+    }
   }
 
   // 9. PHONE
