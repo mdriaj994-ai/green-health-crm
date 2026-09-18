@@ -299,8 +299,14 @@ function createPrismaLike() {
       },
       update: ({ where, data }: any) => {
         const db = getDb(); const now = new Date().toISOString();
-        const sets = Object.keys(data).map((k: string) => `"${k}"=?`).join(',');
-        db.prepare(`UPDATE "ConnectedAccount" SET ${sets}, updatedAt=? WHERE id=?`).run(...Object.values(data), now, where.id);
+        const cleanData = { ...data };
+        for (const k of Object.keys(cleanData)) {
+          if (typeof cleanData[k] === 'boolean') {
+            cleanData[k] = cleanData[k] ? 1 : 0;
+          }
+        }
+        const sets = Object.keys(cleanData).map((k: string) => `"${k}"=?`).join(',');
+        db.prepare(`UPDATE "ConnectedAccount" SET ${sets}, updatedAt=? WHERE id=?`).run(...Object.values(cleanData), now, where.id);
         db.close(); return Promise.resolve({ id: where.id });
       },
       delete: ({ where }: any) => {

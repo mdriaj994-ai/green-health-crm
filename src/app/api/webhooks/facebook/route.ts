@@ -3,6 +3,8 @@ import { startMessengerPoller } from "@/lib/messenger-poller";
 import fs from "fs";
 import path from "path";
 
+export const dynamic = "force-dynamic";
+
 // Start background poller ensuring it is always active
 try {
   startMessengerPoller();
