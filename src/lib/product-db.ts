@@ -173,7 +173,7 @@ export function findProductInDB(query: string): MergedProduct | null {
 
   const aliases: Record<string, string[]> = {
     "যৌবনের রাজা": ["যৌবনের রাজা", "যৌবন রাজা", "jouboner raja", "yowboner raja", "yauboner raja", "শামসুর ইসলাম", "কালাম ভাইয়ের মার্কেট", "আলীকদম", "কস্তুরী জাফরান", "আনাম কস্তুরী"],
-    "কস্তুরী পাউডার": ["কস্তুরী পাউডার", "কস্তুরি পাউডার", "kosturi powder", "kasturi powder", "সাদ্দাম", "নাটোর ঔষধি গ্রাম", "কৃষি ব্যাংক"],
+    "কস্তুরী পাউডার": ["কস্তুরী পাউডার", "কস্তুরি পাউডার", "kosturi powder", "kasturi powder", "কস্তুরী", "কস্তুরি", "আব্দুল করিম", "হাকিম আব্দুল করিম", "হাকিম মোহাম্মদ আব্দুল করিম", "abdul karim", "জনতা ইউনানী", "আলীকদম কাঁচাবাজার", "দোকান ৩৩"],
     "বাজীকরণ হালুয়া": ["বাজীকরণ হালুয়া", "বাজীকরণ", "bajikaran halua", "bajikoron halua", "আরিফ", "কবিরাজ আরিফ", "রাঙ্গামাটি", "রিজার্ভ বাজার", "ব্যাংক এশিয়া"],
     "dream touch": ["dream touch", "dreamtouch", "ড্রিম টাচ", "ড্রিমটাচ", "ড্রিম"],
     "men's burner": ["men's burner", "mens burner", "men burner", "মেনস বার্নার", "বার্নার"],
@@ -361,3 +361,13 @@ export function findProductForImage(
   return flagship || db[0] || null;
 }
 
+// Check if customer query is asking for certificate / trade license / govt approval / Hakim qualifications
+export function isCertificateOrLicenseRequest(text: string): boolean {
+  if (!text) return false;
+  const q = text.toLowerCase();
+  return (
+    /certificate|licence|license|regist|reg\b|proof|dokhol|kagoj|kagojpotro|onumodon/i.test(q) ||
+    /সার্টিফিকেট|লাইসেন্স|সনদ|নিবন্ধন|অনুমোদন|কাগজ|কাগজপত্র|প্রমাণ|প্রুফ|ডকুমেন্ট|কাগজপাতি/i.test(q) ||
+    /ডাক্তারের\s*প্রমাণ|হাকিমের\s*প্রমাণ|ডাক্তার\s*কিনা|আসল\s*কিনা|বৈধ\s*কিনা|সরকারি\s*অনুমোদন/i.test(q)
+  );
+}

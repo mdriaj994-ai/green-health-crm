@@ -189,13 +189,21 @@ async function flushSenderEvent(senderId: string) {
     // ── Picture Request Detection: Send authentic medicine photo if asked ──
     let picProduct: any = null;
     try {
-      const { isPictureRequest, findProductForImage } = await import("@/lib/product-db");
+      const { isPictureRequest, findProductForImage, isCertificateOrLicenseRequest } = await import("@/lib/product-db");
       if (isPictureRequest(text)) {
         picProduct = findProductForImage(text, chatHistory);
         const imgToSend = picProduct?.imageFile || "WhatsApp Image 2026-08-31 at 2.35.30 PM.jpeg";
         if (effectiveToken) {
           console.log(`[AUTO_REPLY_PIC] Customer requested picture. Sending (${imgToSend}) to ${senderId}`);
           await sendMessengerImage(senderId, imgToSend, effectiveToken);
+        }
+      }
+
+      if (isCertificateOrLicenseRequest(text)) {
+        if (effectiveToken) {
+          console.log(`[AUTO_REPLY_CERT] Customer requested certificate/license. Sending credentials to ${senderId}`);
+          await sendMessengerImage(senderId, "hakim_abdul_karim_certificate.jpg", effectiveToken);
+          await sendMessengerImage(senderId, "hakim_abdul_karim_license.jpg", effectiveToken);
         }
       }
     } catch (picErr: any) {
@@ -747,6 +755,8 @@ async function sendMessengerImage(recipientId: string, imageFileOrPath: string, 
   const filename = path.basename(imageFileOrPath);
 
   const candidateDirs = [
+    path.join(process.cwd(), "public", "certificates"),
+    path.join(process.cwd(), "data", "certificates"),
     path.join(process.cwd(), "data", "Product Image"),
     path.join(process.cwd(), "public", "products"),
     path.join(process.cwd(), "public", "Product Image"),

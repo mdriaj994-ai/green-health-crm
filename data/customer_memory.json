@@ -529,5 +529,174 @@
     "mentionedLocations": [],
     "allHealthKeywords": [],
     "budgetMentioned": []
+  },
+  "test-sender-1": {
+    "senderId": "test-sender-1",
+    "name": "Rakib",
+    "age": "",
+    "maritalStatus": "",
+    "symptoms": [],
+    "duration": "",
+    "productDiscussed": "Soul Mate (খাঁটি কস্তুরী ফর্মুলা)",
+    "productsDiscussedAll": [
+      "Soul Mate (খাঁটি কস্তুরী ফর্মুলা)"
+    ],
+    "orderStatus": "inquiry",
+    "ordersPlaced": [],
+    "phone": "",
+    "district": "",
+    "thana": "",
+    "address": "",
+    "lastVoiceTranscript": "",
+    "sessionSummaries": [],
+    "chatLog": [
+      {
+        "role": "user",
+        "text": "কস্তুরী পাউডার এর কাজ কি এবং দাম কত?",
+        "isVoice": false,
+        "time": 1789750316410
+      },
+      {
+        "role": "model",
+        "text": "জি ভাইয়া, ২৫০ গ্রামের কস্তুরী পাউডারের অফার মূল্য ২,৮০০ টাকা লাগবে। \n\nএটি মূলত শরীরের ক্লান্তি ও শারীরিক দুর্বলতা দূর করে, বীর্যের ঘনত্ব ও শুক্রাণুর সংখ্যা বৃদ্ধি করে এবং নার্ভ ও স্নায়বিক শক্তি শক্তিশালী করতে দারুণ সাহায্য করে। \n\nউল্লেখ্য, শুধুমাত্র এই কস্তুরী পাউডারের ক্ষেত্রে বুকিং নিশ্চিত করতে ৫০০ টাকা ডেলিভারি চার্জ অগ্রিম দিতে হয়, আর বাকি ২,৩০০ টাকা পণ্য হাতে পেয়ে ক্যাশ অন ডেলিভারিতে পরিশোধ করবেন।",
+        "isVoice": false,
+        "time": 1789750326264
+      }
+    ],
+    "firstContact": 1789750316404,
+    "lastContact": 1789750326264,
+    "totalMessages": 1,
+    "prefersVoice": false,
+    "extraFacts": [],
+    "mentionedLocations": [],
+    "allHealthKeywords": [],
+    "budgetMentioned": [],
+    "productSl": "39"
+  },
+  "test-sender-2": {
+    "senderId": "test-sender-2",
+    "name": "Rakib",
+    "age": "",
+    "maritalStatus": "",
+    "symptoms": [],
+    "duration": "",
+    "productDiscussed": "",
+    "productsDiscussedAll": [],
+    "orderStatus": "inquiry",
+    "ordersPlaced": [],
+    "phone": "",
+    "district": "",
+    "thana": "",
+    "address": "",
+    "lastVoiceTranscript": "",
+    "sessionSummaries": [],
+    "chatLog": [
+      {
+        "role": "user",
+        "text": "আপনাদের হাকিমের কি সরকারি লাইসেন্স বা সার্টিফিকেট আছে? প্রমাণ দেন",
+        "isVoice": false,
+        "time": 1789750326273
+      },
+      {
+        "role": "model",
+        "text": "জি রাকিব ভাইয়া, আমাদের হাকীম মো: আব্দুল করিম স্বাস্থ্য ও পরিবার কল্যাণ মন্ত্রণালয়ের অধীনে বাংলাদেশ বোর্ড অব ইউনানী অ্যান্ড আয়ুর্বেদিক সিস্টেমস অব মেডিসিন কর্তৃক নিবন্ধিত ক্যাটাগরি-এ রেজিস্টার্ড হাকিম (রেজিস্ট্রেশন নং: ৫৮৪২/২০১৮)। আপনার দেখার সুবিধার্থে আমাদের সার্ভার থেকে ওনার সরকারি সনদপত্র এবং ই-ট্রেড লাইসেন্সের ছবি ইনবক্সে পাঠিয়ে দেওয়া হয়েছে।",
+        "isVoice": false,
+        "time": 1789750335597
+      }
+    ],
+    "firstContact": 1789750326267,
+    "lastContact": 1789750335597,
+    "totalMessages": 1,
+    "prefersVoice": false,
+    "extraFacts": [],
+    "mentionedLocations": [],
+    "allHealthKeywords": [],
+    "budgetMentioned": []
+  },
+  "test-sender-3": {
+    "senderId": "test-sender-3",
+    "name": "Rakib",
+    "age": "",
+    "maritalStatus": "",
+    "symptoms": [],
+    "duration": "",
+    "productDiscussed": "Soul Mate (খাঁটি কস্তুরী ফর্মুলা)",
+    "productsDiscussedAll": [
+      "Soul Mate (খাঁটি কস্তুরী ফর্মুলা)"
+    ],
+    "orderStatus": "inquiry",
+    "ordersPlaced": [],
+    "phone": "",
+    "district": "",
+    "thana": "",
+    "address": "",
+    "lastVoiceTranscript": "",
+    "sessionSummaries": [],
+    "chatLog": [
+      {
+        "role": "user",
+        "text": "কস্তুরী পাউডারের ডাক্তার কোথায় বসে? ঠিকানা কি?",
+        "isVoice": false,
+        "time": 1789750335606
+      },
+      {
+        "role": "model",
+        "text": "জি রাকিব ভাইয়া, কস্তুরী পাউডারের চিকিৎসক হলেন হাকীম মো: আব্দুল করিম (স্বাস্থ্য ও পরিবার কল্যাণ মন্ত্রণালয় অনুমোদিত ক্যাটাগরি-এ রেজিস্টার্ড হাকীম, রেজি: ৫৮৪২)।\n\nওনার চেম্বারের ঠিকানা: জনতা ইউনানী চিকিৎসালয় ও ভেষজ ভান্ডার, দোকান নং- ৩৩ (৩য় তলা), আলীকদম কাঁচাবাজার, আলীকদম, বান্দরবান।",
+        "isVoice": false,
+        "time": 1789750343182
+      }
+    ],
+    "firstContact": 1789750335600,
+    "lastContact": 1789750343182,
+    "totalMessages": 1,
+    "prefersVoice": false,
+    "extraFacts": [],
+    "mentionedLocations": [],
+    "allHealthKeywords": [],
+    "budgetMentioned": [],
+    "productSl": "39"
+  },
+  "test-sender-4": {
+    "senderId": "test-sender-4",
+    "name": "Rakib",
+    "age": "",
+    "maritalStatus": "",
+    "symptoms": [],
+    "duration": "",
+    "productDiscussed": "Soul Mate (খাঁটি কস্তুরী ফর্মুলা)",
+    "productsDiscussedAll": [
+      "Soul Mate (খাঁটি কস্তুরী ফর্মুলা)"
+    ],
+    "orderStatus": "inquiry",
+    "ordersPlaced": [],
+    "phone": "",
+    "district": "",
+    "thana": "",
+    "address": "",
+    "lastVoiceTranscript": "",
+    "sessionSummaries": [],
+    "chatLog": [
+      {
+        "role": "user",
+        "text": "আমি কস্তুরী পাউডার অর্ডার করতে চাই",
+        "isVoice": false,
+        "time": 1789750363693
+      },
+      {
+        "role": "model",
+        "text": "জি রাকিব ভাইয়া, মাশাআল্লাহ! কস্তুরী পাউডারের পার্সেল বুকিং নিশ্চিত করতে ৫০০ টাকা ডেলিভারি চার্জ অগ্রিম পরিশোধ করতে হবে এবং বাকি ২,৩০০ টাকা পার্সেল হাতে পেয়ে ক্যাশ অন ডেলিভারিতে পরিশোধ করবেন।\n\nআপনার অর্ডারটি কনফার্ম করার জন্য নিচের তথ্যগুলো পূরণ করে পাঠিয়ে দিন:\nআপনার\nনাম=\nজেলা=\nথানা=\nরিসিভ ঠিকানা=\nনাম্বার =",
+        "isVoice": false,
+        "time": 1789750373442
+      }
+    ],
+    "firstContact": 1789750363684,
+    "lastContact": 1789750373442,
+    "totalMessages": 1,
+    "prefersVoice": false,
+    "extraFacts": [],
+    "mentionedLocations": [],
+    "allHealthKeywords": [],
+    "budgetMentioned": [],
+    "productSl": "39"
   }
 }
