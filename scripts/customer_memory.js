@@ -127,6 +127,12 @@ function getCustomerProfile(senderId, defaultName = "") {
       lastContact: Date.now(),
       totalMessages: 0,
       prefersVoice: false,
+      bloodGroup: "",
+      diabetes: "",
+      bloodPressure: "",
+      previousMedication: "",
+      marriageDuration: "",
+      diagnosticStage: 0,
     };
     memoryCache.set(idStr, newProfile);
     saveMemory();
@@ -314,25 +320,75 @@ function extractCustomerFacts(senderId, text, senderName) {
   if (!profile.age) {
     const bDigits = ["০","১","২","৩","৪","৫","৬","৭","৮","৯"];
     const toBN = (s) => String(s).replace(/\d/g, d => bDigits[parseInt(d,10)] || d);
-    const am = clean.match(/(?:boyos|age)\s*[:=]?\s*([\u09e6-\u09ef0-9]{2})/i) ||
-               clean.match(/([\u09e6-\u09ef0-9]{2})\s*(?:bochor|years?)/i);
-    if (am && am[1]) profile.age = toBN(am[1]);
-    else {
-      const dn = clean.match(/^\s*([\u09e6-\u09ef0-9]{2})\s*$/);
+    const toEN = (s) => String(s).replace(/[০-৯]/g, d => "০১২৩৪৫৬৭৮৯".indexOf(d).toString());
+    const am = clean.match(/(?:বয়স|বয়েস|boyos|age)\s*[:=]?\s*([০-৯0-9]{2})/i) ||
+               clean.match(/([০-৯0-9]{2})\s*(?:বছর|bochor|years?|yr)/i) ||
+               clean.match(/(?:আমার\s*(?:বয়স|বয়েস))\s*([০-৯0-9]{2})/i);
+    if (am && am[1]) {
+      const v = parseInt(toEN(am[1]), 10);
+      if (v >= 16 && v <= 85) profile.age = toBN(v);
+    } else {
+      const dn = clean.match(/^\s*([০-৯0-9]{2})\s*$/);
       if (dn) {
-        const v = parseInt(dn[1].replace(/[\u09e6-\u09ef]/g, (d) => "০১২৩৪৫৬৭৮৯".indexOf(d).toString()), 10);
-        if (v >= 18 && v <= 80) profile.age = toBN(dn[1]);
+        const v = parseInt(toEN(dn[1]), 10);
+        if (v >= 16 && v <= 85) profile.age = toBN(v);
       }
     }
   }
 
-  // 3. MARITAL STATUS
+  // 3. MARITAL STATUS & MARRIAGE DURATION
   if (!profile.maritalStatus) {
-    if (/obibahito|unmarried|single/i.test(clean))  profile.maritalStatus = "অবিবাহিত";
-    else if (/bibahito|married/i.test(clean))        profile.maritalStatus = "বিবাহিত";
+    if (/অবিবাহিত|obibahito|unmarried|single|বিয়ে\s*করিনি|বিয়ে\s*করি\s*নি|বিয়ে\s*হয়নি|biye\s*kori\s*ni|সামনে\s*বিয়ে/i.test(clean)) {
+      profile.maritalStatus = "অবিবাহিত";
+    } else if (/বিবাহিত|bibahito|married|বিয়ে\s*করেছি|বিয়ে\s*হইছে|বিয়ে\s*হয়েছে|biye\s*korechi|সংসার|স্ত্রী|ওয়াইফ|wife|bou/i.test(clean)) {
+      profile.maritalStatus = "বিবাহিত";
+    }
+  }
+  if (!profile.marriageDuration) {
+    const mdm = clean.match(/বিয়ে\s*(?:হয়েছে|করছি|করেছি|হইছে|হলো)?\s*([০-৯0-9]+)\s*(?:বছর|মাস|bochor|year|mash|month)/i) ||
+                clean.match(/([০-৯0-9]+)\s*(?:বছর|মাস|bochor|year|mash)\s*(?:হলো\s*বিয়ে|ধরে\s*বিয়ে|হয়েছে\s*বিয়ে|বিয়ে)/i);
+    if (mdm) profile.marriageDuration = mdm[0].trim();
   }
 
-  // 4. SYMPTOMS — 23 types, captures ALL health keywords automatically
+  // 4. BLOOD GROUP
+  if (!profile.bloodGroup) {
+    const bgMatch = clean.match(/\b(A|B|AB|O)\s*[\(+-]\s*(?:positive|negative|পজিটিভ|নেগেটিভ|\+|\-)?\b/i) ||
+                    clean.match(/(?:রক্তের\s*গ্রুপ|blood\s*group)\s*[:=]?\s*([A-Za-z+-]{1,5}|[^\n,.!?]+)/i) ||
+                    clean.match(/\b(ও|বি|এ|এবি)\s*(?:পজিটিভ|নেগেটিভ|\+|\-)\b/i);
+    if (bgMatch) {
+      profile.bloodGroup = bgMatch[0].trim();
+    } else if (/রক্তের\s*গ্রুপ.*(?:জানা\s*নেই|জানা\s*নাই|জানি\s*না|mone\s*nai|jani\s*na)/i.test(clean)) {
+      profile.bloodGroup = "জানা নেই";
+    }
+  }
+
+  // 5. DIABETES & BLOOD PRESSURE
+  if (!profile.diabetes) {
+    if (/(?:ড[া়য়যায়]+বে[টত]ি[সশ]|diabet|sugar)\s*(?:আছে|ধরা|আসে|positive|ase)/i.test(clean)) {
+      profile.diabetes = "ডায়াবেটিস আছে";
+    } else if (/(?:ড[া়য়যায়]+বে[টত]ি[সশ]|diabet|sugar)\s*(?:নাই|নেই|নেগেটিভ|normal|nai|nei)/i.test(clean)) {
+      profile.diabetes = "ডায়াবেটিস নেই";
+    }
+  }
+  if (!profile.bloodPressure) {
+    if (/(?:হাই\s*প্রেশার|উচ্চ\s*রক্তচাপ|high\s*pressure|high\s*bp)\s*(?:আছে|ase)/i.test(clean)) {
+      profile.bloodPressure = "উচ্চ রক্তচাপ আছে";
+    } else if (/(?:প্রেশার|প্রেসার|pressure)\s*(?:স্বাভাবিক|নরমাল|নেই|নাই|normal)/i.test(clean)) {
+      profile.bloodPressure = "নরমাল";
+    }
+  }
+
+  // 6. PREVIOUS MEDICATION HISTORY
+  if (!profile.previousMedication) {
+    if (/(?:আগে|ager?)\s*(?:onek|অনেক)?\s*(?:osudh|ওষুধ|ঔষধ|ডাক্তার|তাবিজ|ওয়ান\s*টাইম|viagra|হোমিও)\s*(?:kheyechi|খাইছি|খেয়েছি|খাইছিলাম|দেখাইছি)/i.test(clean) ||
+        /(?:one\s*time|ওয়ান\s*টাইম|ভায়াগ্রা|সিলডেনাফিল|ক্ষতি\s*হইছে|কাজ\s*হয়নি|কাজ\s*হয়\s*নাই)/i.test(clean)) {
+      profile.previousMedication = "আগে ওষুধ সেবনের ইতিহাস আছে";
+    } else if (/(?:আগে|ager?|পূর্বে).*(?:কিছু\s*খাইনি|ওষুধ\s*খাই\s*নাই|ওষুধ\s*খাইনি|কোনো\s*ওষুধ\s*খাইনি|খাই\s*নাই|প্রথম\s*খাচ্ছি|প্রথম\s*আপনাদের)/i.test(clean)) {
+      profile.previousMedication = "পূর্বে কোনো ওষুধ সেবন করেননি (নতুন)";
+    }
+  }
+
+  // 7. SYMPTOMS — 23 types, captures ALL health keywords automatically
   const SYM = [
     [/druto\s*birjopat|birjo\s*patla|taratari\s*pore/i,   "দ্রুত বীর্যপাত"],
     [/lingo\s*sithil|durbol|naram|utthan/i,                 "লিঙ্গ শিথিলতা"],
@@ -365,13 +421,15 @@ function extractCustomerFacts(senderId, text, senderName) {
     }
   }
 
-  // 5. DURATION
+  // 8. DURATION
   if (!profile.duration) {
-    const dm = clean.match(/([\u09e6-\u09ef0-9]+)\s*(?:bochor|year|mash|month|din|day)\s*(?:dhore|jabot|theke|holo)/i);
+    const dm = clean.match(/(?:সমস্যা|দুর্বলতা|রোগ|কষ্ট)?\s*(?:প্রায়|প্রায়)?\s*([\u09e6-\u09ef0-9]+|এক|দুই|তিন|চার|পাঁচ|ছয়|সাত|আট|দশ)\s*(?:বছর|মাস|দিন|bochor|year|mash|month|din|day)\s*(?:ধরে|যাবত|থেকে|হলো|হচ্ছে|চলছে|ফেস\s*করছি)/i) ||
+               clean.match(/([\u09e6-\u09ef0-9]+)\s*(?:বছর|মাস|দিন|bochor|year|mash|month)\s*(?:ধরে|যাবত|থেকে|হলো|হচ্ছে)/i) ||
+               clean.match(/(?:কয়েক|অনেক|কিছু)\s*(?:বছর|মাস|দিন)\s*(?:ধরে|যাবত|হলো)/i);
     if (dm) profile.duration = dm[0].trim();
   }
 
-  // 6. PHONE
+  // 9. PHONE
   const pm = clean.match(/(?:\+?880|0)?1[3-9]\d{8}\b/);
   if (pm) {
     const ph = pm[0].replace(/^\+?88/, "");
