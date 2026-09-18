@@ -11,6 +11,25 @@ console.log("==========================================");
 console.log("  STARTING SOCIAL INBOX & FB REALTIME BOT ");
 console.log("==========================================");
 
+// Ensure ConnectedAccount has permanent token in database before starting services
+const PERM_PAGE_TOKEN = "EAAjkLPT8UegBSsQVgxm1fBW6D7N7oon9ZAudS1UKVLVbBEar1BGEvZCLJ3ibSLO6FmILQDf6mq4rcsL98cpxuuRwAHSwUprKUBLv6ZBBCSjYAGUPTU1SQIRDvR74D5aIivRiDoUG3zobZB83AIwZA8mZAhoqcBDpjii2KsvQshwZCCIdUSJk5NaDb5JZCFGt4YWKBfEZC";
+try {
+  const Database = require("better-sqlite3");
+  const dbPath = path.join(process.cwd(), "prisma", "social_inbox.db");
+  if (require("fs").existsSync(dbPath)) {
+    const db = new Database(dbPath);
+    db.prepare(`
+      UPDATE ConnectedAccount 
+      SET accessToken = ?, pageId = '932259009980880', pageName = 'হেলথ কেয়ার', isActive = 1, aiAutoReply = 1
+      WHERE pageId = '932259009980880' OR pageId = '110644118793600' OR platform = 'FACEBOOK'
+    `).run(PERM_PAGE_TOKEN);
+    console.log("[STARTUP] ✅ Token updated in DB to permanent token for হেলথ কেয়ার (932259009980880)");
+    db.close();
+  }
+} catch (dbErr) {
+  console.warn("[STARTUP_DB_SYNC_WARN]", dbErr.message);
+}
+
 // Run backfill for any un-synced orders
 try {
   const { backfillRakibOrder } = require("./backfill_rakib_order.js");
