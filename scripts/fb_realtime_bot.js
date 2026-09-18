@@ -1340,33 +1340,30 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 // ── Send Message via Facebook Graph API ──────────────────────────────────────
 async function sendFacebookMessage(recipientId, text, pageAccessToken = PAGE_TOKEN, replyToMid = null) {
   const url = `https://graph.facebook.com/v19.0/me/messages?access_token=${pageAccessToken}`;
-  const messageObj = { text };
+  const payload = {
+    recipient: { id: recipientId },
+    messaging_type: "RESPONSE",
+    message: { text }
+  };
   if (replyToMid) {
-    messageObj.reply_to = { mid: replyToMid };
+    payload.reply_to = { mid: replyToMid };
   }
 
   let res = await fetch(url, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      recipient: { id: recipientId },
-      message: messageObj,
-      messaging_type: "RESPONSE"
-    })
+    body: JSON.stringify(payload)
   });
   let data = await res.json().catch(() => null);
 
   // If Facebook rejects reply_to parameter, fall back automatically to standard send
   if (!res.ok && replyToMid && data?.error) {
-    delete messageObj.reply_to;
+    console.warn(`[FB_SEND_REPLY_TO_WARN] Error with reply_to (${replyToMid}):`, data.error.message, "- Falling back to standard send without reply_to");
+    delete payload.reply_to;
     res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        recipient: { id: recipientId },
-        message: messageObj,
-        messaging_type: "RESPONSE"
-      })
+      body: JSON.stringify(payload)
     });
     data = await res.json().catch(() => null);
   }
@@ -2158,14 +2155,11 @@ async function pollOnce() {
               // 2. Generate focused answer for this exact message
               const itemReply = await generateReply(bText, customerName, senderId, recentHistory, page.pageName, false);
 
-              // 3. Construct quoted reply format (showing quote header so customer sees which message is being answered)
-              const cleanQuote = bText.length > 70 ? (bText.slice(0, 67) + "...") : bText;
-              const formattedItemReply = `💬 "${cleanQuote}"\n👉 ${itemReply}`;
-
-              // 4. Send quoting the exact message ID
-              await sendFacebookMessage(senderId, formattedItemReply, page.accessToken, bItem.id);
-              recordOutgoingBotMessageInDb(senderId, formattedItemReply, false);
-              customerMemory.appendChatMessage(senderId, "model", formattedItemReply, false);
+              // 3. Send using native Facebook Messenger reply_to (links directly to that exact message, without repeating the question)
+              const sendRes = await sendFacebookMessage(senderId, itemReply, page.accessToken, bItem.id);
+              console.log(`[FB_BOT] Replied natively to message ${bItem.id} (Status: ${sendRes.status}): "${itemReply.slice(0, 60)}..."`);
+              recordOutgoingBotMessageInDb(senderId, itemReply, false);
+              customerMemory.appendChatMessage(senderId, "model", itemReply, false);
 
               if (bIdx < resolvedItems.length - 1) {
                 await sleep(1000); // 1s pause between answers

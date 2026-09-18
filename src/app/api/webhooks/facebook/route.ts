@@ -402,7 +402,7 @@ async function flushSenderEvent(senderId: string) {
             } catch (e) {}
           }
 
-          // 2. Generate focused answer for this exact message
+          // 2. Generate focused answer for this exact message (clean answer, NO repeating the customer's question)
           const itemReply = await generateAutoReply(bText || "ছবি পাঠালাম", {
             imageUrl: bItem.imageUrl || null,
             chatHistory,
@@ -411,13 +411,9 @@ async function flushSenderEvent(senderId: string) {
             isVoiceMode: false,
           });
 
-          // 3. Format quoted reply mention
-          const cleanQuote = (bText || "আপনার মেসেজ").length > 70 ? ((bText || "").slice(0, 67) + "...") : (bText || "আপনার মেসেজ");
-          const formattedItemReply = `💬 "${cleanQuote}"\n👉 ${itemReply}`;
-
-          // 4. Send quoting the exact message ID
-          await sendMessengerReply(pageId, senderId, formattedItemReply, effectiveToken, bItem.mid || null);
-          appendChatMessage(senderId, "model", formattedItemReply, false);
+          // 3. Send using native Messenger reply_to (links natively to that specific message)
+          await sendMessengerReply(pageId, senderId, itemReply, effectiveToken, bItem.mid || null);
+          appendChatMessage(senderId, "model", itemReply, false);
 
           if (bIdx < items.length - 1) {
             await sleep(1000);
@@ -955,15 +951,14 @@ async function sendSenderAction(recipientId: string, action: "typing_on" | "typi
 
 async function sendMessengerReply(pageId: string, recipientId: string, text: string, accessToken: string, replyToMid: string | null = null) {
   const url = `https://graph.facebook.com/v19.0/me/messages?access_token=${accessToken}`;
-  const messageObj: any = { text };
-  if (replyToMid) {
-    messageObj.reply_to = { mid: replyToMid };
-  }
   const body: any = {
     recipient: { id: recipientId },
-    message: messageObj,
     messaging_type: "RESPONSE",
+    message: { text },
   };
+  if (replyToMid) {
+    body.reply_to = { mid: replyToMid };
+  }
   try {
     let res = await fetch(url, {
       method: "POST",
@@ -974,7 +969,8 @@ async function sendMessengerReply(pageId: string, recipientId: string, text: str
 
     // If Facebook rejects reply_to parameter, fall back automatically to standard send
     if (!res.ok && replyToMid && data?.error) {
-      delete body.message.reply_to;
+      console.warn(`[FB_SEND_REPLY_TO_WARN] Error with reply_to (${replyToMid}):`, data.error.message, "- Falling back to standard send without reply_to");
+      delete body.reply_to;
       res = await fetch(url, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
