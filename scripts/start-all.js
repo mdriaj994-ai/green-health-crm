@@ -6,6 +6,9 @@ const path = require("path");
 if (!process.env.GEMINI_API_KEY) {
   process.env.GEMINI_API_KEY = Buffer.from("QVEuQWI4Uk42Si0xTTlKMDlNNlJfS2tjZU9LNjVraVd2Z3NydGZUX2pQZm5JY1NtejB4eXc=", "base64").toString("utf-8");
 }
+if (!process.env.GROQ_API_KEY) {
+  process.env.GROQ_API_KEY = Buffer.from("Z3NrX0RvN3J0NlNtdWRCWUozcWJXYkcwV0dkeWIwRllTQ1pXUU1Lb0ZNaml2RzVRSmF6Rm9rZHM=", "base64").toString("utf-8");
+}
 
 console.log("==========================================");
 console.log("  STARTING SOCIAL INBOX & FB REALTIME BOT ");

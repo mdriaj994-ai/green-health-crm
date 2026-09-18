@@ -503,11 +503,23 @@ export async function generateAutoReply(
     return reply;
   }
 
+  // 9. Chamber / Direct Visit / Where to meet (চেম্বার কোথায় / আপনাদের সাথে কীভাবে দেখা করব / সরাসরি এসে নিতে পারব কি)
+  const isMeetOrChamber = /(?:dekha|দেখা|meet|chamber|চেম্বার|ঠিকানা|thikana|address|dokan|দোকান|location|লোকেশন|shorashori|সরাসরি)\s*(?:kora|korbo|korte|করব|করতে|করবো|kothay|কোথায়|ase|আছে|jabo|যাব|পাবো|pabo)?/i.test(trimmedClean) ||
+                          /(?:kothay|কোথায়|koy|কই)\s*(?:dekha|chamber|চেম্বার|dokan|দোকান|apnader|আপনাদের|pabo|পাবো)/i.test(trimmedClean) ||
+                          /(?:apnader\s*bari|আপনার\s*বাড়ি|apnar\s*bari|আপনাদের\s*বাসা)/i.test(trimmedClean);
+  if (isMeetOrChamber) {
+    const reply = "জি ভাইয়া, আপনি সরাসরি আমাদের চেম্বারে এসেও দেখা করতে পারেন। আমাদের চেম্বার: জনতা ইউনানী চিকিৎসালয় (হাকীম মো: আব্দুল করিম, রেজি নং: ৫৮৪২/২০১৮), দোকান ৩৩, ৩য় তলা, আলীকদম কাঁচাবাজার, আলীকদম, বান্দরবান। আমাদের হেল্পলাইন: 01870-023804। আর আপনি যদি দূরবর্তী জেলায় থাকেন, তবে সুন্দরবন বা রেডেক্স কুরিয়ারের মাধ্যমে ক্যাশ অন ডেলিভারিতে আপনার ঠিকানায় পার্সেল পাঠিয়ে দেওয়া যাবে ভাইয়া।";
+    if (senderId) appendChatMessage(senderId, "model", reply, false);
+    return reply;
+  }
 
-  // Extract facts & update permanent customer profile if senderId is present
-  if (options.senderId) {
-    extractCustomerFacts(options.senderId, effectiveMessage, effectiveCustomerName);
-    appendChatMessage(options.senderId, "user", effectiveMessage);
+  // 10. Available products inquiry (আপনাদের এখানে কী কী পাওয়া যায় / কী কী ওষুধ আছে)
+  const isAvailableProducts = /(?:ki\s*ki|কী\s*কী)\s*(?:pawa\s*jay|পাওয়া\s*যায়|paoa|ase|আছে|osudh|ঔষধ|ওষুধ|product|প্রোডাক্ট)/i.test(trimmedClean) ||
+                              /(?:আপনাদের\s*এখানে|apnader\s*ekhane)\s*(?:ki\s*ki|কী\s*কী)/i.test(trimmedClean);
+  if (isAvailableProducts) {
+    const reply = "জি ভাইয়া, আমাদের এখানে মূলত পুরুষদের স্থায়ী সমাধানের জন্য প্রাকৃতিক ইউনানী ফর্মুলা প্রস্তুত করা হয়। আমাদের প্রধান ও সবচেয়ে সফল কোর্স হলো 'কস্তুরী পাউডার (Kasturi Powder)'—যা দ্রুত বীর্যপাত স্থায়ীভাবে রোধ করে ও শারীরিক সক্ষমতা বহুগুণ বাড়ায়। এছাড়া বিশেষ প্রয়োজনে আমাদের রয়েছে 'যৌবনের রাজা' এবং 'বাজীকরণ হালুয়া'। আপনার শারীরিক সমস্যার কথা বললে সবচেয়ে উপযুক্ত পরামর্শ দিতে পারব ভাইয়া।";
+    if (senderId) appendChatMessage(senderId, "model", reply, false);
+    return reply;
   }
 
   // Search live VPS database for matched product

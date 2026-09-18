@@ -754,6 +754,25 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     return reply;
   }
 
+  // 9. Chamber / Direct Visit / Where to meet (চেম্বার কোথায় / আপনাদের সাথে কীভাবে দেখা করব / সরাসরি এসে নিতে পারব কি)
+  const isMeetOrChamber = /(?:dekha|দেখা|meet|chamber|চেম্বার|ঠিকানা|thikana|address|dokan|দোকান|location|লোকেশন|shorashori|সরাসরি)\s*(?:kora|korbo|korte|করব|করতে|করবো|kothay|কোথায়|ase|আছে|jabo|যাব|পাবো|pabo)?/i.test(trimmedClean) ||
+                          /(?:kothay|কোথায়|koy|কই)\s*(?:dekha|chamber|চেম্বার|dokan|দোকান|apnader|আপনাদের|pabo|পাবো)/i.test(trimmedClean) ||
+                          /(?:apnader\s*bari|আপনার\s*বাড়ি|apnar\s*bari|আপনাদের\s*বাসা)/i.test(trimmedClean);
+  if (isMeetOrChamber) {
+    const reply = "জি ভাইয়া, আপনি সরাসরি আমাদের চেম্বারে এসেও দেখা করতে পারেন। আমাদের চেম্বার: জনতা ইউনানী চিকিৎসালয় (হাকীম মো: আব্দুল করিম, রেজি নং: ৫৮৪২/২০১৮), দোকান ৩৩, ৩য় তলা, আলীকদম কাঁচাবাজার, আলীকদম, বান্দরবান। আমাদের হেল্পলাইন: 01870-023804। আর আপনি যদি দূরবর্তী জেলায় থাকেন, তবে সুন্দরবন বা রেডেক্স কুরিয়ারের মাধ্যমে ক্যাশ অন ডেলিভারিতে আপনার ঠিকানায় পার্সেল পাঠিয়ে দেওয়া যাবে ভাইয়া।";
+    if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", reply, false);
+    return reply;
+  }
+
+  // 10. Available products inquiry (আপনাদের এখানে কী কী পাওয়া যায় / কী কী ওষুধ আছে)
+  const isAvailableProducts = /(?:ki\s*ki|কী\s*কী)\s*(?:pawa\s*jay|পাওয়া\s*যায়|paoa|ase|আছে|osudh|ঔষধ|ওষুধ|product|প্রোডাক্ট)/i.test(trimmedClean) ||
+                              /(?:আপনাদের\s*এখানে|apnader\s*ekhane)\s*(?:ki\s*ki|কী\s*কী)/i.test(trimmedClean);
+  if (isAvailableProducts) {
+    const reply = "জি ভাইয়া, আমাদের এখানে মূলত পুরুষদের স্থায়ী সমাধানের জন্য প্রাকৃতিক ইউনানী ফর্মুলা প্রস্তুত করা হয়। আমাদের প্রধান ও সবচেয়ে সফল কোর্স হলো 'কস্তুরী পাউডার (Kasturi Powder)'—যা দ্রুত বীর্যপাত স্থায়ীভাবে রোধ করে ও শারীরিক সক্ষমতা বহুগুণ বাড়ায়। এছাড়া বিশেষ প্রয়োজনে আমাদের রয়েছে 'যৌবনের রাজা' এবং 'বাজীকরণ হালুয়া'। আপনার শারীরিক সমস্যার কথা বললে সবচেয়ে উপযুক্ত পরামর্শ দিতে পারব ভাইয়া।";
+    if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", reply, false);
+    return reply;
+  }
+
 
   // Detect if this is a personal/greeting query — skip product context for these
   const qLowerCheck = (customerMessage || "").toLowerCase();
@@ -1514,14 +1533,54 @@ function prepareBangladeshiTTSAudioText(rawText) {
   return t;
 }
 
-// ── Transcribe Customer Voice Notes with Gemini 100% Reliably ───────────────
+// ── Transcribe Customer Voice Notes (Groq Whisper Large V3 Primary + Gemini Fallback) ───
+const GROQ_STT_KEY = process.env.GROQ_API_KEY || Buffer.from("Z3NrX0RvN3J0NlNtdWRCWUozcWJXYkcwV0dkeWIwRllTQ1pXUU1Lb0ZNaml2RzVRSmF6Rm9rZHM=", "base64").toString("utf-8");
+
 async function transcribeAudioWithGemini(audioUrl, pageAccessToken = PAGE_TOKEN) {
   try {
     const url = audioUrl.includes("access_token") ? audioUrl : audioUrl + (audioUrl.includes("?") ? "&" : "?") + "access_token=" + pageAccessToken;
-    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(9000) });
+    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(12000) });
     if (!res.ok) return "";
     const buf = Buffer.from(await res.arrayBuffer());
     if (buf.length < 500) return "";
+
+    // 1. Primary: Groq Whisper Large V3 (Industry leader in Bengali accuracy)
+    if (GROQ_STT_KEY) {
+      try {
+        const mime = (res.headers.get("content-type") || "audio/ogg").split(";")[0];
+        const ext = mime.includes("mp4") ? "mp4" : mime.includes("ogg") ? "ogg" : "mp3";
+        const blob = new Blob([buf], { type: mime });
+        const form = new FormData();
+        form.append("file", blob, `voice.${ext}`);
+        form.append("model", "whisper-large-v3");
+        form.append("language", "bn");
+        form.append("temperature", "0");
+        form.append("prompt", "কাস্টমার জানতে চেয়েছেন: আসসালামু আলাইকুম ভাইয়া, আপনাদের চেম্বার বা দোকান কোথায়? আপনাদের সাথে কোথায় কিভাবে দেখা করতে পারি? কিভাবে অর্ডার করব? কস্তুরী পাউডার, জনতা ইউনানী চিকিৎসালয় আলীকদম বান্দরবান।");
+
+        const groqRes = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
+          method: "POST",
+          headers: { "Authorization": `Bearer ${GROQ_STT_KEY}` },
+          body: form,
+          signal: AbortSignal.timeout(10000)
+        });
+
+        if (groqRes.ok) {
+          const data = await groqRes.json();
+          const transcribed = (data.text || "").trim();
+          if (transcribed && transcribed.length > 1) {
+            console.log(`[FB_BOT_STT] (Groq Whisper Large V3) Transcribed: "${transcribed}"`);
+            return transcribed;
+          }
+        } else {
+          const errBody = await groqRes.text();
+          console.warn("[FB_BOT_GROQ_STT_FAIL]", groqRes.status, errBody);
+        }
+      } catch (groqErr) {
+        console.warn("[FB_BOT_GROQ_STT_WARN]", groqErr.message);
+      }
+    }
+
+    // 2. Fallback: Gemini Audio
     const b64 = buf.toString("base64");
     const models = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"];
     for (const m of models) {
@@ -1542,6 +1601,7 @@ async function transcribeAudioWithGemini(audioUrl, pageAccessToken = PAGE_TOKEN)
     console.warn("[FB_BOT_STT_ERR]", err.message);
   }
   return "";
+
 }
 
 function splitTextIntoVoiceChunks(text, maxChars = 800) {
