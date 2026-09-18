@@ -369,6 +369,7 @@ export async function generateAutoReply(
 ): Promise<string> {
   const effectiveMessage = incomingMessage?.trim() || "";
   const trimmedClean = effectiveMessage.toLowerCase().replace(/[.,!?;:()\-]/g, "").replace(/\s+/g, " ");
+  const senderId = options.senderId;
 
   // Instant interceptor for pure greetings (Salam, How are you, Hi/Hello)
   const isPureSalam = /^(?:assalamu?\s*alaikum|assalamualaikum|asalam|asalamu\s*alaikum|slaam|salam|সালাম|আসসালামু\s*আলাইকুম|আসসালামুআলাইকুম)(?:\s*(?:vai|vaiya|bhai|bhaiya|doctor|hakeem|hakim|sir|ভাই|ভাইয়া|স্যার))?$/i.test(trimmedClean);

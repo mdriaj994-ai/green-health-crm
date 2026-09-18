@@ -12,6 +12,7 @@ type Order = {
   quantity: number;
   senderId: string;
   facebookName: string;
+  pageId?: string;
   status: string;
   notes: string;
   createdAt: string;
