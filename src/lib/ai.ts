@@ -396,11 +396,23 @@ export async function generateAutoReply(
   const profile = options.senderId ? getCustomerProfile(options.senderId, options.customerName) : null;
   const effectiveCustomerName = options.customerName || profile?.name || "";
 
-  // Instant interceptor for name inquiry (e.g. "amar name jano", "আমার নাম কি জানো", "amar name ki")
-  const isAskingName = /(?:name|nam|naam|নাম)\s*(?:ki|konta|koto|jano|jaano|janen|bolen|bolo|bolun|boloto|mone|mon|ase|ache|জান|জানো|জানেন|বলেন|বলো|বলুন|কি|কী|মনে\s*আছে|আছে)/i.test(trimmedClean) ||
-                       /(?:jano|jaano|janen|জান|জানো|জানেন)\s+(?:amar|amr|আমার)\s+(?:name|nam|naam|নাম)/i.test(trimmedClean) ||
-                       /(?:amar|amr|আমার)\s+(?:name|naam|nam|নাম)\s*(?:ki|jano|jaano|janen|bolen|bolo)/i.test(trimmedClean);
-  if (isAskingName) {
+  // Instant interceptor for Hakim / Doctor / Creator identity inquiry ("আপনার নাম কি", "হাকীমের নাম কি", "কে তৈরি করেছে", "ডাক্তার কে")
+  const isAskingDoctorName = /(?:apnar|আপনার|apnn|আপনন|doctor|ডাক্তার|hakim|হাকিম|হাকীম|hake)s*(?:name|nam|naam|নাম)s*(?:ki|কী|konta|বলেন|bolen|bolun|জানতে)?/i.test(trimmedClean) ||
+                             /(?:name|nam|naam|নাম)s*(?:ki|কী)s*(?:apnar|আপনার|doctor|ডাক্তার|hakim|হাকিম|হাকীম)/i.test(trimmedClean) ||
+                             /(?:ke|কে)s*(?:toiri|তৈরি|ketos*eri|কেটোs*এরি|banay|বানায়|banise|বানিয়েছে)/i.test(trimmedClean) ||
+                             /(?:apnars*porichoy|আপনারs*পরিচয়|পরিচয়s*কি|apnis*ke|আপনিs*কে)/i.test(trimmedClean);
+  if (isAskingDoctorName) {
+    const reply = "জি ভাইয়া, আমি হাকীম মো: আব্দুল করিম বলছি। আমি স্বাস্থ্য মন্ত্রণালয় ও বাংলাদেশ ইউনানী বোর্ডের ক্যাটাগরি-এ নিবন্ধিত চিকিৎসক (রেজি নং: ৫৮৪২/২০১৮), জনতা ইউনানী চিকিৎসালয়, আলীকদম, বান্দরবান। আমাদের কস্তুরী পাউডার ১০০% প্রাকৃতিক ভেষজ উপাদানে আমার নিজস্ব ফর্মুলায় প্রস্তুত করা। বলুন ভাইয়া, আপনাকে কীভাবে সাহায্য করতে পারি?";
+    if (senderId) appendChatMessage(senderId, "model", reply, false);
+    return reply;
+  }
+
+  // Instant interceptor for customer asking about THEIR OWN name ("আমার নাম কি", "আমার নাম জানো", "amar name jano")
+  const isAskingCustomerName = !isAskingDoctorName && (
+    /(?:amar|amr|আমার)s+(?:name|nam|naam|নাম)s*(?:ki|কী|konta|jano|jaano|janen|bolen|bolo|bolun|mone|ase|ache|জান|জানো|জানেন|বলেন|বলো|বলুন|মনে|আছে)/i.test(trimmedClean) ||
+    /(?:jano|jaano|janen|জান|জানো|জানেন)s+(?:amar|amr|আমার)s+(?:name|nam|naam|নাম)/i.test(trimmedClean)
+  );
+  if (isAskingCustomerName) {
     let resolvedName = "";
     if (options.customerName && isValidPersonName(options.customerName)) {
       resolvedName = options.customerName;
@@ -408,11 +420,11 @@ export async function generateAutoReply(
       resolvedName = profile.name;
     }
     // Fallback: check Order table if customer previously placed an order
-    if (!resolvedName && options.senderId) {
+    if (!resolvedName && senderId) {
       try {
         const Database = require("better-sqlite3");
         const db = new Database(path.join(process.cwd(), "prisma", "social_inbox.db"), { readonly: true });
-        const row = db.prepare('SELECT customerName FROM "Order" WHERE senderId = ? AND customerName != "" ORDER BY createdAt DESC LIMIT 1').get(options.senderId);
+        const row = db.prepare('SELECT customerName FROM "Order" WHERE senderId = ? AND customerName != "" ORDER BY createdAt DESC LIMIT 1').get(senderId);
         if (row && row.customerName && isValidPersonName(row.customerName)) {
           resolvedName = row.customerName;
         }
@@ -421,11 +433,11 @@ export async function generateAutoReply(
     }
     if (resolvedName) {
       const reply = `জি ভাইয়া, আপনার নাম তো ${resolvedName}! বলুন ${resolvedName} ভাইয়া, কীভাবে সাহায্য করতে পারি?`;
-      if (options.senderId) appendChatMessage(options.senderId, "model", reply);
+      if (senderId) appendChatMessage(senderId, "model", reply, false);
       return reply;
     }
     const noNameReply = "জি না ভাইয়া, আপনার শুভ নামটি তো এখনো জানা হয়নি। আপনার নামটি যদি বলতেন, খুব ভালো লাগত।";
-    if (options.senderId) appendChatMessage(options.senderId, "model", noNameReply);
+    if (senderId) appendChatMessage(senderId, "model", noNameReply, false);
     return noNameReply;
   }
 

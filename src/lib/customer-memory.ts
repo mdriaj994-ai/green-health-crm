@@ -132,6 +132,7 @@ export function isValidPersonName(n: any): boolean {
   }
   if (/^[\d\s]+$/.test(s)) return false;
   if (/^(kemon|valo|kothai|koto|ki|konta|amra|apni|tumi|apnar|amar|আমি|তুমি|আপনি|কেমন|porte|পারিনা|পারি|চাই|chai|bole|বলতে)/i.test(s)) return false;
+  if (/(?:ki|jani|jano|to|bole|bolsi|bolchi|amar|amr|apnar|apni|tumi|shun|shuno|কী|কি|জানি|জানো|তো|বলে|বলছি|বলসি|আমার|আপনার|আপনি|তুমি|শুনুন|শোন)/i.test(s)) return false;
   return true;
 }
 

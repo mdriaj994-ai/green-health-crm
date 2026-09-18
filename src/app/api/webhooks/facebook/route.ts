@@ -530,7 +530,7 @@ async function transcribeAudioWithGemini(audioUrl: string, accessToken: string =
         form.append("model", "whisper-large-v3");
         form.append("language", "bn");
         form.append("temperature", "0");
-        form.append("prompt", "কাস্টমার জানতে চেয়েছেন: আসসালামু আলাইকুম ভাইয়া, আপনাদের চেম্বার বা দোকান কোথায়? আপনাদের সাথে কোথায় কিভাবে দেখা করতে পারি? কিভাবে অর্ডার করব? কস্তুরী পাউডার, জনতা ইউনানী চিকিৎসালয় আলীকদম বান্দরবান।");
+        form.append("prompt", "আসসালামু আলাইকুম ভাইয়া। আপনার নাম কি? হাকীমের নাম কি? এই কস্তুরী পাউডার কে তৈরি করেছে? আপনাদের চেম্বার কোথায়? আপনাদের সাথে দেখা করতে পারি? কীভাবে খাবো? দাম কত? জনতা ইউনানী চিকিৎসালয়, হাকীম মো: আব্দুল করিম, আলীকদম, বান্দরবান।");
 
         const groqRes = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
           method: "POST",

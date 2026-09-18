@@ -640,11 +640,23 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     return reply;
   }
 
-  // Instant interceptor for customer asking their name (e.g. "amar name jano", "amar name ki", "আমার নাম কি জানো")
-  const isAskingName = /(?:name|nam|naam|নাম)\s*(?:ki|konta|koto|jano|jaano|janen|bolen|bolo|bolun|boloto|mone|mon|ase|ache|জান|জানো|জানেন|বলেন|বলো|বলুন|কি|কী|মনে\s*আছে|আছে)/i.test(trimmedClean) ||
-                       /(?:jano|jaano|janen|জান|জানো|জানেন)\s+(?:amar|amr|আমার)\s+(?:name|nam|naam|নাম)/i.test(trimmedClean) ||
-                       /(?:amar|amr|আমার)\s+(?:name|naam|nam|নাম)\s*(?:ki|jano|jaano|janen|bolen|bolo)/i.test(trimmedClean);
-  if (isAskingName) {
+  // Instant interceptor for Hakim / Doctor / Creator identity inquiry ("আপনার নাম কি", "হাকীমের নাম কি", "কে তৈরি করেছে", "ডাক্তার কে")
+  const isAskingDoctorName = /(?:apnar|আপনার|apnn|আপনন|doctor|ডাক্তার|hakim|হাকিম|হাকীম|hake)s*(?:name|nam|naam|নাম)s*(?:ki|কী|konta|বলেন|bolen|bolun|জানতে)?/i.test(trimmedClean) ||
+                             /(?:name|nam|naam|নাম)s*(?:ki|কী)s*(?:apnar|আপনার|doctor|ডাক্তার|hakim|হাকিম|হাকীম)/i.test(trimmedClean) ||
+                             /(?:ke|কে)s*(?:toiri|তৈরি|ketos*eri|কেটোs*এরি|banay|বানায়|banise|বানিয়েছে)/i.test(trimmedClean) ||
+                             /(?:apnars*porichoy|আপনারs*পরিচয়|পরিচয়s*কি|apnis*ke|আপনিs*কে)/i.test(trimmedClean);
+  if (isAskingDoctorName) {
+    const reply = "জি ভাইয়া, আমি হাকীম মো: আব্দুল করিম বলছি। আমি স্বাস্থ্য মন্ত্রণালয় ও বাংলাদেশ ইউনানী বোর্ডের ক্যাটাগরি-এ নিবন্ধিত চিকিৎসক (রেজি নং: ৫৮৪২/২০১৮), জনতা ইউনানী চিকিৎসালয়, আলীকদম, বান্দরবান। আমাদের কস্তুরী পাউডার ১০০% প্রাকৃতিক ভেষজ উপাদানে আমার নিজস্ব ফর্মুলায় প্রস্তুত করা। বলুন ভাইয়া, আপনাকে কীভাবে সাহায্য করতে পারি?";
+    if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", reply, false);
+    return reply;
+  }
+
+  // Instant interceptor for customer asking about THEIR OWN name ("আমার নাম কি", "আমার নাম জানো", "amar name jano")
+  const isAskingCustomerName = !isAskingDoctorName && (
+    /(?:amar|amr|আমার)s+(?:name|nam|naam|নাম)s*(?:ki|কী|konta|jano|jaano|janen|bolen|bolo|bolun|mone|ase|ache|জান|জানো|জানেন|বলেন|বলো|বলুন|মনে|আছে)/i.test(trimmedClean) ||
+    /(?:jano|jaano|janen|জান|জানো|জানেন)s+(?:amar|amr|আমার)s+(?:name|nam|naam|নাম)/i.test(trimmedClean)
+  );
+  if (isAskingCustomerName) {
     let foundName = "";
     const savedProf = senderId ? customerMemory.getCustomerProfile(senderId) : null;
     if (savedProf && savedProf.name && !["Customer", "কাস্টমার", "ভাইয়া"].includes(savedProf.name) && customerMemory.isValidPersonName(savedProf.name)) {
@@ -664,11 +676,11 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     }
     if (foundName) {
       const reply = `জি ভাইয়া, আপনার নাম তো ${foundName}! বলুন ${foundName} ভাইয়া, কীভাবে সাহায্য করতে পারি?`;
-      if (senderId) customerMemory.appendChatMessage(senderId, "model", reply, false);
+      if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", reply, false);
       return reply;
     }
     const noNameReply = "জি না ভাইয়া, আপনার শুভ নামটি তো এখনো জানা হয়নি। আপনার নামটি যদি বলতেন, খুব ভালো লাগত।";
-    if (senderId) customerMemory.appendChatMessage(senderId, "model", noNameReply, false);
+    if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", noNameReply, false);
     return noNameReply;
   }
 
@@ -1555,7 +1567,7 @@ async function transcribeAudioWithGemini(audioUrl, pageAccessToken = PAGE_TOKEN)
         form.append("model", "whisper-large-v3");
         form.append("language", "bn");
         form.append("temperature", "0");
-        form.append("prompt", "কাস্টমার জানতে চেয়েছেন: আসসালামু আলাইকুম ভাইয়া, আপনাদের চেম্বার বা দোকান কোথায়? আপনাদের সাথে কোথায় কিভাবে দেখা করতে পারি? কিভাবে অর্ডার করব? কস্তুরী পাউডার, জনতা ইউনানী চিকিৎসালয় আলীকদম বান্দরবান।");
+        form.append("prompt", "আসসালামু আলাইকুম ভাইয়া। আপনার নাম কি? হাকীমের নাম কি? এই কস্তুরী পাউডার কে তৈরি করেছে? আপনাদের চেম্বার কোথায়? আপনাদের সাথে দেখা করতে পারি? কীভাবে খাবো? দাম কত? জনতা ইউনানী চিকিৎসালয়, হাকীম মো: আব্দুল করিম, আলীকদম, বান্দরবান।");
 
         const groqRes = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
           method: "POST",
