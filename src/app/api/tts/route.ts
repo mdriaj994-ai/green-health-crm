@@ -140,6 +140,10 @@ function prepareBangladeshiTTSAudioText(rawText: string): string {
   if (!rawText) return "";
   let t = rawText.replace(/[*#_~`>|]/g, "").replace(/\s+/g, " ").trim();
   t = t
+    .replace(/\(\s*(?:বিকাশ\s*\/?\s*নগদ\s*)?হেল্পলাইন\s*[:=]?\s*([0-9০-৯\-]+)\s*\)/gi, "আমাদের হেল্পলাইন নম্বর $1, ")
+    .replace(/\(\s*([0-9০-৯\-]{10,15})\s*\)/gi, "আমাদের হেল্পলাইন নম্বর $1, ")
+    .replace(/হেল্পলাইন\s*[:=]/gi, "হেল্পলাইন নম্বর ")
+    .replace(/[()]/g, ", ")
     .replace(/রেজাউল\s*করিম/gi, "রিয়াজুল করিম")
     .replace(/রেজাউল/gi, "রিয়াজুল")
     .replace(/re[aj]aul\s*karim/gi, "রিয়াজুল করিম")

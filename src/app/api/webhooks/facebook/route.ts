@@ -1283,6 +1283,10 @@ function prepareBangladeshiTTSAudioText(rawText: string): string {
 
   // 4. Convert digits to spoken Bengali words
   t = t
+    .replace(/\(\s*(?:বিকাশ\s*\/?\s*নগদ\s*)?হেল্পলাইন\s*[:=]?\s*([0-9০-৯\-]+)\s*\)/gi, "আমাদের হেল্পলাইন নম্বর $1, ")
+    .replace(/\(\s*([0-9০-৯\-]{10,15})\s*\)/gi, "আমাদের হেল্পলাইন নম্বর $1, ")
+    .replace(/হেল্পলাইন\s*[:=]/gi, "হেল্পলাইন নম্বর ")
+    .replace(/[()]/g, ", ")
     .replace(/২[,.]?৯০০|2[,.]?900/g, "দুই হাজার নয়শত");
   t = convertBengaliNumbersToWords(t);
   t = t
