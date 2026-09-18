@@ -189,6 +189,28 @@ function isTextModeRequested(text) {
 
 // ── Detect if customer is asking about ORDER INFO / HOW TO ORDER ──────────────
 // When this is true, ALWAYS send text (even in voice mode) so customer can read & fill the form
+
+function isPhoneNumberRequest(text, replyText) {
+  if (!text && !replyText) return false;
+  const clean = (text || "").trim().toLowerCase();
+
+  const askedForNumber =
+    /(?:number|namber|numbor|nombor|নম্বর|নাম্বার|ফোন|মোবাইল|phone|mobile|হেল্পলাইন|helpline|হটলাইন|hotline)\s*(?:den|din|dite|দাও|দেন|দিন|পাঠান|দিতে|কত|koto|plz|please|lagbe|হবে|চাই|পাব|হবে\s*কি)?/i.test(clean) ||
+    /(?:kotha\s*bolbo|কথা\s*বলব|কথা\s*বলতে|যোগাযোগ|jogajog|call\s*korbo|কল\s*করব|কল\s*দিতে).*(?:number|নাম্বার|নম্বর|phone|ফোন|দিন|দেন|চাই|কিসে)/i.test(clean) ||
+    /(?:bkash|নগদ|nagad|বিকাশ).*(?:number|নাম্বার|নম্বর|টাকা|পাঠাব)/i.test(clean) ||
+    /(?:নাম্বার|নম্বর|phone|number)\s*(?:টা|টি)?\s*(?:দেন|দিন|দাও|বলেন|বলুন)/i.test(clean);
+
+  if (askedForNumber) return true;
+
+  if (replyText && /(?:01870-023804|01870023804|শূন্য\s*এক\s*আট\s*সাত)/i.test(replyText)) {
+    if (/(?:number|নাম্বার|নম্বর|phone|ফোন|call|কল|কথা|যোগাযোগ|বিকাশ|নগদ)/i.test(clean)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
 function isOrderInfoRequest(text, replyText) {
   if (!text && !replyText) return false;
   const clean = (text || "").trim().toLowerCase();
@@ -1018,6 +1040,24 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     const reply = getNaturalPriceReply(senderName, isVoiceMode);
     if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", reply, false);
     return reply;
+  }
+
+  // Dedicated Phone Number / Helpline / Call / Contact Query
+  const isHelplineOrPhoneQuery = 
+    /(?:number|namber|numbor|nombor|নম্বর|নাম্বার|ফোন|মোবাইল|phone|mobile|হেল্পলাইন|helpline|হটলাইন|hotline)\s*(?:den|din|dite|দাও|দেন|দিন|পাঠান|দিতে|কত|koto|plz|please|lagbe|হবে|চাই|পাব|হবে\s*কি)?/i.test(trimmedClean) ||
+    /(?:kotha\s*bolbo|কথা\s*বলব|কথা\s*বলতে|যোগাযোগ|jogajog|call\s*korbo|কল\s*করব|কল\s*দিতে).*(?:number|নাম্বার|নম্বর|phone|ফোন|দিন|দেন|চাই|কিসে)/i.test(trimmedClean) ||
+    /(?:bkash|নগদ|nagad|বিকাশ).*(?:number|নাম্বার|নম্বর|টাকা|পাঠাব)/i.test(trimmedClean) ||
+    /(?:নাম্বার|নম্বর|phone|number)\s*(?:টা|টি)?\s*(?:দেন|দিন|দাও|বলেন|বলুন)/i.test(trimmedClean);
+
+  if (isHelplineOrPhoneQuery) {
+    if (isVoiceMode) {
+      const voiceNumberReply = "জি ভাইয়া, আমাদের অফিসিয়াল হেল্পলাইন নম্বর হলো শূন্য এক আট সাত শূন্য, শূন্য দুই তিন আট শূন্য চার। আপনার দেখার সুবিধার্থে নম্বরটি নিচে মেসেজেও লিখে দেওয়া হয়েছে ভাইয়া। আপনি সরাসরি কল দিয়ে কথা বলতে পারেন।";
+      if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", voiceNumberReply, true);
+      return voiceNumberReply;
+    }
+    const textNumberReply = `জি ভাইয়া, আমাদের অফিসিয়াল হেল্পলাইন ও সরাসরি যোগাযোগের নম্বর:\n📞 01870-023804 (বিকাশ / নগদ)\n\nআপনি সরাসরি কল দিয়ে কথা বলতে পারেন অথবা যেকোনো পরামর্শের জন্য যোগাযোগ করতে পারেন ভাইয়া।`;
+    if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", textNumberReply, false);
+    return textNumberReply;
   }
 
   // 9. Chamber / Direct Visit / Where to meet (চেম্বার কোথায় / আপনাদের সাথে কীভাবে দেখা করব / সরাসরি এসে নিতে পারব কি)
@@ -2905,11 +2945,18 @@ ${paymentLine}
 
                 // ── If order info requested: ALSO send text version after voice ──
                 // Customer needs to SEE the format to copy & fill it
-                if (isOrderInfoReq) {
-                  await sleep(1500);
+                const isPhoneReq = isPhoneNumberRequest(messageText, replyText);
+                if (isOrderInfoReq || isPhoneReq) {
+                  await sleep(1200);
                   await sendSenderAction(senderId, "typing_on", page.accessToken);
-                  await sendFacebookMessage(senderId, replyText, page.accessToken);
-                  console.log(`[FB_BOT] 📝 [ORDER_INFO] Also sent text version so customer can read the form`);
+                  let companionText = replyText;
+                  if (isPhoneReq && !replyText.includes("01870-023804")) {
+                    companionText = `📞 আমাদের অফিসিয়াল হেল্পলাইন ও বুকিং নম্বর:\n👉 01870-023804 (বিকাশ / নগদ)\n\n(যেকোনো প্রয়োজনে সরাসরি কল দিতে বা কথা বলতে পারেন ভাইয়া)`;
+                  } else if (isPhoneReq) {
+                    companionText = `📞 আমাদের অফিসিয়াল হেল্পলাইন ও বুকিং নম্বর:\n👉 01870-023804 (বিকাশ / নগদ)\n\n(যেকোনো প্রয়োজনে সরাসরি কল দিতে বা কথা বলতে পারেন ভাইয়া)`;
+                  }
+                  await sendFacebookMessage(senderId, companionText, page.accessToken);
+                  console.log(`[FB_BOT] 📝 [COMPANION_TEXT] Also sent text version (phone/order) so customer can copy & dial`);
                 }
               } else {
                 // Voice generation failed → fallback to text

@@ -259,7 +259,7 @@ async function flushSenderEvent(senderId: string) {
     }
 
     // ── Voice Mode & Voice Request Logic ──
-    const { isVoiceMode, setVoiceMode, isOnlyVoiceRequest, isVoiceRequested, isTextModeRequested, isOrderInfoRequest } = await import("@/lib/voice-mode");
+    const { isVoiceMode, setVoiceMode, isOnlyVoiceRequest, isVoiceRequested, isTextModeRequested, isOrderInfoRequest, isPhoneNumberRequest } = await import("@/lib/voice-mode");
     const { getCustomerProfile, updateCustomerProfile } = await import("@/lib/customer-memory");
 
     const custProfile = getCustomerProfile(senderId);
@@ -541,11 +541,18 @@ async function flushSenderEvent(senderId: string) {
           // Voice sent — but if customer asked HOW TO ORDER / WHAT IS NEEDED or reply has order form,
           // ALSO send the text so they can READ and COPY the order form format
           const isOrderInfoReq = isOrderInfoRequest(text, replyText);
-          if (isOrderInfoReq) {
-            await new Promise(r => setTimeout(r, 1500));
+          const isPhoneReq = isPhoneNumberRequest(text, replyText);
+          if (isOrderInfoReq || isPhoneReq) {
+            await new Promise(r => setTimeout(r, 1200));
             await sendSenderAction(senderId, "typing_on", effectiveToken);
-            await sendMessengerReply(pageId, senderId, replyText, effectiveToken, items[items.length - 1].mid || null);
-            console.log(`[ORDER_INFO] 📝 Also sent text version (order form) to ${senderId}`);
+            let companionText = replyText;
+            if (isPhoneReq && !replyText.includes("01870-023804")) {
+              companionText = `📞 আমাদের অফিসিয়াল হেল্পলাইন ও বুকিং নম্বর:\n👉 01870-023804 (বিকাশ / নগদ)\n\n(যেকোনো প্রয়োজনে সরাসরি কল দিতে বা কথা বলতে পারেন ভাইয়া)`;
+            } else if (isPhoneReq) {
+              companionText = `📞 আমাদের অফিসিয়াল হেল্পলাইন ও বুকিং নম্বর:\n👉 01870-023804 (বিকাশ / নগদ)\n\n(যেকোনো প্রয়োজনে সরাসরি কল দিতে বা কথা বলতে পারেন ভাইয়া)`;
+            }
+            await sendMessengerReply(pageId, senderId, companionText, effectiveToken, items[items.length - 1].mid || null);
+            console.log(`[COMPANION_TEXT] 📝 Also sent text version (phone/order) to ${senderId}`);
           }
         }
       } else {

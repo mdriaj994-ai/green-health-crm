@@ -770,6 +770,24 @@ export async function generateAutoReply(
     return reply;
   }
 
+  // Dedicated Phone Number / Helpline / Call / Contact Query
+  const isHelplineOrPhoneQuery = 
+    /(?:number|namber|numbor|nombor|নম্বর|নাম্বার|ফোন|মোবাইল|phone|mobile|হেল্পলাইন|helpline|হটলাইন|hotline)\s*(?:den|din|dite|দাও|দেন|দিন|পাঠান|দিতে|কত|koto|plz|please|lagbe|হবে|চাই|পাব|হবে\s*কি)?/i.test(trimmedClean) ||
+    /(?:kotha\s*bolbo|কথা\s*বলব|কথা\s*বলতে|যোগাযোগ|jogajog|call\s*korbo|কল\s*করব|কল\s*দিতে).*(?:number|নাম্বার|নম্বর|phone|ফোন|দিন|দেন|চাই|কিসে)/i.test(trimmedClean) ||
+    /(?:bkash|নগদ|nagad|বিকাশ).*(?:number|নাম্বার|নম্বর|টাকা|পাঠাব)/i.test(trimmedClean) ||
+    /(?:নাম্বার|নম্বর|phone|number)\s*(?:টা|টি)?\s*(?:দেন|দিন|দাও|বলেন|বলুন)/i.test(trimmedClean);
+
+  if (isHelplineOrPhoneQuery) {
+    if (options.isVoiceMode) {
+      const voiceNumberReply = "জি ভাইয়া, আমাদের অফিসিয়াল হেল্পলাইন নম্বর হলো শূন্য এক আট সাত শূন্য, শূন্য দুই তিন আট শূন্য চার। আপনার দেখার সুবিধার্থে নম্বরটি নিচে মেসেজেও লিখে দেওয়া হয়েছে ভাইয়া। আপনি সরাসরি কল দিয়ে কথা বলতে পারেন।";
+      if (senderId) appendChatMessage(senderId, "model", voiceNumberReply, true);
+      return voiceNumberReply;
+    }
+    const textNumberReply = `জি ভাইয়া, আমাদের অফিসিয়াল হেল্পলাইন ও সরাসরি যোগাযোগের নম্বর:\n📞 01870-023804 (বিকাশ / নগদ)\n\nআপনি সরাসরি কল দিয়ে কথা বলতে পারেন অথবা যেকোনো পরামর্শের জন্য যোগাযোগ করতে পারেন ভাইয়া।`;
+    if (senderId) appendChatMessage(senderId, "model", textNumberReply, false);
+    return textNumberReply;
+  }
+
   // 9. Chamber / Direct Visit / Where to meet (চেম্বার কোথায় / আপনাদের সাথে কীভাবে দেখা করব / সরাসরি এসে নিতে পারব কি)
   const isMeetOrChamber = /(?:dekha|দেখা|meet|chamber|চেম্বার|ঠিকানা|thikana|address|dokan|দোকান|location|লোকেশন|shorashori|সরাসরি)\s*(?:kora|korbo|korte|করব|করতে|করবো|kothay|কোথায়|ase|আছে|jabo|যাব|পাবো|pabo)?/i.test(trimmedClean) ||
                           /(?:kothay|কোথায়|koy|কই)\s*(?:dekha|chamber|চেম্বার|dokan|দোকান|apnader|আপনাদের|pabo|পাবো)/i.test(trimmedClean) ||

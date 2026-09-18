@@ -146,3 +146,25 @@ export function isOrderInfoRequest(text: string, replyText?: string): boolean {
 }
 
 
+
+
+export function isPhoneNumberRequest(text: string, replyText?: string): boolean {
+  if (!text && !replyText) return false;
+  const clean = (text || "").trim().toLowerCase();
+
+  const askedForNumber =
+    /(?:number|namber|numbor|nombor|নম্বর|নাম্বার|ফোন|মোবাইল|phone|mobile|হেল্পলাইন|helpline|হটলাইন|hotline)\s*(?:den|din|dite|দাও|দেন|দিন|পাঠান|দিতে|কত|koto|plz|please|lagbe|হবে|চাই|পাব|হবে\s*কি)?/i.test(clean) ||
+    /(?:kotha\s*bolbo|কথা\s*বলব|কথা\s*বলতে|যোগাযোগ|jogajog|call\s*korbo|কল\s*করব|কল\s*দিতে).*(?:number|নাম্বার|নম্বর|phone|ফোন|দিন|দেন|চাই|কিসে)/i.test(clean) ||
+    /(?:bkash|নগদ|nagad|বিকাশ).*(?:number|নাম্বার|নম্বর|টাকা|পাঠাব)/i.test(clean) ||
+    /(?:নাম্বার|নম্বর|phone|number)\s*(?:টা|টি)?\s*(?:দেন|দিন|দাও|বলেন|বলুন)/i.test(clean);
+
+  if (askedForNumber) return true;
+
+  if (replyText && /(?:01870-023804|01870023804|শূন্য\s*এক\s*আট\s*সাত)/i.test(replyText)) {
+    if (/(?:number|নাম্বার|নম্বর|phone|ফোন|call|কল|কথা|যোগাযোগ|বিকাশ|নগদ)/i.test(clean)) {
+      return true;
+    }
+  }
+
+  return false;
+}
