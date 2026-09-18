@@ -3,25 +3,32 @@
   "name": "রাকিব",
   "age": "",
   "maritalStatus": "",
-  "symptoms": [],
+  "symptoms": [
+    "দ্রুত বীর্যপাত"
+  ],
   "duration": "",
-  "productDiscussed": "Soul Mate (খাঁটি কস্তুরী ফর্মুলা)",
-  "productsDiscussedAll": [],
+  "productDiscussed": "কস্তুরী পাউডার (Kasturi Powder)",
+  "productsDiscussedAll": [
+    "কস্তুরী পাউডার (Kasturi Powder)"
+  ],
   "orderStatus": "inquiry",
   "ordersPlaced": [],
   "phone": "01989765690",
   "district": "জয়পুরহাট",
   "thana": "কালাই",
   "address": "কোড়াড়িপাড়া",
-  "lastVoiceTranscript": "",
+  "lastVoiceTranscript": "রাকিব ভাই, আপনার ৩ মাসের টাইমিংয়ের সমস্যার জন্য আমাদের ১ মাসের ফুল কোর্স সোল মেট খেতে হবে। এটি খাঁটি হরিণের কস্তুরী, শিলাজিৎ ও জিনসেং দিয়ে তৈরি সম্পূর্ণ প্রাকৃতিক ওষুধ, যা ২১ থেকে ৩০ দিন নিয়ম করে সেবনেই আপনার টাইমিং সমস্যা স্থায়ীভাবে সমাধান করবে ইনশাআল্লাহ। এটার ১ মাসের ফুল কোর্সের অফার মূল্য ৩,০০০ টাকা লাগবে। ওষুধটি কি আপনার জয়পুরহাটের ঠিকানায় পাঠাব ভাইয়া?",
   "sessionSummaries": [],
   "firstContact": 1789584636406,
-  "lastContact": 1789754995419,
-  "totalMessages": 8,
-  "prefersVoice": false,
+  "lastContact": 1789757628186,
+  "totalMessages": 24,
+  "prefersVoice": true,
   "facebookName": "Riaj Khan",
   "extraFacts": [],
   "mentionedLocations": [],
-  "allHealthKeywords": [],
-  "budgetMentioned": []
+  "allHealthKeywords": [
+    "দ্রুত বীর্যপাত"
+  ],
+  "budgetMentioned": [],
+  "productSl": "39"
 }

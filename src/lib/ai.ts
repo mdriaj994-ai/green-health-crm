@@ -267,8 +267,8 @@ CRITICAL OPERATIONAL RULES FOR GEMINI FLASH BACKEND:
 4. STRICT ORDER FORM RULES (অর্ডার ফরম দেওয়ার সুনির্দিষ্ট নিয়ম):
    - ABSOLUTE BAN ON UNSOLICITED ORDER FORMS: NEVER provide the order form when the customer is asking questions, asking what a medicine does ("কি কাজ করে", "উপকার কি", "কাজ কি"), asking about ingredients, dosage ("কীভাবে খাবো"), price ("দাম কত"), or having a general consultation!
    - ONLY provide the order form when the customer EXPLICITLY expresses buying/ordering intent (e.g., "নিতে চাই", "অর্ডার করবো", "অর্ডার দিন", "পাঠিয়ে দিন", "কুরিয়ার করে দেন", "বুক করুন", "ঠিকানা দিচ্ছি", "অর্ডার কনফার্ম").
-   - If the customer asks what AMBER or any medicine does (e.g. "AMBER aita ki ki kaj kore"):
-     Reply in 2 to 3 warm, reassuring sentences as Hakim Reajul Karim. Explain that it naturally improves blood flow, testosterone, and stamina with pure Ayurvedic herbs and Swarna Bhasma without any side effects. End with a caring consultation question (e.g. "আপনার সমস্যাটা কত দিনের ভাইয়া?"). NEVER ATTACH THE ORDER FORM!
+   - কাস্টমার যদি জিজ্ঞেস করে ওষুধে কী কী কাজ করে বা কোন ওষুধ খেতে হবে:
+      হাকিম রিয়াজুল করিম হিসেবে আন্তরিক ও আত্মবিশ্বাসী কণ্ঠে বুঝিয়ে বলুন যে আমাদের "কস্তুরী পাউডার (Kasturi Powder)" খাঁটি মৃগনাভি কস্তুরী ও হিমালয়ান শিলাজিতের ১০০% ভেষজ ফর্মুলা। এটি দ্রুত বীর্যপাত স্থায়ীভাবে রোধ করে, গোপনাঙ্গ লোহার মতো দৃঢ় ও শক্ত করে এবং পাতলা বীর্য আঠার মতো ঘন করে। মাত্র ৩ থেকে ৫ দিনেই পরিবর্তন বোঝা যায়। (কখনই আগে থেকে অযাচিত অর্ডার ফরম পাঠাবেন না)।
    - When the customer DOES explicitly confirm they want to order, then and ONLY then provide this EXACT format:
 ভাইয়া, আপনি কি আমাদের প্রোডাক্ট নিতে চাচ্ছেন? নিতে চাইলে নিচের তথ্যগুলো পূরণ করে পাঠিয়ে দিন:
 আপনার
@@ -427,6 +427,81 @@ export async function generateAutoReply(
     if (options.senderId) appendChatMessage(options.senderId, "model", noNameReply);
     return noNameReply;
   }
+
+  // ── KASTURI POWDER COMPREHENSIVE FAQ & SYMPTOM INTERCEPTOR ──
+  // 1. What medicine should I take / Problem advice inquiry (আমার এই সমস্যা, কী ওষুধ খেতে হবে / কী খাবো)
+  const isWhatToTake = /(?:ki|konta|কোনটা|কী|কি)\s*(?:khete|khabo|nebo|lagbe|osudh|medicine|khawa|খাবো|খেতে|নেবো|নেব|ওষুধ|ঔষধ|প্রোডাক্ট|product)/i.test(trimmedClean) ||
+                       /(?:amar|আমার|amr)\s+.*(?:somossa|problem|রোগ|সমস্যা|দুর্বলতা|বীর্যপাত|পাতলা|টাইমিং|নিস্তেজ)/i.test(trimmedClean) ||
+                       /(?:ki\s*somadhan|কী\s*সমাধান|কী\s*করবো|ki\s*korbo)/i.test(trimmedClean);
+  if (isWhatToTake) {
+    const reply = "জি ভাইয়া, আপনার এই সমস্যার জন্য আমাদের প্রধান ও শতভাগ সফল ওষুধ হলো 'কস্তুরী পাউডার (Kasturi Powder)'। এটি খাঁটি মৃগনাভি কস্তুরী, হিমালয়ের বন্য শিলাজিৎ ও কোরিয়ান রেড জিনসেং সমৃদ্ধ ১০০% ভেষজ ফর্মুলা। এটি দ্রুত বীর্যপাত স্থায়ীভাবে রোধ করে, গোপনাঙ্গকে লোহার মতো শক্ত ও টানটান করে এবং পাতলা বীর্য আঠার মতো ঘন করে। মাত্র ৩ থেকে ৫ দিনেই পরিবর্তন বোঝা যায়। প্রোডাক্টটি সম্পর্কে বিস্তারিত জানতে চান ভাইয়া?";
+    if (senderId) appendChatMessage(senderId, "model", reply, false);
+    return reply;
+  }
+
+  // 2. How it works (কীভাবে কাজ করে)
+  const isHowItWorks = /(?:kivabe|kibabe|কীভাবে|কিভাবে|how)\s*(?:kaj|kaaj|কাজ)\s*(?:kore|করে)/i.test(trimmedClean) ||
+                       /(?:kajer\s*dhormo|কাজের\s*ধরন|কাজের\s*পদ্ধতি)/i.test(trimmedClean);
+  if (isHowItWorks) {
+    const reply = "জি ভাইয়া, কস্তুরী পাউডার প্রাকৃতিক মৃগনাভি কস্তুরী ও হিমালয়ান শিলাজিতের মাধ্যমে সরাসরি রক্ত সঞ্চালন বৃদ্ধি করে পুরুষের নিষ্ক্রিয় ও দুর্বল নার্ভে রক্তপ্রবাহ বাড়িয়ে দেয়। ফলে লিঙ্গ দ্রুত পাথরের মতো শক্ত ও দৃঢ় হয়, বীর্য ধারণ ক্ষমতা বহুগুণ বৃদ্ধি পেয়ে দ্রুত বীর্যপাত বন্ধ হয় এবং টেস্টোস্টেরন হরমোন বাড়িয়ে স্থায়ী সক্ষমতা নিশ্চিত করে।";
+    if (senderId) appendChatMessage(senderId, "model", reply, false);
+    return reply;
+  }
+
+  // 3. What problems it solves / Benefits (কী কী কাজ করে / কী ধরনের কাজ করে / কী উপকার)
+  const isWhatItDoes = /(?:ki\s*ki|কী\s*কী)\s*(?:kaj|kaaj|কাজ)\s*(?:kore|করে)/i.test(trimmedClean) ||
+                       /(?:ki\s*dhoron|কী\s*ধরনের|কী\s*উপকার|ki\s*upokar)\s*(?:kaj|কাজ|করে)?/i.test(trimmedClean);
+  if (isWhatItDoes) {
+    const reply = "জি ভাইয়া, আমাদের কস্তুরী পাউডারের প্রধান কাজগুলো হলো:\n১. দ্রুত বীর্যপাত স্থায়ীভাবে রোধ করে দীর্ঘস্থায়ী স্বাভাবিক নিয়ন্ত্রণ তৈরি করে (২০-২৫+ মিনিট)।\n২. গোপনাঙ্গের নিস্তেজতা ও নরম ভাব দূর করে লোহার মতো দৃঢ় ও শক্ত করে।\n৩. পাতলা বীর্য আঠার মতো ঘন ও গাঢ় করে এবং স্বাস্থ্যবান শুক্রাণু বৃদ্ধি করে।\n৪. দীর্ঘদিনের যৌন ক্লান্তি ও স্নায়বিক দুর্বলতা দূর করে তারুণ্যের পূর্ণ স্ট্যামিনা ফিরিয়ে আনে।";
+    if (senderId) appendChatMessage(senderId, "model", reply, false);
+    return reply;
+  }
+
+  // 4. How many days to work (কত দিনে কাজ করে / কত দিন খেতে হবে)
+  const isHowManyDays = /(?:koto|কত|কতো)\s*(?:din|dine|দিন|দিনে)\s*(?:kaj|kaaj|result|fayda|কাজ|ফলাফল|উপকার)/i.test(trimmedClean) ||
+                        /(?:koto\s*din|কত\s*দিন)\s*(?:khete|খাবো|খেতে|use|ব্যবহার)/i.test(trimmedClean);
+  if (isHowManyDays) {
+    const reply = "জি ভাইয়া, কস্তুরী পাউডার সেবন শুরু করার মাত্র ৩ থেকে ৫ দিনের মধ্যেই শরীরে তীব্র পরিবর্তন ও সতেজতা বুঝতে পারবেন। তবে সমস্যাটি পুরোপুরি ও স্থায়ীভাবে নির্মূল করার জন্য নিয়মিত ১ মাসের ফুল কোর্স (২৫০ গ্রাম) সেবন করার পরামর্শ দেওয়া হয়।";
+    if (senderId) appendChatMessage(senderId, "model", reply, false);
+    return reply;
+  }
+
+  // 5. Why buy from us / Why trust / Certificate / Govt license (কেন আপনাদের থেকে নিব / কেন বিশ্বাস করব)
+  const isWhyTrustUs = /(?:keno|কেন)\s*(?:apnader|আপনাদের|নেব|নেবো|বিশ্বাস|biswas|trust)/i.test(trimmedClean) ||
+                       /(?:certificate|license|অনুমোদন|সরকারি|লাইসেন্স|প্রমাণ|proof)/i.test(trimmedClean);
+  if (isWhyTrustUs) {
+    const reply = "জি ভাইয়া, আমাদের কস্তুরী পাউডার স্বাস্থ্য মন্ত্রণালয় ও বাংলাদেশ ইউনানী বোর্ডের ক্যাটাগরি-এ নিবন্ধিত হাকীম মো: আব্দুল করিম (রেজি নং: ৫৮৪২/২০১৮)-এর নিজস্ব প্রস্তুতকৃত (জনতা ইউনানী চিকিৎসালয়, দোকান ৩৩, ৩য় তলা, আলীকদম কাঁচাবাজার, বান্দরবান; ই-ট্রেড লাইসেন্স নং: TRAD/ALIKADAM/0482/2026)। এটি ১০০% প্রাকৃতিক ভেষজ—কোনো কেমিক্যাল বা ক্ষতিকর ভায়াগ্রা নেই, কোনো সাইড এফেক্ট নেই। ওনার সরকারি সনদপত্র ও লাইসেন্সের ছবি আমাদের পেজে দেওয়া আছে।";
+    if (senderId) appendChatMessage(senderId, "model", reply, false);
+    return reply;
+  }
+
+  // 6. Ingredients used (এটিতে কী কী ব্যবহার করেছে / কী কী উপাদান আছে)
+  const isIngredientsQuery = /(?:ki\s*ki|কী\s*কী|ki|কী)\s*(?:upadan|উপাদান|bebohar|ব্যবহার|element|diye\s*toiri|দিয়ে\s*তৈরি)/i.test(trimmedClean) ||
+                             /(?:উপাদান|ingredients)\s*(?:ki|কী|konta|কোনটা)/i.test(trimmedClean);
+  if (isIngredientsQuery) {
+    const reply = "জি ভাইয়া, কস্তুরী পাউডারে ৬টি দুর্লভ ও অতি মূল্যবান প্রাকৃতিক উপাদান ব্যবহার করা হয়েছে:\n১) খাঁটি মৃগনাভি কস্তুরী (Pure Musk Pods)\n২) হিমালয়ের দুর্লভ বন্য শিলাজিৎ (Himalayan Shilajit Resin)\n৩) আসল কোরিয়ান রেড জিনসেং (Korean Red Ginseng)\n৪) অশ্বগন্ধা (Ashwagandha)\n৫) শ্বেত মুসলি ও কাশ্মীরি জাফরান (White Musli & Kashmiri Saffron)\n৬) বিশেষ ভেষজ তালমাখনা, সর্পগন্ধা এবং জয়ফল-জয়ত্রীর পারফেক্ট ব্লেন্ড।";
+    if (senderId) appendChatMessage(senderId, "model", reply, false);
+    return reply;
+  }
+
+  // 7. How to consume / Dosage (কীভাবে খাবো / খাওয়ার নিয়ম)
+  const isUsageRule = /(?:kivabe|kibabe|কীভাবে|কিভাবে|kemne)\s*(?:khabo|khete|sebon|খাবো|খেতে|সেবন|নিয়ম|rule)/i.test(trimmedClean) ||
+                      /(?:khawar|খাওয়ার|খাওয়ার)\s*(?:niyom|নিয়ম|নিয়মাবলী|rule)/i.test(trimmedClean);
+  if (isUsageRule) {
+    const reply = "জি ভাইয়া, প্রতিদিন সকালে খালি পেটে ১ চামচ কস্তুরী পাউডার হালকা কুসুম গরম দুধ অথবা পানিতে মিশিয়ে সেবন করতে হয়। নিয়মিত ১ মাস সেবন করলে ইনশাআল্লাহ স্থায়ী ফলাফল পাবেন।";
+    if (senderId) appendChatMessage(senderId, "model", reply, false);
+    return reply;
+  }
+
+  // 8. Price & Order advance rule (দাম কত / প্রাইস কত)
+  const isPriceQuery = /(?:dam|koto|price|দাম|কত|প্রাইস)\s*(?:koto|টাকা|taka)?/i.test(trimmedClean) ||
+                       /(?:koto\s*taka|কত\s*টাকা)/i.test(trimmedClean);
+  if (isPriceQuery) {
+    const reply = "জি ভাইয়া, আমাদের ২৫০ গ্রামের ১ মাসের ফুল কোর্সের 'কস্তুরী পাউডার'-এর অফার মূল্য মাত্র ২,৮০০ টাকা লাগবে। অর্ডার কনফার্ম করতে ৫০০ টাকা অগ্রিম বিকাশ বা নগদে (হেল্পলাইন: 01870-023804) পরিশোধ করতে হয়, বাকি ২,৩০০ টাকা কুরিয়ারে পার্সেল হাতে পেয়ে ক্যাশ অন ডেলিভারিতে দেখে পরিশোধ করবেন। আপনি কি নিতে চাচ্ছেন ভাইয়া?";
+    if (senderId) appendChatMessage(senderId, "model", reply, false);
+    return reply;
+  }
+
 
   // Extract facts & update permanent customer profile if senderId is present
   if (options.senderId) {

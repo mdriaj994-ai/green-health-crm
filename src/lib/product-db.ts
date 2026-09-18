@@ -161,107 +161,32 @@ export function findProductInDB(query: string): MergedProduct | null {
   const compactQ = normQ.replace(/\s+/g, "");
   if (!normQ) return null;
 
-  // Ignore personal questions or greetings that have no medicine/product inquiry
+  const db = loadMergedDB();
+  const kasturiProd = db.find(p => String(p.sl) === "60") || null;
+  const joubonProd = db.find(p => String(p.sl) === "59") || null;
+  const bajikaranProd = db.find(p => String(p.sl) === "61") || null;
+
   const qLower = (query || "").toLowerCase();
+
+  // Ignore personal questions or greetings that have no medicine/product inquiry
   const isGeneralOrGreeting = /\b(name|naam|nam|নাম|jano|jaano|জানো|আমার নাম|amar naam|amar name|kemon acho|kemon achen|কেমন আছ|কেমন আছেন|hello|hi\b|হ্যালো|হাই|salam|সালাম|assalam|ভালো আছ|valo acho)\b/i.test(qLower);
-  const mentionsMedicine = /\b(osudh|medicine|tablet|capsule|file|oil|cream|gel|ঔষধ|ওষুধ|ট্যাবলেট|ক্যাপসুল|ফাইল|তেল|ক্রিম|জেল|amber|ডোজ|দাম|price)\b/i.test(qLower);
+  const mentionsMedicine = /\b(osudh|medicine|tablet|capsule|file|oil|cream|gel|ঔষধ|ওষুধ|ট্যাবলেট|ক্যাপসুল|ফাইল|তেল|ক্রিম|জেল|ডোজ|দাম|price|কস্তুরী|kasturi|হালুয়া|হালুয়া|যৌবনের রাজা)\b/i.test(qLower);
   if (isGeneralOrGreeting && !mentionsMedicine) {
     return null;
   }
 
-  const db = loadMergedDB();
-
-  const aliases: Record<string, string[]> = {
-    "যৌবনের রাজা": ["যৌবনের রাজা", "যৌবন রাজা", "jouboner raja", "yowboner raja", "yauboner raja", "শামসুর ইসলাম", "কালাম ভাইয়ের মার্কেট", "আলীকদম", "কস্তুরী জাফরান", "আনাম কস্তুরী"],
-    "কস্তুরী পাউডার": ["কস্তুরী পাউডার", "কস্তুরি পাউডার", "kosturi powder", "kasturi powder", "কস্তুরী", "কস্তুরি", "আব্দুল করিম", "হাকিম আব্দুল করিম", "হাকিম মোহাম্মদ আব্দুল করিম", "abdul karim", "জনতা ইউনানী", "আলীকদম কাঁচাবাজার", "দোকান ৩৩"],
-    "বাজীকরণ হালুয়া": ["বাজীকরণ হালুয়া", "বাজীকরণ", "bajikaran halua", "bajikoron halua", "আরিফ", "কবিরাজ আরিফ", "রাঙ্গামাটি", "রিজার্ভ বাজার", "ব্যাংক এশিয়া"],
-    "dream touch": ["dream touch", "dreamtouch", "ড্রিম টাচ", "ড্রিমটাচ", "ড্রিম"],
-    "men's burner": ["men's burner", "mens burner", "men burner", "মেনস বার্নার", "বার্নার"],
-    "men's black velvet": ["men's black velvet", "mens black velvet", "black velvet", "ব্ল্যাক ভেলভেট", "ভেলভেট"],
-    "soul mate": ["soul mate", "soulmate", "সোল মেট", "সোলমেট", "সুল মেট"],
-    "black ginseng": ["black ginseng", "ginseng", "ব্ল্যাক জিনসেং", "জিনসেং"],
-    "egypt gawa": ["egypt gawa", "egypt", "gawa", "ইজিপ্ট", "গাওয়া", "গাওয়া"],
-    "enjoy hunter": ["enjoy hunter", "enjoy", "hunter", "হান্টার"],
-    "hammer of thor": ["hammer of thor", "hammer", "হ্যামার"],
-    "maxman": ["maxman", "ম্যাক্সম্যান"],
-    "titan gel": ["titan gel", "টাইটান জেল"],
-    "viga": ["viga", "ভিগা"],
-    "shark": ["shark", "শার্ক"],
-    "tiger king": ["tiger king", "tiger", "টাইগার কিং"],
-    "rheumarex": ["rheumarex", "রিউমারেক্স"],
-    "amber": ["amber", "ambar", "amber premium", "ambar premium", "আম্বার", "অম্বর", "অ্যাম্বার", "অंबर", "अंबर", "যৌন বিছানা রাজা", "বিছানা রাজা", "bistar raja", "tantra sutra", "gold bhasma", "স্বর্ণ ভস্ম"]
-  };
-
-  // 1. Alias match
-  for (const [key, aliasList] of Object.entries(aliases)) {
-    if (aliasList.some(a => normQ.includes(normalizeStr(a)) || compactQ.includes(normalizeStr(a).replace(/\s+/g, "")))) {
-      const found = db.find(p => normalizeStr(p.name).includes(key));
-      if (found) return found;
-    }
+  // 1. Explicit check for Jouboner Raja
+  if (/যৌবনের\s*রাজা|joubon|yowbon|শামসুর/i.test(qLower)) {
+    return joubonProd;
   }
 
-  // 2. Clean brand name match (without parentheses & with compact space matching)
-  for (const p of db) {
-    const cleanName = p.name.replace(/\s*\([^)]*\)/g, "").trim();
-    const normClean = normalizeStr(cleanName);
-    const compactClean = normClean.replace(/\s+/g, "");
-    if (compactClean.length >= 3 && (compactQ.includes(compactClean) || normQ.includes(normClean))) {
-      return p;
-    }
+  // 2. Explicit check for Bajikaran Halua
+  if (/বাজীকরণ|bajikaran|bajikoron|আরিফ/i.test(qLower)) {
+    return bajikaranProd;
   }
 
-  // 3. Raw name normalized
-  for (const p of db) {
-    const normRaw = normalizeStr(p.name);
-    const compactRaw = normRaw.replace(/\s+/g, "");
-    if (compactRaw.length >= 3 && (compactQ.includes(compactRaw) || normQ.includes(normRaw))) {
-      return p;
-    }
-  }
-
-  // 4. Multi-word token match
-  const stopWords = new Set(["koto", "dam", "ki", "ase", "akhon", "ta", "er", "apnader", "eta", "aita", "price"]);
-  const qWords = normQ.split(" ").filter(w => w.length >= 4 && !stopWords.has(w));
-  if (qWords.length >= 2) {
-    for (const p of db) {
-      const normRaw = normalizeStr(p.name);
-      if (qWords.every(w => normRaw.includes(w))) {
-        return p;
-      }
-    }
-  }
-
-  // 3. Fallback to scoring
-  const results = db.map((item) => {
-    const name = item.name.toLowerCase();
-    const mfg = item.manufacturer.toLowerCase();
-    const dosage = item.dosageForm.toLowerCase();
-    const pain = item.painPoints.toLowerCase();
-    const generic = item.generic.toLowerCase();
-    const customPitch = item.custom_pitch.toLowerCase();
-    const customNote = item.custom_note.toLowerCase();
-
-    let score = 0;
-    const words = normQ.split(/\s+/).filter(Boolean);
-    for (const word of words) {
-      if (word.length < 2) continue;
-      if (name.includes(word)) score += 15;
-      if (customPitch.includes(word)) score += 8;
-      if (customNote.includes(word)) score += 6;
-      if (pain.includes(word)) score += 5;
-      if (generic.includes(word)) score += 4;
-      if (mfg.includes(word)) score += 3;
-      if (dosage.includes(word)) score += 2;
-    }
-
-    return { item, score };
-  });
-
-  results.sort((a, b) => b.score - a.score);
-  const best = results[0];
-
-  if (!best || best.score < 20) return null;
-  return best.item;
+  // 3. Any medicine inquiry, symptom inquiry, or default -> ALWAYS map to Kasturi Powder (SL 60)
+  return kasturiProd;
 }
 
 // Build comprehensive context for Gemini AI prompt
