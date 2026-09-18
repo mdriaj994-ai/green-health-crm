@@ -1392,10 +1392,10 @@ function isMultiplePicturesRequest(text) {
   if (!text) return false;
   const q = text.toLowerCase();
   return (
-    /কয়েকটা|কয়েকটি|কয়েকটা|কয়েকটি|সব|সবগুলো|সবগুলি|আরও|আরো|বেশ\s*কয়েক|কয়টা/i.test(q) ||
+    /কয়েকটা|কয়েকটি|কয়েকটা|কয়েকটি|সব|সবগুলো|সবগুলি|আরও|আরো|বেশ\s*কয়েক|কয়টা|কয়টা/i.test(q) ||
     /multiple|several|all\s*pics?|more\s*pics?|all\s*photos?|different\s*pics?/i.test(q) ||
-    /(?:২|3|৩|4|৪|কয়েক|কয়েক)\s*(?:টা|টি)\s*(?:ছবি|pic|photo)/i.test(q) ||
-    /(?:aro|koyekta|sob|gula|shob)\s*(?:chobi|pic|photo)/i.test(q)
+    /(?:২|3|৩|4|৪|কয়েক|কয়েক)\s*(?:টা|টি)\s*(?:ছবি|সবি|pic|photo)/i.test(q) ||
+    /(?:aro|koyekta|sob|gula|shob)\s*(?:chobi|sobi|pic|photo)/i.test(q)
   );
 }
 
@@ -1423,9 +1423,9 @@ function isPictureRequest(text) {
   if (!text) return false;
   const q = text.toLowerCase();
   return (
-    /chobi|cobi|pic|pik|photo|foto|picture|image|img/i.test(q) ||
-    /ছবি|পিক|পিকচার|ফটো|ইমেজ/i.test(q) ||
-    /dekhte kemon|দেখতে কেমন|samne theke|সামনে থেকে|bastebe kemon|বাস্তবে কেমন/i.test(q)
+    /chobi|cobi|sobi|shobi|pic|pik|photo|foto|picture|image|img/i.test(q) ||
+    /ছবি|সবি|ছবিকি|সবিকি|পিক|পিকচার|ফটো|ইমেজ/i.test(q) ||
+    /dekhte|dekte|দেখতে কেমন|কি রকম দেখতে|কিরকম দেখতে|কেমন দেখতে|বাস্তবে কেমন|সামনে থেকে|দেখব|দেখবো|দেখান|দেখাবেন|দেখতে চাই|দেতে পারবা|দেখতে পারি/i.test(q)
   );
 }
 
@@ -2064,6 +2064,7 @@ async function pollOnce() {
             }
 
             // Check if customer asked for a picture of medicine
+            let productImagesSent = false;
             if (isPictureRequest(messageText)) {
               try {
                 const isMultiple = isMultiplePicturesRequest(messageText);
@@ -2081,11 +2082,13 @@ async function pollOnce() {
                     await sendFacebookImage(senderId, imagesToSend[idx], page.accessToken);
                     if (idx < imagesToSend.length - 1) await sleep(800);
                   }
+                  productImagesSent = true;
                 } else {
                   const imgFile = (matched && (matched.imageFile || matched["ছবি পাথ (Image Path)"] || matched["ফাইলের নাম (File Name)"]))
                     || "kasturi_powder_1.jpg";
                   console.log(`[FB_BOT] Customer asked for picture. Sending "${matched?.name || 'Product'}" image: ${imgFile}`);
                   await sendFacebookImage(senderId, imgFile, page.accessToken);
+                  productImagesSent = true;
                 }
               } catch (imgErr) {
                 console.warn("[FB_BOT_IMG_ERR]", imgErr.message);
@@ -2169,6 +2172,39 @@ async function pollOnce() {
                 certImagesSent = true;
               } catch (certErr) {
                 console.warn("[FB_BOT_CERT_SAFETY_ERR]", certErr.message);
+              }
+            }
+
+            // Guarantee: If bot reply mentions sending a picture OR customer asked for a picture and it wasn't sent yet, ALWAYS deliver product image
+            const mentionsPicInReply = /(?:ছবি|সবি|পিক|পিকচার|ফটো|ইমেজ|বয়াম|বয়ম).*(?:পাঠিয়ে|দিচ্ছি|দিলাম|পাঠাচ্ছি|দিব|পাঠাব|দেখুন|দেওয়া হলো)/i.test(replyText) ||
+                                       /(?:পাঠিয়ে|দিচ্ছি|দিলাম|পাঠাচ্ছি|দিব|পাঠাব).*(?:ছবি|সবি|পিক|পিকচার|ফটো)/i.test(replyText);
+            if (!productImagesSent && (mentionsPicInReply || isPictureRequest(messageText))) {
+              try {
+                const isMultiple = isMultiplePicturesRequest(messageText) || isMultiplePicturesRequest(replyText);
+                const { matched } = getLiveProductInfo(messageText, senderId, recentHistory);
+                const isKasturi = !matched || !matched.name || /কস্তুরী|kasturi/i.test(matched.name);
+
+                if (isKasturi) {
+                  const custProf = customerMemory.getCustomerProfile(senderId);
+                  const previouslySent = Array.isArray(custProf?.sentKasturiImages) ? custProf.sentKasturiImages : [];
+                  const { imagesToSend, updatedHistory } = getNextKasturiImages(previouslySent, isMultiple);
+                  customerMemory.updateCustomerProfile(senderId, { sentKasturiImages: updatedHistory });
+
+                  console.log(`[FB_BOT] Picture referenced in reply/context. Ensuring ${imagesToSend.length} image(s): ${imagesToSend.join(', ')} sent to ${senderId}...`);
+                  for (let idx = 0; idx < imagesToSend.length; idx++) {
+                    await sendFacebookImage(senderId, imagesToSend[idx], page.accessToken);
+                    if (idx < imagesToSend.length - 1) await sleep(800);
+                  }
+                  productImagesSent = true;
+                } else {
+                  const imgFile = (matched && (matched.imageFile || matched["ছবি পাথ (Image Path)"] || matched["ফাইলের নাম (File Name)"]))
+                    || "kasturi_powder_1.jpg";
+                  console.log(`[FB_BOT] Picture referenced in reply. Sending "${matched?.name || 'Product'}" image: ${imgFile}`);
+                  await sendFacebookImage(senderId, imgFile, page.accessToken);
+                  productImagesSent = true;
+                }
+              } catch (picSafeErr) {
+                console.warn("[FB_BOT_PIC_SAFETY_ERR]", picSafeErr.message);
               }
             }
 

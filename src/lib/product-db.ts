@@ -252,10 +252,10 @@ export function isMultiplePicturesRequest(text: string): boolean {
   if (!text) return false;
   const q = text.toLowerCase();
   return (
-    /কয়েকটা|কয়েকটি|কয়েকটা|কয়েকটি|সব|সবগুলো|সবগুলি|আরও|আরো|বেশ\s*কয়েক|কয়টা/i.test(q) ||
+    /কয়েকটা|কয়েকটি|কয়েকটা|কয়েকটি|সব|সবগুলো|সবগুলি|আরও|আরো|বেশ\s*কয়েক|কয়টা|কয়টা/i.test(q) ||
     /multiple|several|all\s*pics?|more\s*pics?|all\s*photos?|different\s*pics?/i.test(q) ||
-    /(?:২|3|৩|4|৪|কয়েক|কয়েক)\s*(?:টা|টি)\s*(?:ছবি|pic|photo)/i.test(q) ||
-    /(?:aro|koyekta|sob|gula|shob)\s*(?:chobi|pic|photo)/i.test(q)
+    /(?:২|3|৩|4|৪|কয়েক|কয়েক)\s*(?:টা|টি)\s*(?:ছবি|সবি|pic|photo)/i.test(q) ||
+    /(?:aro|koyekta|sob|gula|shob)\s*(?:chobi|sobi|pic|photo)/i.test(q)
   );
 }
 
@@ -288,9 +288,9 @@ export function isPictureRequest(text: string): boolean {
   if (!text) return false;
   const q = text.toLowerCase();
   return (
-    /chobi|cobi|pic|pik|photo|foto|picture|image|img/i.test(q) ||
-    /ছবি|পিক|পিকচার|ফটো|ইমেজ/i.test(q) ||
-    /dekhte kemon|দেখতে কেমন|samne theke|সামনে থেকে|bastebe kemon|বাস্তবে কেমন/i.test(q)
+    /chobi|cobi|sobi|shobi|pic|pik|photo|foto|picture|image|img/i.test(q) ||
+    /ছবি|সবি|ছবিকি|সবিকি|পিক|পিকচার|ফটো|ইমেজ/i.test(q) ||
+    /dekhte|dekte|দেখতে কেমন|কি রকম দেখতে|কিরকম দেখতে|কেমন দেখতে|বাস্তবে কেমন|সামনে থেকে|দেখব|দেখবো|দেখান|দেখাবেন|দেখতে চাই|দেতে পারবা|দেখতে পারি/i.test(q)
   );
 }
 

@@ -189,6 +189,7 @@ async function flushSenderEvent(senderId: string) {
     // ── Picture Request Detection: Send authentic medicine photo if asked ──
     let picProduct: any = null;
     let certImagesSent = false;
+    let productImagesSent = false;
     try {
       const { isPictureRequest, isMultiplePicturesRequest, getNextKasturiImages, findProductForImage, isCertificateOrLicenseRequest } = await import("@/lib/product-db");
       if (isPictureRequest(text)) {
@@ -205,6 +206,7 @@ async function flushSenderEvent(senderId: string) {
             await sendMessengerImage(senderId, imagesToSend[idx], effectiveToken);
             if (idx < imagesToSend.length - 1) await sleep(800);
           }
+          productImagesSent = true;
         }
       }
 
@@ -339,6 +341,31 @@ async function flushSenderEvent(senderId: string) {
           certImagesSent = true;
         } catch (certErr) {
           console.warn("[AUTO_REPLY_CERT_ERR]", certErr);
+        }
+      }
+    }
+
+    const mentionsPicInReply = /(?:ছবি|সবি|পিক|পিকচার|ফটো|ইমেজ|বয়াম|বয়ম).*(?:পাঠিয়ে|দিচ্ছি|দিলাম|পাঠাচ্ছি|দিব|পাঠাব|দেখুন|দেওয়া হলো)/i.test(replyText) ||
+                               /(?:পাঠিয়ে|দিচ্ছি|দিলাম|পাঠাচ্ছি|দিব|পাঠাব).*(?:ছবি|সবি|পিক|পিকচার|ফটো)/i.test(replyText);
+    if (!productImagesSent && (mentionsPicInReply || (text && (await import("@/lib/product-db")).isPictureRequest(text)))) {
+      if (effectiveToken) {
+        try {
+          const { isMultiplePicturesRequest, getNextKasturiImages } = await import("@/lib/product-db");
+          const isMultiple = isMultiplePicturesRequest(text || "") || isMultiplePicturesRequest(replyText);
+          const { getCustomerProfile, updateCustomerProfile } = await import("@/lib/customer-memory");
+          const custProf = getCustomerProfile(senderId);
+          const previouslySent = Array.isArray(custProf?.sentKasturiImages) ? custProf.sentKasturiImages : [];
+          const { imagesToSend, updatedHistory } = getNextKasturiImages(previouslySent, isMultiple);
+          updateCustomerProfile(senderId, { sentKasturiImages: updatedHistory });
+
+          console.log(`[AUTO_REPLY_PIC_SAFETY] Picture referenced in reply/context. Ensuring ${imagesToSend.length} image(s) sent to ${senderId}`);
+          for (let idx = 0; idx < imagesToSend.length; idx++) {
+            await sendMessengerImage(senderId, imagesToSend[idx], effectiveToken);
+            if (idx < imagesToSend.length - 1) await sleep(800);
+          }
+          productImagesSent = true;
+        } catch (picSafeErr) {
+          console.warn("[AUTO_REPLY_PIC_SAFETY_ERR]", picSafeErr);
         }
       }
     }
