@@ -1385,6 +1385,7 @@ const KASTURI_POWDER_IMAGES = [
   "kasturi_powder_2.jpg",
   "kasturi_powder_3.jpg",
   "kasturi_powder_4.jpg",
+  "kasturi_powder_5.jpg",
 ];
 
 function isMultiplePicturesRequest(text) {

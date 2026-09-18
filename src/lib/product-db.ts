@@ -244,6 +244,7 @@ export const KASTURI_POWDER_IMAGES = [
   "kasturi_powder_2.jpg",
   "kasturi_powder_3.jpg",
   "kasturi_powder_4.jpg",
+  "kasturi_powder_5.jpg",
 ];
 
 // Check if customer asks for multiple / several / more pictures
