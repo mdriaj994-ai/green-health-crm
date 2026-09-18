@@ -11,6 +11,14 @@ console.log("==========================================");
 console.log("  STARTING SOCIAL INBOX & FB REALTIME BOT ");
 console.log("==========================================");
 
+// Run backfill for any un-synced orders
+try {
+  const { backfillRakibOrder } = require("./backfill_rakib_order.js");
+  backfillRakibOrder();
+} catch (e) {
+  console.warn("[BACKFILL_WARN]", e.message);
+}
+
 // 1. Start Next.js Server on port 3000 binding to 0.0.0.0
 function startNextServer() {
   console.log("[STARTUP] Launching Next.js Server on 0.0.0.0:3000...");

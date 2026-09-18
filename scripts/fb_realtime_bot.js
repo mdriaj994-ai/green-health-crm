@@ -1751,45 +1751,89 @@ async function pollOnce() {
             const replyText = await generateReply(messageText, customerName, senderId, recentHistory, page.pageName, isVoiceReq);
             const parsedOrder = parseOrderFromMessage(messageText);
             const orderPlacedDetected = isOrderPlaced(messageText);
-            console.log(`[ORDER_DETECT] parsed=${parsedOrder ? 'YES phone:'+parsedOrder.phone : 'null'} | isOrderPlaced=${orderPlacedDetected} | msg="${messageText.slice(0,50).replace(/\n/g,' ')}"`);
+            const botConfirmedOrder = /(?:অর্ডারটি|অর্ডার|পার্সেলটি|পার্সেল)\s*(?:সফলভাবে\s*)?(?:কনফার্ম|নিশ্চিত|বুকিং)/i.test(replyText);
+            console.log(`[ORDER_DETECT] parsed=${parsedOrder ? 'YES phone:'+parsedOrder.phone : 'null'} | isOrderPlaced=${orderPlacedDetected} | botConfirmed=${botConfirmedOrder} | msg="${messageText.slice(0,50).replace(/\n/g,' ')}"`);
 
-            if (parsedOrder || orderPlacedDetected) {
-              // Customer gave order info → cancel any pending reminder
+            if (parsedOrder || orderPlacedDetected || botConfirmedOrder) {
+              // Customer gave order info or bot confirmed → cancel any pending reminder
               cancelScheduledReminder(senderId);
 
               // ── AUTO SAVE ORDER TO DASHBOARD ──
               try {
                 const memProf = customerMemory.getCustomerProfile(senderId);
+
+                // Extract any structured fields from bot replyText if bot confirmed
+                let nameFromReply = "";
+                let distFromReply = "";
+                let thanaFromReply = "";
+                let addrFromReply = "";
+                if (replyText) {
+                  const nm = replyText.match(/(?:জি\s+)?([^\s,।.!?]+)\s+ভাই(?:য়া|য়া)?/i);
+                  if (nm && nm[1] && isValidPersonName(nm[1])) nameFromReply = nm[1].trim();
+
+                  const dm = replyText.match(/([^\s,।.!?]+)\s*(?:জেলার|জেলা)/i);
+                  if (dm && dm[1]) distFromReply = dm[1].trim();
+
+                  const tm = replyText.match(/([^\s,।.!?]+)\s*(?:থানার|থানা|উপজেলার|উপজেলা)/i);
+                  if (tm && tm[1]) thanaFromReply = tm[1].trim();
+
+                  const am = replyText.match(/([^\s,।.!?]+)\s*(?:গ্রামের|গ্রাম|এলাকার|এলাকা|রোডের|রোড|ঠিকানায়|ঠিকানা)/i);
+                  if (am && am[1]) addrFromReply = am[1].trim();
+                }
+
+                // Extract phone from messageText, memProf, or chat history
+                const allTextForPhone = [messageText, memProf?.phone, ...(recentHistory || []).map(m => m.text)].join(" ");
+                const enPhoneStr = allTextForPhone.replace(/[০-৯]/g, d => "০১২৩৪৫৬৭৮৯".indexOf(d));
+                const phMatch = enPhoneStr.match(/(?:\+?880|0)?1[3-9]\d{8}/);
+                const detectedPhone = parsedOrder?.phone || memProf?.phone || (phMatch ? (phMatch[0].startsWith("88") ? phMatch[0].slice(2) : phMatch[0]) : "");
+
                 const orderData = {
                   customerName: (parsedOrder?.name && parsedOrder.name.length > 1)
                     ? parsedOrder.name
-                    : (memProf?.name && !["ভাইয়া","customer"].includes(memProf.name.toLowerCase()))
-                      ? memProf.name : customerName,
-                  phone:     parsedOrder?.phone   || memProf?.phone || "",
-                  district:  parsedOrder?.district || memProf?.district || "",
-                  thana:     parsedOrder?.thana    || memProf?.thana || "",
-                  address:   parsedOrder?.address  || memProf?.address || "",
+                    : (nameFromReply && nameFromReply.length > 1)
+                      ? nameFromReply
+                      : (memProf?.name && !["ভাইয়া","customer"].includes(memProf.name.toLowerCase()))
+                        ? memProf.name : customerName,
+                  phone:     detectedPhone,
+                  district:  parsedOrder?.district || distFromReply || memProf?.district || "",
+                  thana:     parsedOrder?.thana    || thanaFromReply || memProf?.thana || "",
+                  address:   parsedOrder?.address  || addrFromReply || memProf?.address || messageText,
                   product:   parsedOrder?.product || memProf?.productDiscussed || (threadMemory.has(senderId) ? threadMemory.get(senderId).name : "") || "Soul Mate (খাঁটি কস্তুরী ফর্মুলা)",
                   quantity:  parsedOrder?.quantity || 1,
                   senderId:  String(senderId),
                   facebookName: memProf?.facebookName || customerName || "",
                   pageId:    String(page.pageId),
                 };
-                console.log(`[ORDER_DATA] name="${orderData.customerName}" phone="${orderData.phone}" district="${orderData.district}"`);
+                console.log(`[ORDER_DATA] name="${orderData.customerName}" phone="${orderData.phone}" district="${orderData.district}" thana="${orderData.thana}" botConfirmed=${botConfirmedOrder}`);
 
+                if (botConfirmedOrder) {
+                  // ── CASE A: Bot AI ALREADY confirmed order to customer in replyText! ──
+                  // Do NOT send rejection/correction error! Save directly to database.
+                  const saved = saveOrderToDb(orderData);
+                  if (saved) {
+                    console.log(`[ORDER] 📦 Bot-confirmed order saved to dashboard for ${orderData.customerName} | Phone: ${orderData.phone}`);
+                  }
+                  try {
+                    const _apiBase = `http://localhost:3000`;
+                    await fetch(`${_apiBase}/api/orders`, {
+                      method: 'POST',
+                      headers: { 'Content-Type': 'application/json' },
+                      body: JSON.stringify(orderData)
+                    }).catch(() => null);
+                  } catch {}
+                } else {
+                  // ── CASE B: Raw customer order submission (check validation) ──
+                  const validation = validateOrderDetails(
+                    orderData.phone,
+                    orderData.district,
+                    orderData.thana,
+                    orderData.address
+                  );
 
-                // ── VALIDATE phone & address BEFORE saving ────────────────
-                const validation = validateOrderDetails(
-                  orderData.phone,
-                  orderData.district,
-                  orderData.thana,
-                  orderData.address
-                );
-
-                if (!validation.valid) {
-                  // ❌ Invalid order — send correction request to customer
-                  const errorLines = validation.issues.map(issue => issue.msg).join("\n\n");
-                  const correctionMsg =
+                  if (!validation.valid) {
+                    // ❌ Invalid order — send correction request to customer
+                    const errorLines = validation.issues.map(issue => issue.msg).join("\n\n");
+                    const correctionMsg =
 `⚠️ আপনার অর্ডারটি গ্রহণ করা সম্ভব হয়নি, কারণ কিছু তথ্য ঠিকমতো পাওয়া যায়নি:
 
 ${errorLines}
@@ -1803,35 +1847,35 @@ ${errorLines}
 
 ✅ সঠিক তথ্য দিলে আমরা সাথে সাথে অর্ডার নিশ্চিত করব ইনশাআল্লাহ।`;
 
-                  await sendSenderAction(senderId, "typing_on", page.accessToken);
-                  await sleep(800);
-                  await sendFacebookMessage(senderId, correctionMsg, page.accessToken);
-                  console.log(`[ORDER_VALIDATE] ❌ Invalid order from ${senderId} — issues: ${validation.issues.map(i=>i.field).join(", ")}`);
-                } else if (orderData.phone) {
-                  // ✅ Valid — save to dashboard
-                  // Save via direct DB
-                  const saved = saveOrderToDb(orderData);
-                  if (saved) {
-                    console.log(`[ORDER] 📦 Order saved to dashboard for ${orderData.customerName} | Product: ${orderData.product} | Qty: ${orderData.quantity}`);
-                  } else {
-                    console.log(`[ORDER] ⚠️ DB save returned false (duplicate or error), trying API fallback...`);
-                  }
-                  // Also save via API (HTTP fallback — ensures 100% persistence on Coolify)
-                  try {
-                    const _apiBase = `http://localhost:3000`;
-                    const _apiRes = await fetch(`${_apiBase}/api/orders`, {
-                      method: 'POST',
-                      headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify(orderData)
-                    }).then(r => r.json()).catch(() => null);
-                    if (_apiRes?.order?.id) {
-                      console.log(`[ORDER] ✅ API fallback saved order! ID: ${_apiRes.order.id}`);
+                    await sendSenderAction(senderId, "typing_on", page.accessToken);
+                    await sleep(800);
+                    await sendFacebookMessage(senderId, correctionMsg, page.accessToken);
+                    console.log(`[ORDER_VALIDATE] ❌ Invalid order from ${senderId} — issues: ${validation.issues.map(i=>i.field).join(", ")}`);
+                  } else if (orderData.phone) {
+                    // ✅ Valid — save to dashboard
+                    // Save via direct DB
+                    const saved = saveOrderToDb(orderData);
+                    if (saved) {
+                      console.log(`[ORDER] 📦 Order saved to dashboard for ${orderData.customerName} | Product: ${orderData.product} | Qty: ${orderData.quantity}`);
                     } else {
-                      console.log(`[ORDER] ⚠️ API fallback result: ${JSON.stringify(_apiRes)}`);
+                      console.log(`[ORDER] ⚠️ DB save returned false (duplicate or error), trying API fallback...`);
                     }
-                  } catch (_apiErr) {
-                    console.warn(`[ORDER_API_ERR]`, _apiErr.message);
-                  }
+                    // Also save via API (HTTP fallback — ensures 100% persistence on Coolify)
+                    try {
+                      const _apiBase = `http://localhost:3000`;
+                      const _apiRes = await fetch(`${_apiBase}/api/orders`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(orderData)
+                      }).then(r => r.json()).catch(() => null);
+                      if (_apiRes?.order?.id) {
+                        console.log(`[ORDER] ✅ API fallback saved order! ID: ${_apiRes.order.id}`);
+                      } else {
+                        console.log(`[ORDER] ⚠️ API fallback result: ${JSON.stringify(_apiRes)}`);
+                      }
+                    } catch (_apiErr) {
+                      console.warn(`[ORDER_API_ERR]`, _apiErr.message);
+                    }
 
                   // ── ALWAYS send confirmation to customer ─────────────────
                   await sleep(600);

@@ -129,27 +129,46 @@ function smartSplitAddress(rawAddress, existingDistrict, existingThana) {
 function parseOrderFromMessage(text) {
   if (!text) return null;
 
-  // Match the order form format:
-  // নাম=...
-  // জেলা=...
-  // থানা=...
-  // রিসিভ ঠিকানা=...
-  // নাম্বার =...
-  const nameMatch     = text.match(/(?:নাম|name)\s*[=:]\s*(.+)/i);
-  const phoneMatch    = text.match(/(?:নাম্বার|number|phone|mobile|mob)\s*[=:]\s*([০-৯0-9\-\+\s]{7,15})/i);
-  const districtMatch = text.match(/(?:জেলা|district|zela)\s*[=:]\s*(.+)/i);
-  const thanaMatch    = text.match(/(?:থানা|thana|upazila|উপজেলা)\s*[=:]\s*(.+)/i);
+  // 1. Explicit form key match (নাম=, নাম্বার=, জেলা=, etc.)
+  const nameMatch     = text.match(/(?:নাম|name)\s*[=:]\s*([^\n,]+)/i) || text.match(/(?:আমার নাম|নাম হলো|নামঃ)\s*([^\n,]+)/i);
+  const phoneMatch    = text.match(/(?:নাম্বার|number|phone|mobile|mob)\s*[=:]\s*([০-৯0-9\-\+\s]{7,15})/i) ||
+                        text.match(/(?:\+?880|0)?1[3-9][০-৯0-9\-\s]{8,12}/);
+  const districtMatch = text.match(/(?:জেলা|district|zela)\s*[=:]\s*([^\n,]+)/i);
+  const thanaMatch    = text.match(/(?:থানা|thana|upazila|উপজেলা)\s*[=:]\s*([^\n,]+)/i);
   const addressMatch  = text.match(/(?:রিসিভ\s*ঠিকানা|ঠিকানা|address|thikana)\s*[=:]\s*(.+)/i);
   const qtyMatch      = text.match(/(?:পরিমাণ|কয়টা|সংখ্যা|quantity|qty|পিস|ফাইল)\s*[=:]\s*([০-৯0-9]+)/i) ||
                         text.match(/([০-৯0-9]+)\s*(?:টা|টি|ফাইল|পিস|কোটা|কৌটা|বোতল|pack|pcs|piece)/i);
 
-  const name     = nameMatch?.[1]?.trim();
-  const rawPhone = phoneMatch?.[1]?.trim().replace(/\s/g, "");
-  const phone    = rawPhone ? bnToEnNum(rawPhone) : "";
-  const rawDistrict = districtMatch?.[1]?.trim() || "";
-  const rawThana    = thanaMatch?.[1]?.trim() || "";
-  const rawAddress  = addressMatch?.[1]?.trim() || "";
+  const name     = nameMatch?.[1]?.trim() || "";
+  const rawPhone = phoneMatch?.[1] ? phoneMatch[1].trim().replace(/\s/g, "") : (phoneMatch?.[0] ? phoneMatch[0].trim().replace(/\s/g, "") : "");
+  const phone    = rawPhone ? bnToEnNum(rawPhone).replace(/^\+?88/, "") : "";
+  let rawDistrict = districtMatch?.[1]?.trim() || "";
+  let rawThana    = thanaMatch?.[1]?.trim() || "";
+  let rawAddress  = addressMatch?.[1]?.trim() || "";
   const product  = detectProductInText(text);
+
+  // If district not explicit, search BD_DISTRICT_LIST in text
+  if (!rawDistrict) {
+    const lowText = text.toLowerCase();
+    for (const d of BD_DISTRICT_LIST) {
+      if (lowText.includes(d)) {
+        rawDistrict = d;
+        break;
+      }
+    }
+  }
+
+  // If thana not explicit, search for word before "থানা" or "উপজেলা"
+  if (!rawThana) {
+    const tm = text.match(/([^\s,]+)\s*(?:থানা|উপজেলা)/i);
+    if (tm && tm[1]) rawThana = tm[1].trim();
+  }
+
+  // If address not explicit, search for village / area keywords
+  if (!rawAddress) {
+    const am = text.match(/([^\s,]+)\s*(?:গ্রাম|রোড|মহল্লা|পাড়া|পাড়া)/i);
+    if (am && am[1]) rawAddress = am[0].trim();
+  }
 
   let quantity = 1;
   if (qtyMatch && qtyMatch[1]) {
@@ -157,17 +176,17 @@ function parseOrderFromMessage(text) {
     if (!isNaN(parsedQty) && parsedQty > 0) quantity = parsedQty;
   }
 
-  // Need at least name + phone to consider it an order
-  if (!name || !phone) return null;
+  // If we have a phone number OR (name + address/district), consider it valid
+  if (!phone && (!name || !rawDistrict)) return null;
 
-  // Smart address split — handles comma-separated inputs
-  const addrParts = smartSplitAddress(rawAddress, rawDistrict, rawThana);
+  // Smart address split
+  const addrParts = smartSplitAddress(rawAddress || text, rawDistrict, rawThana);
 
   return {
     name,
     phone,
-    district: addrParts.district || "",
-    thana:    addrParts.thana    || "",
+    district: addrParts.district || rawDistrict,
+    thana:    addrParts.thana    || rawThana,
     address:  addrParts.address  || rawAddress,
     product:  product || "",
     quantity

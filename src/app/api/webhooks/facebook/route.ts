@@ -357,50 +357,78 @@ async function flushSenderEvent(senderId: string) {
       }
 
       // ── ORDER DETECTION & SAVE ─────────────────────────────────────────────
+      // ── ORDER DETECTION & SAVE ─────────────────────────────────────────────
       // Detect if this message contains order information and save to dashboard
       try {
-        const { parseOrderFromMessage } = require("../../../../../scripts/save_order_to_db.js");
+        const { parseOrderFromMessage, saveOrderToDb } = require("../../../../../scripts/save_order_to_db.js");
         const parsedOrder = parseOrderFromMessage(text);
+        const botConfirmedOrder = /(?:অর্ডারটি|অর্ডার|পার্সেলটি|পার্সেল)\s*(?:সফলভাবে\s*)?(?:কনফার্ম|নিশ্চিত|বুকিং)/i.test(replyText || "");
 
         // Also check phone number pattern for order detection
-        const enText = text.replace(/[০-৯]/g, (d: string) => "০১২৩৪৫৬৭৮৯".indexOf(d).toString());
-        const hasPhone = /01[3-9]\d{8}/.test(enText);
+        const allTextForPhone = [text, (replyText || ""), (custProfile as any)?.phone].join(" ");
+        const enText = allTextForPhone.replace(/[০-৯]/g, (d: string) => "০১২৩৪৫৬৭৮৯".indexOf(d).toString());
+        const phoneMatch = enText.match(/(?:\+?880|0)?1[3-9]\d{8}/);
+        const hasPhone = Boolean(phoneMatch);
         const hasOrderForm = /(?:নাম\s*[=:]|নাম্বার\s*[=:]|ঠিকানা\s*[=:]|জেলা\s*[=:]|থানা\s*[=:])/.test(text);
-        const isOrderMsg = Boolean(parsedOrder) || hasOrderForm || hasPhone;
+        const isOrderMsg = Boolean(parsedOrder) || hasOrderForm || hasPhone || botConfirmedOrder;
 
-        console.log(`[ORDER_DETECT] parsed=${parsedOrder ? 'YES phone:'+parsedOrder.phone : 'null'} | hasPhone=${hasPhone} | hasForm=${hasOrderForm} | text="${text.slice(0,50).replace(/\n/g,' ')}"`);
+        console.log(`[ORDER_DETECT] parsed=${parsedOrder ? 'YES phone:'+parsedOrder.phone : 'null'} | hasPhone=${hasPhone} | botConfirmed=${botConfirmedOrder} | text="${text.slice(0,50).replace(/\n/g,' ')}"`);
 
-        if (isOrderMsg && parsedOrder?.phone) {
-          const custProf = custProfile || {};
+        if (isOrderMsg && (parsedOrder?.phone || hasPhone || botConfirmedOrder)) {
+          const custProf = (custProfile || {}) as any;
+
+          // Extract any fields from bot replyText if bot confirmed
+          let nameFromReply = "";
+          let distFromReply = "";
+          let thanaFromReply = "";
+          let addrFromReply = "";
+          if (replyText) {
+            const nm = replyText.match(/(?:জি\s+)?([^\s,।.!?]+)\s+ভাই(?:য়া|য়া)?/i);
+            if (nm && nm[1]) nameFromReply = nm[1].trim();
+
+            const dm = replyText.match(/([^\s,।.!?]+)\s*(?:জেলার|জেলা)/i);
+            if (dm && dm[1]) distFromReply = dm[1].trim();
+
+            const tm = replyText.match(/([^\s,।.!?]+)\s*(?:থানার|থানা|উপজেলার|উপজেলা)/i);
+            if (tm && tm[1]) thanaFromReply = tm[1].trim();
+
+            const am = replyText.match(/([^\s,।.!?]+)\s*(?:গ্রামের|গ্রাম|এলাকার|এলাকা|রোডের|রোড|ঠিকানায়|ঠিকানা)/i);
+            if (am && am[1]) addrFromReply = am[1].trim();
+          }
+
+          const detectedPhone = parsedOrder?.phone || custProf.phone || (phoneMatch ? (phoneMatch[0].startsWith("88") ? phoneMatch[0].slice(2) : phoneMatch[0]) : "");
+
           const orderData = {
-            customerName: parsedOrder.name || resolvedCustomerName || "অজ্ঞাত",
-            phone:        parsedOrder.phone,
-            district:     parsedOrder.district || (custProf as any).district || "",
-            thana:        parsedOrder.thana    || (custProf as any).thana    || "",
-            address:      parsedOrder.address  || (custProf as any).address  || "",
-            product:      parsedOrder.product  || "Soul Mate (খাঁটি কস্তুরী ফর্মুলা)",
-            quantity:     parsedOrder.quantity || 1,
+            customerName: parsedOrder?.name || nameFromReply || custProf.name || resolvedCustomerName || "অজ্ঞাত",
+            phone:        detectedPhone,
+            district:     parsedOrder?.district || distFromReply || custProf.district || "",
+            thana:        parsedOrder?.thana    || thanaFromReply || custProf.thana    || "",
+            address:      parsedOrder?.address  || addrFromReply  || custProf.address  || text,
+            product:      parsedOrder?.product  || custProf.productDiscussed || "Soul Mate (খাঁটি কস্তুরী ফর্মুলা)",
+            quantity:     parsedOrder?.quantity || 1,
             senderId:     String(senderId),
             facebookName: resolvedCustomerName || senderId,
             pageId:       String(pageId),
           };
 
-          console.log(`[ORDER_DATA] name="${orderData.customerName}" phone="${orderData.phone}" district="${orderData.district}" thana="${orderData.thana}"`);
+          console.log(`[ORDER_DATA] name="${orderData.customerName}" phone="${orderData.phone}" district="${orderData.district}" thana="${orderData.thana}" botConfirmed=${botConfirmedOrder}`);
 
-          // Save via HTTP API (most reliable on Coolify)
+          // 1. Direct DB Save (bulletproof)
+          saveOrderToDb(orderData);
+
+          // 2. Also notify HTTP API
           try {
-            const orderRes = await fetch("http://localhost:3000/api/orders", {
+            await fetch("http://localhost:3000/api/orders", {
               method: "POST",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify(orderData),
-            }).then(r => r.json()).catch(() => null);
+            }).catch(() => null);
+          } catch {}
 
-            if (orderRes?.order?.id) {
-              console.log(`[ORDER] ✅ Order saved! ID: ${orderRes.order.id} | Customer: ${orderData.customerName}`);
-
-              // Send confirmation message to customer
-              const refNum = `ORD-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(1000+Math.random()*9000)}`;
-              const confirmMsg =
+          if (!botConfirmedOrder) {
+            // Send confirmation message to customer only if bot hasn't already sent confirmation
+            const refNum = `ORD-${new Date().toISOString().slice(0,10).replace(/-/g,'')}-${Math.floor(1000+Math.random()*9000)}`;
+            const confirmMsg =
 `🎉 অর্ডার কনফার্ম হয়েছে! ধন্যবাদ! 🙏
 
 ━━━━━━━━━━━━━━━━━━━━
@@ -419,24 +447,19 @@ async function flushSenderEvent(senderId: string) {
 ⚠️ তথ্যে ভুল থাকলে এখনই জানান।
 💚 সুস্থ থাকুন, ভালো থাকুন।`;
 
-              await sendSenderAction(senderId, "typing_on", effectiveToken);
-              // ── ORDER CONFIRM: Always send TEXT receipt ────────────────
-              await sendMessengerReply(pageId, senderId, confirmMsg, effectiveToken);
-              console.log(`[ORDER_CONFIRM] ✅ Confirmation (text) sent to ${senderId}`);
+            await sendSenderAction(senderId, "typing_on", effectiveToken);
+            // ── ORDER CONFIRM: Always send TEXT receipt ────────────────
+            await sendMessengerReply(pageId, senderId, confirmMsg, effectiveToken);
+            console.log(`[ORDER_CONFIRM] ✅ Confirmation (text) sent to ${senderId}`);
 
-              // ── ORDER CONFIRM: Also send VOICE note if customer is in voice mode
-              if (isVoiceMode(senderId)) {
-                const voiceConfirm = `আলহামদুলিল্লাহ ভাইয়া! আপনার অর্ডারটি কনফার্ম হয়ে গেছে। ${orderData.customerName} ভাইয়ার নামে ${orderData.product} অর্ডার নেওয়া হয়েছে। আপনার মোবাইল নম্বরে ডেলিভারিম্যান কল করবে সরাসরি। ধন্যবাদ ভাইয়া, সুস্থ থাকুন।`;
-                await new Promise(r => setTimeout(r, 1200));
-                await sendSenderAction(senderId, "typing_on", effectiveToken);
-                await sendMessengerVoiceNote(senderId, voiceConfirm, effectiveToken);
-                console.log(`[ORDER_CONFIRM] 🎙️ Confirmation (voice) sent to ${senderId}`);
-              }
-            } else {
-              console.warn(`[ORDER_SAVE_FAIL] API returned:`, JSON.stringify(orderRes));
+            // ── ORDER CONFIRM: Also send VOICE note if customer is in voice mode
+            if (isVoiceMode(senderId)) {
+              const voiceConfirm = `আলহামদুলিল্লাহ ভাইয়া! আপনার অর্ডারটি কনফার্ম হয়ে গেছে। ${orderData.customerName} ভাইয়ার নামে ${orderData.product} অর্ডার নেওয়া হয়েছে। আপনার মোবাইল নম্বরে ডেলিভারিম্যান কল করবে সরাসরি। ধন্যবাদ ভাইয়া, সুস্থ থাকুন।`;
+              await new Promise(r => setTimeout(r, 1200));
+              await sendSenderAction(senderId, "typing_on", effectiveToken);
+              await sendMessengerVoiceNote(senderId, voiceConfirm, effectiveToken);
+              console.log(`[ORDER_CONFIRM] 🎙️ Confirmation (voice) sent to ${senderId}`);
             }
-          } catch (orderApiErr: any) {
-            console.warn(`[ORDER_API_ERR]`, orderApiErr.message);
           }
         }
       } catch (orderDetectErr: any) {
