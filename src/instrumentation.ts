@@ -1,7 +1,14 @@
 // src/instrumentation.ts
-// Background bot is managed exclusively by scripts/fb_realtime_bot.js to avoid duplicate bot processes.
+// Automatically registers background poller on Next.js server startup
 
 export async function register() {
-  // Next.js instrumentation intentionally does not launch background pollers
-  // Single-source-of-truth bot is scripts/fb_realtime_bot.js
+  if (process.env.NEXT_RUNTIME === "nodejs") {
+    console.log("[INSTRUMENTATION] Bootstrapping 24/7 background messenger poller on Next.js runtime...");
+    try {
+      const { startMessengerPoller } = await import("@/lib/messenger-poller");
+      startMessengerPoller();
+    } catch (err: any) {
+      console.warn("[INSTRUMENTATION_WARN] Failed to start poller:", err.message);
+    }
+  }
 }
