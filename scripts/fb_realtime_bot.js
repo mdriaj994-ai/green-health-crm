@@ -38,11 +38,11 @@ function getTimeAwareGreeting() {
 const { parseOrderFromMessage, saveOrderToDb } = require("./save_order_to_db.js");
 
 
-const PAGE_ID = process.env.FACEBOOK_PAGE_ID || "932259009980880";
-const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAjkLPT8UegBSS7FFS7CknaL7eRbabMG9g7TJZCu4SQ20ea2sRDLSEZBX2RJlV0yYXneKCHX50m43kYnNUE6LKE6WizMRwsnoCw7fBzyeF88NEZCdb0nu68OmfDZC6rExH9LiWIjxJTPtZBw9m6cSUT98VoIzToz6ZAGV7BJylUTKo1WZC4wFEBk6aAs9KuhsSN17Jp";
+const PAGE_ID = process.env.FACEBOOK_PAGE_ID || "110644118793600";
+const PAGE_TOKEN = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAW6YWihfogBSY4RXyOpTmUMHfuJKokNMjlEQ3rdBuQc6BELYPwGLhfrMldpWsZA2CwZBXrjuB6bfpH2VrqVm2AVcs3lkZApVZA8bEPyivSudibUjN5vdNNuBY82ZBezIOlyL8g7mBOoxgVhyJtKt7MJMTFrbFZC77ZCshT4ZATflRUkhhkUC9lkib8O3sfMpaN1mtwZD";
 const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID || "1612302413561480";
 const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET || "a41c4fa1bcb53a17c301a2e68263a65c";
-const FACEBOOK_PAGE_ID = process.env.FACEBOOK_PAGE_ID || "932259009980880";
+const FACEBOOK_PAGE_ID = process.env.FACEBOOK_PAGE_ID || "110644118793600";
 
 const GEMINI_KEYS = Array.from(new Set([
   process.env.GEMINI_API_KEY,
@@ -72,11 +72,11 @@ function getActivePages() {
   } catch (e) {
     console.warn("[FB_BOT] DB load pages error:", e.message);
   }
-  // Fallback to .env configuration if DB is empty or inaccessible
+  // Fallback to primary configured page if DB is empty or inaccessible
   return [{
     id: "default-env",
     pageId: PAGE_ID,
-    pageName: "হেলথ কেয়ার",
+    pageName: "গ্রীন হেলথ ইউনানী ফার্মেসী",
     accessToken: PAGE_TOKEN,
     aiAutoReply: true
   }];
@@ -2184,7 +2184,8 @@ async function startBot() {
       // Validate current DB token
       const _check = await fetch("https://graph.facebook.com/v19.0/me?access_token=" + _cur).then(r => r.json()).catch(() => ({}));
       if (_check.id) {
-        console.log("[STARTUP] ✅ Facebook token is valid. Page:", _check.name);
+        _db.prepare("UPDATE ConnectedAccount SET pageId = ?, pageName = ? WHERE platform = 'FACEBOOK' AND accessToken = ?").run(_check.id, _check.name || "গ্রীন হেলথ ইউনানী ফার্মেসী", _cur);
+        console.log("[STARTUP] ✅ Facebook token is valid. Page:", _check.name, "ID:", _check.id);
         _db.close();
         return;
       }
@@ -2193,9 +2194,9 @@ async function startBot() {
       console.log("[STARTUP] ⚠️ DB token expired. Trying permanent token...");
       const _check2 = await fetch("https://graph.facebook.com/v19.0/me?access_token=" + HARD_TOKEN).then(r => r.json()).catch(() => ({}));
       if (_check2.id) {
-        _db.prepare("UPDATE ConnectedAccount SET accessToken = ?, pageId = ?, pageName = ? WHERE platform = 'FACEBOOK'").run(HARD_TOKEN, PAGE_ID, "হেলথ কেয়ার");
+        _db.prepare("UPDATE ConnectedAccount SET accessToken = ?, pageId = ?, pageName = ? WHERE platform = 'FACEBOOK'").run(HARD_TOKEN, _check2.id, _check2.name || "গ্রীন হেলথ ইউনানী ফার্মেসী");
         _db.close();
-        console.log("[STARTUP] ✅ Permanent token restored! Page:", _check2.name);
+        console.log("[STARTUP] ✅ Permanent token restored! Page:", _check2.name, "ID:", _check2.id);
         return;
       }
 
