@@ -9,7 +9,7 @@ COPY package*.json ./
 COPY prisma ./prisma/
 
 # Install all dependencies including build-time tools
-RUN npm ci --engine-strict=false
+RUN npm ci --engine-strict=false && npm cache clean --force
 
 # Copy application source code
 COPY . .
@@ -18,6 +18,9 @@ COPY . .
 RUN npx prisma generate
 ENV NODE_OPTIONS="--max-old-space-size=2048"
 RUN npm run build
+
+# Remove build-only compiler tools to shrink image and conserve disk space
+RUN apt-get purge -y --auto-remove python3 make g++ && rm -rf /var/lib/apt/lists/*
 
 # Configure runtime environment
 ENV NODE_ENV=production
