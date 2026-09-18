@@ -8,17 +8,15 @@ RUN apt-get update -y && apt-get install -y openssl python3 make g++ && rm -rf /
 COPY package*.json ./
 COPY prisma ./prisma/
 
-# Force development mode at build time so devDependencies are installed
-ENV NODE_ENV=development
-
-# Install all dependencies including build-time tools
-RUN npm ci --engine-strict=false && npm cache clean --force
+# Install all dependencies including devDependencies needed for build
+RUN npm ci --include=dev --engine-strict=false && npm cache clean --force
 
 # Copy application source code
 COPY . .
 
-# Generate Prisma Client and compile Next.js application
+# Generate Prisma Client and compile Next.js application in production mode
 RUN npx prisma generate
+ENV NODE_ENV=production
 ENV NODE_OPTIONS="--max-old-space-size=2048"
 RUN npm run build
 
