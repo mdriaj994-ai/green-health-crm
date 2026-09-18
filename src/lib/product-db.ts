@@ -239,6 +239,50 @@ ${product.dietary}
 }
 
 // Check if a customer query is asking for a photo/picture/appearance of the medicine
+export const KASTURI_POWDER_IMAGES = [
+  "kasturi_powder_1.jpg",
+  "kasturi_powder_2.jpg",
+  "kasturi_powder_3.jpg",
+  "kasturi_powder_4.jpg",
+];
+
+// Check if customer asks for multiple / several / more pictures
+export function isMultiplePicturesRequest(text: string): boolean {
+  if (!text) return false;
+  const q = text.toLowerCase();
+  return (
+    /কয়েকটা|কয়েকটি|কয়েকটা|কয়েকটি|সব|সবগুলো|সবগুলি|আরও|আরো|বেশ\s*কয়েক|কয়টা/i.test(q) ||
+    /multiple|several|all\s*pics?|more\s*pics?|all\s*photos?|different\s*pics?/i.test(q) ||
+    /(?:২|3|৩|4|৪|কয়েক|কয়েক)\s*(?:টা|টি)\s*(?:ছবি|pic|photo)/i.test(q) ||
+    /(?:aro|koyekta|sob|gula|shob)\s*(?:chobi|pic|photo)/i.test(q)
+  );
+}
+
+// Get next Kasturi Powder image(s) for a customer with smart rotation & variety
+export function getNextKasturiImages(
+  previouslySent: string[] = [],
+  isMultiple: boolean = false
+): { imagesToSend: string[]; updatedHistory: string[] } {
+  let available = KASTURI_POWDER_IMAGES.filter(img => !previouslySent.includes(img));
+  if (available.length === 0) {
+    available = [...KASTURI_POWDER_IMAGES];
+  }
+
+  let imagesToSend: string[] = [];
+  if (isMultiple) {
+    const count = Math.min(available.length, 3);
+    imagesToSend = available.slice(0, count);
+  } else {
+    imagesToSend = [available[0]];
+  }
+
+  const combined = [...new Set([...previouslySent, ...imagesToSend])];
+  const updatedHistory = combined.length >= KASTURI_POWDER_IMAGES.length ? imagesToSend : combined;
+
+  return { imagesToSend, updatedHistory };
+}
+
+// Check if a customer query is asking for a photo/picture/appearance of the medicine
 export function isPictureRequest(text: string): boolean {
   if (!text) return false;
   const q = text.toLowerCase();
@@ -249,7 +293,7 @@ export function isPictureRequest(text: string): boolean {
   );
 }
 
-// Locate matching product with image for a query, falling back to chat history or flagship formula
+// Locate matching product with image for a query, falling back to chat history or Kasturi Powder
 export function findProductForImage(
   text: string,
   chatHistory?: { sender: "CUSTOMER" | "AGENT"; text: string }[]
@@ -272,18 +316,17 @@ export function findProductForImage(
     }
   }
 
-  // 3. Fallback to flagship course formula (Soul Mate / Dream Touch / Black Ginseng)
+  // 3. Fallback to Kasturi Powder flagship
   const db = loadMergedDB();
-  const flagship = db.find(p =>
-    p.name.includes("সোল মেট") ||
-    p.name.includes("Soul") ||
-    p.name.includes("ড্রিম") ||
-    p.name.includes("Dream") ||
-    p.name.includes("জিনসেং") ||
-    p.name.includes("Ginseng")
-  );
+  const kasturi = db.find(p => String(p.sl) === "60" || p.name.includes("কস্তুরী"));
+  if (kasturi) {
+    return {
+      ...kasturi,
+      imageFile: kasturi.imageFile || "kasturi_powder_1.jpg"
+    };
+  }
 
-  return flagship || db[0] || null;
+  return db[0] || null;
 }
 
 // Check if customer query is asking for certificate / trade license / govt approval / Hakim qualifications

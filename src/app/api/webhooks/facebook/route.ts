@@ -190,13 +190,21 @@ async function flushSenderEvent(senderId: string) {
     let picProduct: any = null;
     let certImagesSent = false;
     try {
-      const { isPictureRequest, findProductForImage, isCertificateOrLicenseRequest } = await import("@/lib/product-db");
+      const { isPictureRequest, isMultiplePicturesRequest, getNextKasturiImages, findProductForImage, isCertificateOrLicenseRequest } = await import("@/lib/product-db");
       if (isPictureRequest(text)) {
-        picProduct = findProductForImage(text, chatHistory);
-        const imgToSend = picProduct?.imageFile || "WhatsApp Image 2026-08-31 at 2.35.30 PM.jpeg";
+        const isMultiple = isMultiplePicturesRequest(text);
+        const { getCustomerProfile, updateCustomerProfile } = await import("@/lib/customer-memory");
+        const custProf = getCustomerProfile(senderId);
+        const previouslySent = Array.isArray(custProf?.sentKasturiImages) ? custProf.sentKasturiImages : [];
+        const { imagesToSend, updatedHistory } = getNextKasturiImages(previouslySent, isMultiple);
+        updateCustomerProfile(senderId, { sentKasturiImages: updatedHistory });
+
         if (effectiveToken) {
-          console.log(`[AUTO_REPLY_PIC] Customer requested picture. Sending (${imgToSend}) to ${senderId}`);
-          await sendMessengerImage(senderId, imgToSend, effectiveToken);
+          console.log(`[AUTO_REPLY_PIC] Customer asked for Kasturi picture (${isMultiple ? 'multiple' : 'single'}). Sending ${imagesToSend.length} image(s): ${imagesToSend.join(', ')} to ${senderId}`);
+          for (let idx = 0; idx < imagesToSend.length; idx++) {
+            await sendMessengerImage(senderId, imagesToSend[idx], effectiveToken);
+            if (idx < imagesToSend.length - 1) await sleep(800);
+          }
         }
       }
 
