@@ -2418,11 +2418,10 @@ async function pollOnce() {
 
           if (unrepliedCustomerMsgs.length === 0) continue;
 
-          // 2. Webhook Priority Buffer:
-          // If the newest message arrived less than 15 seconds ago, let the real-time Webhook handle it!
+          // 2. Rapid typing buffer (merge consecutive messages sent within 2.5 seconds)
           const newestMsg = unrepliedCustomerMsgs[0];
           const newestAge = Date.now() - new Date(newestMsg.created_time).getTime();
-          if (newestAge < 15000) {
+          if (newestAge < 2500) {
             continue;
           }
 
