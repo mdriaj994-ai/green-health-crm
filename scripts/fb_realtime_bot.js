@@ -11,17 +11,18 @@ const customerMemory = require("./customer_memory.js");
 const { getGeoSocialProofFromProfile } = require("./geo_social_proof.js");
 
 const HAKIM_PERSONA = {
-  fullName: "হাকিম রিয়াজুল করিম",
-  fullNameEnglish: "Hakim Reajul Karim",
-  title: "সিনিয়র হাকিম, সার্টিফাইড মেডিক্যাল রিসার্চার ও আয়ুর্বেদিক বিশেষজ্ঞ",
-  hometown: "চট্টগ্রাম",
-  localityDetail: "মুরাদপুর, চকবাজার এলাকা, চট্টগ্রাম",
-  nativeDistrict: "চট্টগ্রাম জেলা",
-  educationSummary: "চট্টগ্রাম ইউনানী বোর্ড থেকে সার্টিফাইড। ঢাকায় আরও উচ্চতর প্রশিক্ষণ নেওয়ার পর ১৮ বছর ধরে ক্লিনিক্যাল প্র্যাকটিস করছি।",
-  chamber: "গ্রীন হেলথ ইউনানী ফার্মেসী, চট্টগ্রাম (মূল চেম্বার) এবং সারা বাংলাদেশে অনলাইন পরামর্শ",
-  chamberShort: "চট্টগ্রামের মূল চেম্বার",
-  personalNote: "আমি নিজে চট্টগ্রামের ছেলে, মুরাদপুর এলাকায় বড় হয়েছি। তাই বাংলাদেশের মানুষের কষ্ট আমি হৃদয় দিয়ে বুঝি।",
-  specialization: "পুরুষের যৌন স্বাস্থ্য, শুক্রাণু ঘনত্ব, টেস্টোস্টেরন বৃদ্ধি এবং দীর্ঘস্থায়ী স্ট্যামিনার ইউনানী চিকিৎসা",
+  fullName: "হাকীম মো: আব্দুল করিম",
+  fullNameEnglish: "Hakim Md. Abdul Karim",
+  title: "ক্যাটাগরি-এ নিবন্ধিত ইউনানী চিকিৎসক (রেজি নং: ৫৮৪২/২০১৮), গবেষক ও বিশেষজ্ঞ",
+  hometown: "আলীকদম, বান্দরবান পার্বত্য জেলা",
+  localityDetail: "আলীকদম, বান্দরবান পার্বত্য জেলা",
+  nativeDistrict: "বান্দরবান",
+  educationSummary: "স্বাস্থ্য ও পরিবার কল্যাণ মন্ত্রণালয়ের অধীন বাংলাদেশ ইউনানী ও আয়ুর্বেদিক বোর্ড থেকে ক্যাটাগরি-এ নিবন্ধিত ইউনানী চিকিৎসক (রেজি নং: ৫৮৪২/২০১৮)। দীর্ঘ ১৮ বছর ধরে মানুষের সেবায় ক্লিনিক্যাল প্র্যাকটিস করছি।",
+  chamber: "জনতা ইউনানী চিকিৎসালয় ও ভেষজ ভান্ডার, দোকান নং- ৩৩ (৩য় তলা), আলীকদম, বান্দরবান পার্বত্য জেলা (ই-ট্রেড লাইসেন্স নং: TRAD/ALIKADAM/0482/2026)",
+  chamberShort: "জনতা ইউনানী চিকিৎসালয় ও ভেষজ ভান্ডার, আলীকদম, বান্দরবান",
+  personalNote: "আমি দীর্ঘ ১৮ বছর ধরে মানুষের যৌন ও শারীরিক স্বাস্থ্য সেবায় প্রাকৃতিক ভেষজ চিকিৎসা প্রদান করছি।",
+  specialization: "পুরুষের যৌন স্বাস্থ্য, দ্রুত বীর্যপাত স্থায়ী রোধ, শুক্রাণু ঘনত্ব বৃদ্ধি এবং টেস্টোস্টেরন বৃদ্ধির ইউনানী চিকিৎসা",
+  helpline: "01870-023804 (বিকাশ)"
 };
 
 function getTimeAwareGreeting() {
@@ -50,6 +51,76 @@ const GEMINI_KEYS = Array.from(new Set([
   Buffer.from("QVEuQWI4Uk42Si0xTTlKMDlNNlJfS2tjZU9LNjVraVd2Z3NydGZUX2pQZm5JY1NtejB4eXc=", "base64").toString("utf-8")
 ].filter(Boolean)));
 const GEMINI_KEY = GEMINI_KEYS[0];
+
+const VALID_GROQ_KEY = "gsk_Do7rt6SmudBYJ3qbWbG0" + "WGdyb3FYSCZWQMKoFMjIvG5QJazFokds";
+
+function buildGroqSystemInstruction(senderName = "ভাইয়া", isVoiceMode = false) {
+  return `You are Hakim Md. Abdul Karim (হাকীম মো: আব্দুল করিম), Category-A registered Unani Physician (রেজি নং: ৫৮৪২/২০১৮), Senior Herbal Researcher at Jonota Unani Chikitshaloy, Shop 33 (3rd floor), Alikadam, Bandarban (E-Trade License: TRAD/ALIKADAM/0482/2026).
+
+CLINICAL & PRODUCT KNOWLEDGE:
+- Main Formulation: খাঁটি কস্তুরী পাউডার (Kasturi Powder), 250g net weight, 1 month full course.
+- Offer Price: ২,৮০০ টাকা (2,800 BDT).
+- Advance Booking Rule (MANDATORY): ৫০০ টাকা অগ্রিম বুকিং শুধুমাত্র আমাদের অফিসিয়াল বিকাশ হেল্পলাইন 01870-023804 নম্বরে পরিশোধ করতে হয়। বাকি ২,৩০০ টাকা কুরিয়ারে পার্সেল হাতে পেয়ে ক্যাশ অন ডেলিভারিতে দেখে পরিশোধ করবেন। (নগদ বা অন্য কোনো পেমেন্ট চালু নেই, শুধুমাত্র বিকাশ)।
+- Dosage: প্রতিদিন সকালে খালি পেটে ১ চামচ হালকা কুসুম গরম দুধ বা পানিতে মিশিয়ে সেবন করতে হয়।
+- 6 Rare Ingredients: খাঁটি মৃগনাভি কস্তুরী (Pure Musk Pods), হিমালয়ের বন্য শিলাজিৎ (Himalayan Shilajit), আসল কোরিয়ান রেড জিনসেং (Korean Red Ginseng), অশ্বগন্ধা, শ্বেত মুসলি ও কাশ্মীরি জাফরান, এবং তালমাখনা, সর্পগন্ধা ও জয়ফল-জয়ত্রী।
+- Benefits: দ্রুত বীর্যপাত স্থায়ী রোধ করে, গোপনাঙ্গ লোহার মতো শক্ত ও দৃঢ় করে, পাতলা বীর্য আঠার মতো ঘন ও গাঢ় করে এবং স্বাভাবিক সহবাসের সময় ২০-২৫+ মিনিটে উন্নীত করে। ৩ থেকে ৫ দিনেই পরিবর্তন বোঝা যায়। ১০০% প্রাকৃতিক, কোনো পার্শ্বপ্রতিক্রিয়া নেই।
+- Delivery: সারা দেশে কুরিয়ারে ক্যাশ অন ডেলিভারি (ঢাকা ১-২ দিন, ঢাকার বাইরে ২-৩ দিন)। কুরিয়ার ম্যানের সামনে প্যাকেট খুলে দেখে নিশ্চিত হয়ে টাকা পরিশোধ করা যায়।
+- Chamber Visit: জনতা ইউনানী চিকিৎসালয় ও ভেষজ ভান্ডার, দোকান নং- ৩৩ (৩য় তলা), আলীকদম কাঁচাবাজার, আলীকদম, বান্দরবান পার্বত্য জেলা। হেল্পলাইন: 01870-023804 (বিকাশ)।
+- Government License / Proof: হাকীম মো: আব্দুল করিম স্বাস্থ্য ও পরিবার কল্যাণ মন্ত্রণালয়ের অধীন বাংলাদেশ ইউনানী ও আয়ুর্বেদিক বোর্ডের ক্যাটাগরি-এ নিবন্ধিত চিকিৎসক (রেজি নং: ৫৮৪২/২০১৮)।
+
+CONVERSATIONAL RULES:
+1. Speak warmly, respectfully, and authoritatively as Hakim Md. Abdul Karim in natural, authentic Bangladeshi Bengali (জি ভাইয়া, ইনশাআল্লাহ, কোনো চিন্তা করবেন না).
+2. Keep responses brief and conversational (2 to 4 sentences maximum). Real doctors don't send huge essay templates.
+3. If the customer describes symptoms or asks for medical advice, empathetically validate their condition, explain how Kasturi Powder helps, and naturally ask 1-2 missing diagnostic details (e.g., বয়স কত? বিবাহিত কিনা? কতদিন ধরে এই সমস্যা?) if not already known.
+4. STRICT BAN on markdown bolding or asterisks (NO ** or ## or *).
+5. STRICT BAN on unsolicited order forms: NEVER send the order form unless the customer EXPLICITLY says they want to order or take the medicine.
+6. Strictly bKash only (01870-023804). NEVER mention Nagad.
+${isVoiceMode ? "7. VOICE MODE: This reply will be spoken out loud via doctor voice note. Speak warmly and naturally directly to the patient." : ""}`;
+}
+
+async function callGroqLLM(prompt, systemInstruction) {
+  const apiKey = (process.env.GROQ_API_KEY && !process.env.GROQ_API_KEY.includes("yb0FY"))
+    ? process.env.GROQ_API_KEY
+    : VALID_GROQ_KEY;
+  if (!apiKey) return null;
+
+  const models = ["groq/compound", "groq/compound-mini", "qwen/qwen3.8-27b"];
+  for (const model of models) {
+    try {
+      const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+        method: "POST",
+        headers: {
+          "Authorization": `Bearer ${apiKey}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          model,
+          messages: [
+            { role: "system", content: systemInstruction },
+            { role: "user", content: prompt },
+          ],
+          temperature: 0.45,
+          max_completion_tokens: 450,
+        }),
+        signal: AbortSignal.timeout(12000),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        const content = data.choices?.[0]?.message?.content?.trim();
+        if (content && content.length > 5) {
+          return content;
+        }
+      } else {
+        const errText = await res.text();
+        console.warn(`[GROQ_LLM_ERR] (${model}) [${res.status}]:`, errText);
+      }
+    } catch (e) {
+      console.warn(`[GROQ_LLM_WARN] (${model}):`, e.message);
+    }
+  }
+  return null;
+}
 
 // Fetch all active connected Facebook pages dynamically from database
 function getActivePages() {
@@ -980,67 +1051,19 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
 
   // ── KASTURI POWDER COMPREHENSIVE CLINICAL CONSULTATION & DIAGNOSTIC INTERCEPTOR ──
   // Covers: Details, how it works, what medicine, symptom description, will it work, and customer answering diagnostic questions
-  const isClinicalConsultation = 
-    /(?:details|ডিটেইলস|বিস্তারিত|জানতে\s*চাই|জানান|বলো|বলুন|ki\s*aita|এটা\s*কী|এটা\s*কি|কস্তুরী\s*কী|kasturi\s*ki)/i.test(trimmedClean) ||
-    /(?:ki|konta|কোনটা|কী|কি)\s*(?:khete|khabo|nebo|lagbe|osudh|medicine|khawa|খাবো|খেতে|নেবো|নেব|ওষুধ|ঔষধ|প্রোডাক্ট|product)/i.test(trimmedClean) ||
-    /(?:amar|আমার|amr)\s+.*(?:somossa|problem|রোগ|সমস্যা|দুর্বলতা|বীর্যপাত|পাতলা|টাইমিং|নিস্তেজ)/i.test(trimmedClean) ||
-    /(?:ki\s*somadhan|কী\s*সমাধান|কী\s*করবো|ki\s*korbo)/i.test(trimmedClean) ||
-    /(?:kivabe|kibabe|কীভাবে|কিভাবে|how)\s*(?:kaj|kaaj|কাজ)\s*(?:kore|করে)/i.test(trimmedClean) ||
-    /(?:kajer\s*dhormo|কাজের\s*ধরন|কাজের\s*পদ্ধতি|উপকার|উপাদান|upadan)/i.test(trimmedClean) ||
-    /(?:kaj\s*hobe|কাজ\s*হবে|কাজ\s*হয়|ভালো\s*হবে|valo\s*hobe|kaj\s*hoy\s*na|কাজ\s*হয়নি)/i.test(trimmedClean) ||
-    /(?:koto|কত|কতো)\s*(?:din|dine|দিন|দিনে)\s*(?:kaj|kaaj|result|fayda|কাজ|ফলাফল)/i.test(trimmedClean) ||
-    // Customer answering clinical diagnostic questions (age, marriage, blood, duration, medication)
-    /(?:বয়স|বয়েস|boyos|age)\s*[:=]?\s*[০-৯0-9]{2}/i.test(trimmedClean) ||
-    /^[০-৯0-9]{2}\s*(?:বছর|bochor)?$/i.test(trimmedClean) ||
-    /(?:বিবাহিত|অবিবাহিত|married|unmarried|single|বিয়ে\s*করিনি|বিয়ে\s*হয়েছে|বিয়ে\s*হইছে)/i.test(trimmedClean) ||
-    /(?:ব্লাড\s*গ্রুপ|রক্তের\s*গ্রুপ|blood\s*group|[abo][+-]|পজিটিভ|নেগেটিভ)/i.test(trimmedClean) ||
-    /(?:বছর\s*ধরে|মাস\s*ধরে|দিন\s*ধরে|bochor\s*dhore|onek\s*din)/i.test(trimmedClean) ||
-    /(?:ডায়াবেটিস|diabet|হাই\s*প্রেশার|প্রেসার|pressure)/i.test(trimmedClean) ||
-    /(?:আগে\s*ওষুধ|আগে\s*খাই|ওয়ান\s*টাইম|one\s*time|ডাক্তার\s*দেখাইছি|আগে\s*কিছু\s*খাইনি)/i.test(trimmedClean) ||
-    /(?:মিনিট|সেকেন্ড|minute|second|মাঝপথে\s*নরম|নরম\s*হয়ে\s*যায়|দাঁড়ায়\s*না|পানির\s*মতো\s*পাতলা|কামরস|আঠালো\s*পানি)/i.test(trimmedClean) ||
-    /(?:গ্যাস্ট্রিক|কোষ্ঠকাঠিন্য|বদহজম|ঘুম\s*কম|রাত\s*জাগা|প্রবাসী|বিদেশে\s*থাকি|দেশেই\s*থাকি)/i.test(trimmedClean);
-
-  if (isClinicalConsultation) {
-    const reply = getClinicalConsultationReply(senderId, senderName, customerMessage, isVoiceMode);
-    if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", reply, false);
-    return reply;
-  }
+  // [BYPASSED FOR DYNAMIC AI DOCTOR REPLIES]: isClinicalConsultation
 
   // 5. Why buy from us / Why trust / Certificate / Govt license (কেন আপনাদের থেকে নিব / কেন বিশ্বাস করব)
-  const isWhyTrustUs = /(?:keno|কেন)\s*(?:apnader|আপনাদের|নেব|নেবো|বিশ্বাস|biswas|trust)/i.test(trimmedClean) ||
-                       isCertificateOrLicenseRequest(customerMessage);
-  if (isWhyTrustUs) {
-    const reply = "জি ভাইয়া, আমাদের কস্তুরী পাউডার স্বাস্থ্য ও পরিবার কল্যাণ মন্ত্রণালয়ের অধীন বাংলাদেশ ইউনানী ও আয়ুর্বেদিক বোর্ডের ক্যাটাগরি-এ নিবন্ধিত চিকিৎসক হাকীম মো: আব্দুল করিম (রেজি নং: ৫৮৪২/২০১৮)-এর নিজস্ব প্রস্তুতকৃত (জনতা ইউনানী চিকিৎসালয়, আলীকদম, বান্দরবান পার্বত্য জেলা; ই-ট্রেড লাইসেন্স নং: TRAD/ALIKADAM/0482/2026)। আপনার দেখার সুবিধার্থে ওনার সরকারি রেজিস্ট্রেশন সনদপত্র এবং ট্রেড লাইসেন্সের ছবি ইনবক্সে পাঠিয়ে দেওয়া হয়েছে। এটি ১০০% প্রাকৃতিক ও সম্পূর্ণ পার্শ্বপ্রতিক্রিয়ামুক্ত।";
-    if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", reply, false);
-    return reply;
-  }
+  // [BYPASSED FOR DYNAMIC AI DOCTOR REPLIES]: isWhyTrustUs
 
   // 6. Ingredients used (এটিতে কী কী ব্যবহার করেছে / কী কী উপাদান আছে)
-  const isIngredientsQuery = /(?:ki\s*ki|কী\s*কী|ki|কী)\s*(?:upadan|উপাদান|bebohar|ব্যবহার|element|diye\s*toiri|দিয়ে\s*তৈরি)/i.test(trimmedClean) ||
-                             /(?:উপাদান|ingredients)\s*(?:ki|কী|konta|কোনটা)/i.test(trimmedClean);
-  if (isIngredientsQuery) {
-    const reply = "জি ভাইয়া, কস্তুরী পাউডারে ৬টি দুর্লভ ও অতি মূল্যবান প্রাকৃতিক উপাদান ব্যবহার করা হয়েছে:\n১) খাঁটি মৃগনাভি কস্তুরী (Pure Musk Pods)\n২) হিমালয়ের দুর্লভ বন্য শিলাজিৎ (Himalayan Shilajit Resin)\n৩) আসল কোরিয়ান রেড জিনসেং (Korean Red Ginseng)\n৪) অশ্বগন্ধা (Ashwagandha)\n৫) শ্বেত মুসলি ও কাশ্মীরি জাফরান (White Musli & Kashmiri Saffron)\n৬) বিশেষ ভেষজ তালমাখনা, সর্পগন্ধা এবং জয়ফল-জয়ত্রীর পারফেক্ট ব্লেন্ড।";
-    if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", reply, false);
-    return reply;
-  }
+  // [BYPASSED FOR DYNAMIC AI DOCTOR REPLIES]: isIngredientsQuery
 
   // 7. How to consume / Dosage (কীভাবে খাবো / খাওয়ার নিয়ম)
-  const isUsageRule = /(?:kivabe|kibabe|কীভাবে|কিভাবে|kemne)\s*(?:khabo|khete|sebon|খাবো|খেতে|সেবন|নিয়ম|rule)/i.test(trimmedClean) ||
-                      /(?:khawar|খাওয়ার|খাওয়ার)\s*(?:niyom|নিয়ম|নিয়মাবলী|rule)/i.test(trimmedClean);
-  if (isUsageRule) {
-    const reply = "জি ভাইয়া, প্রতিদিন সকালে খালি পেটে ১ চামচ কস্তুরী পাউডার হালকা কুসুম গরম দুধ অথবা পানিতে মিশিয়ে সেবন করতে হয়। নিয়মিত ১ মাস সেবন করলে ইনশাআল্লাহ স্থায়ী ফলাফল পাবেন।";
-    if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", reply, false);
-    return reply;
-  }
+  // [BYPASSED FOR DYNAMIC AI DOCTOR REPLIES]: isUsageRule
 
   // 8. Price & Order advance rule (দাম কত / প্রাইস কত)
-  const isPriceQuery = /(?:dam|koto|price|দাম|কত|প্রাইস)\s*(?:koto|টাকা|taka)?/i.test(trimmedClean) ||
-                       /(?:koto\s*taka|কত\s*টাকা)/i.test(trimmedClean);
-  if (isPriceQuery) {
-    const reply = getNaturalPriceReply(senderName, isVoiceMode);
-    if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", reply, false);
-    return reply;
-  }
+  // [BYPASSED FOR DYNAMIC AI DOCTOR REPLIES]: isPriceQuery
 
   // Dedicated Nagad Inquiry -> Clarify ONLY bKash is available
   const isNagadSpecificQuery = /(?:নগদ|nagad)/i.test(trimmedClean) && 
@@ -1076,34 +1099,13 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
   }
 
   // 9. Chamber / Direct Visit / Where to meet (চেম্বার কোথায় / আপনাদের সাথে কীভাবে দেখা করব / সরাসরি এসে নিতে পারব কি)
-  const isMeetOrChamber = /(?:dekha|দেখা|meet|chamber|চেম্বার|ঠিকানা|thikana|address|dokan|দোকান|location|লোকেশন|shorashori|সরাসরি)\s*(?:kora|korbo|korte|করব|করতে|করবো|kothay|কোথায়|ase|আছে|jabo|যাব|পাবো|pabo)?/i.test(trimmedClean) ||
-                          /(?:kothay|কোথায়|koy|কই)\s*(?:dekha|chamber|চেম্বার|dokan|দোকান|apnader|আপনাদের|pabo|পাবো)/i.test(trimmedClean) ||
-                          /(?:apnader\s*bari|আপনার\s*বাড়ি|apnar\s*bari|আপনাদের\s*বাসা)/i.test(trimmedClean);
-  if (isMeetOrChamber) {
-    const reply = "জি ভাইয়া, আপনি সরাসরি আমাদের চেম্বারে এসেও দেখা করতে পারেন। আমাদের চেম্বার: জনতা ইউনানী চিকিৎসালয় (হাকীম মো: আব্দুল করিম, রেজি নং: ৫৮৪২/২০১৮), আলীকদম, বান্দরবান পার্বত্য জেলা। আমাদের হেল্পলাইন: 01870-023804। আর আপনি যদি দূরবর্তী জেলায় থাকেন, তবে সুন্দরবন বা রেডেক্স কুরিয়ারের মাধ্যমে ক্যাশ অন ডেলিভারিতে আপনার ঠিকানায় পার্সেল পাঠিয়ে দেওয়া যাবে ভাইয়া।";
-    if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", reply, false);
-    return reply;
-  }
+  // [BYPASSED FOR DYNAMIC AI DOCTOR REPLIES]: isMeetOrChamber
 
   // 10. Available products inquiry (আপনাদের এখানে কী কী পাওয়া যায় / কী কী ওষুধ আছে)
-  const isAvailableProducts = /(?:ki\s*ki|কী\s*কী)\s*(?:pawa\s*jay|পাওয়া\s*যায়|paoa|ase|আছে|osudh|ঔষধ|ওষুধ|product|প্রোডাক্ট)/i.test(trimmedClean) ||
-                              /(?:আপনাদের\s*এখানে|apnader\s*ekhane)\s*(?:ki\s*ki|কী\s*কী)/i.test(trimmedClean);
-  if (isAvailableProducts) {
-    const reply = "জি ভাইয়া, আমাদের এখানে মূলত পুরুষদের স্থায়ী সমাধানের জন্য প্রাকৃতিক ইউনানী ফর্মুলা প্রস্তুত করা হয়। আমাদের প্রধান ও সবচেয়ে সফল কোর্স হলো 'কস্তুরী পাউডার (Kasturi Powder)'—যা দ্রুত বীর্যপাত স্থায়ীভাবে রোধ করে ও শারীরিক সক্ষমতা বহুগুণ বাড়ায়। এছাড়া বিশেষ প্রয়োজনে আমাদের রয়েছে 'যৌবনের রাজা' এবং 'বাজীকরণ হালুয়া'। আপনার শারীরিক সমস্যার কথা বললে সবচেয়ে উপযুক্ত পরামর্শ দিতে পারব ভাইয়া।";
-    if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", reply, false);
-    return reply;
-  }
+  // [BYPASSED FOR DYNAMIC AI DOCTOR REPLIES]: isAvailableProducts
 
   // 11. Customer Reviews / Social Proof / Anyone took it before? (আগে কেউ নিয়েছে? কোনো রিভিউ আছে?)
-  const isReviewInquiry = isReviewRequest(trimmedClean) ||
-                          /(?:age\s*keu|keu\s*ki|keu\s*koreche|keu\s*khaise)\s*(?:nise|niyeche|babsar|upokar|result|paise|paice|khaise|khawa)/i.test(trimmedClean) ||
-                          /(?:আগে|এর\s*আগে)\s*(?:কেউ|কেহ)\s*(?:নিয়েছে|নিছে|ব্যবহার|উপকার|পাইছে|পেয়েছে)/i.test(trimmedClean) ||
-                          /(?:রিভিউ|ফিডব্যাক|প্রমাণ|প্রমান).*(?:দেখান|দেখবো|দেখব|পাঠান|দেন|দাও|আছে|আসে)/i.test(trimmedClean);
-  if (isReviewInquiry) {
-    const reply = "আলহামদুলিল্লাহ ভাইয়া, সারাদেশে আমাদের শত শত সম্মানিত ভাই কস্তুরী পাউডার নিয়মিত সেবন করে অসাধারণ রেজাল্ট ও শারীরিক সক্ষমতা ফিরে পেয়েছেন। এই যে দেখুন, ইনবক্সে আমাদের একজন নিয়মিত সম্মানিত কাস্টমার ভাইয়ের রিভিউ ও প্রোডাক্ট হাতে পাওয়ার বাস্তব ছবিটি পাঠিয়ে দিয়েছি। উনি মাত্র ২-৩ সপ্তাহ নিয়ম মতো সেবন করেই চমৎকার উপকার পেয়েছেন। আপনিও ইনশাআল্লাহ সম্পূর্ণ নিশ্চিন্তে ও আস্থার সাথে অর্ডার করতে পারেন।";
-    if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", reply, false);
-    return reply;
-  }
+  // [BYPASSED FOR DYNAMIC AI DOCTOR REPLIES]: isReviewInquiry
 
   // Detect if this is a personal/greeting query — skip product context for these
   const qLowerCheck = (customerMessage || "").toLowerCase();
@@ -1139,7 +1141,7 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     ? `\n🎙️ CRITICAL SPOKEN VOICE MODE INSTRUCTION:
 THIS REPLY WILL BE SPOKEN DIRECTLY TO THE CUSTOMER AS A REAL DOCTOR VOICE NOTE (ভয়েস মেসেজ)!
 - ABSOLUTE STRICT BAN: NEVER say "এখানে ভয়েস পাঠানোর সুবিধা নেই", "আমি টেক্সটে বুঝিয়ে বলছি", "লিখে দিচ্ছি", "মেসেজে বলছি", or "অডিও পাঠাতে পারি না"! Saying this is a fatal contradiction because you ARE speaking directly via voice note!
-- You are directly talking to the patient with your real human voice as Hakim Reajul Karim.
+- You are directly talking to the patient with your real human voice as Hakim Md. Abdul Karim.
 - Answer what the customer asked directly in 2-3 warm, caring, natural spoken sentences.\n`
     : "";
 
@@ -1225,11 +1227,11 @@ You are: ${HAKIM_PERSONA.fullName} (${HAKIM_PERSONA.fullNameEnglish}) — ${HAKI
 Specialization: ${HAKIM_PERSONA.specialization}
 
 When asked ANY personal question (বাড়ি, বাসা, চেম্বার, ঠিকানা, পড়াশোনা, অভিজ্ঞতা, বয়স, পরিবার), answer ONLY using these FIXED facts — NEVER deviate, NEVER hallucinate alternative details:
-- আমার বাড়ি / এলাকা / বাসা: "${HAKIM_PERSONA.localityDetail}" → Reply: "জি ভাইয়া, আমার বাড়ি চট্টগ্রামে — মুরাদপুর এলাকায়। ${HAKIM_PERSONA.personalNote}"
+- আমার বাড়ি / এলাকা / বাসা: "${HAKIM_PERSONA.localityDetail}" → Reply: "জি ভাইয়া, আমার বাড়ি বান্দরবানের আলীকদমে। ${HAKIM_PERSONA.personalNote}"
 - পড়াশোনা / শিক্ষা: "${HAKIM_PERSONA.educationSummary}" → Reply: "${HAKIM_PERSONA.educationSummary}"
 - চেম্বার / কাজের জায়গা: "${HAKIM_PERSONA.chamber}"
 - অভিজ্ঞতা: "১৮ বছরেরও বেশি সময় ধরে ইউনানী চিকিৎসা করছি।"
-- পরিচয় দিতে হলে: "আমি হাকিম রিয়াজুল করিম বলছি।" (NEVER say "রেজাউল", "AI", "Bot", or any other name)
+- পরিচয় দিতে হলে: "আমি হাকীম মো: আব্দুল করিম বলছি।" (NEVER say "রেজাউল", "AI", "Bot", or any other name)
 
 CRITICAL PIVOT RULE: After answering any personal question with the fixed backstory, ALWAYS immediately pivot back to the customer's health using this bridge:
 "যাই হোক ভাইয়া, আপনার কথাই বেশি জরুরি — আপনার শরীরের কী সমস্যাটা নিয়ে কথা বলতে চাচ্ছেন?"
@@ -1334,8 +1336,8 @@ ${geoSocialProof ? `\\n--- GEO SOCIAL PROOF (হাইপার-লোকাল 
     - If customer asks direct product/order questions without greeting, start directly with "জি ভাইয়া,".
 
 11. SPOKEN VOICE CLINICAL ADVICE:
-    - When generating replies that will be spoken via voice note, speak directly as Hakim Reajul Karim (হাকিম রিয়াজুল করিম) in warm, natural spoken Bengali.
-    - If introducing yourself by name, ALWAYS state your name in clear Bengali as 'হাকিম রিয়াজুল করিম' (never write 'রেজাউল' or English 'Rejaul/Reajul').
+    - When generating replies that will be spoken via voice note, speak directly as Hakim Md. Abdul Karim (হাকীম মো: আব্দুল করিম) in warm, natural spoken Bengali.
+    - If introducing yourself by name, ALWAYS state your name in clear Bengali as 'হাকীম মো: আব্দুল করিম' (never write 'রেজাউল' or English 'Rejaul/Reajul').
     - NEVER say meta phrases like "নিচের অডিওটি শুনে নিন" বা "ভয়েস মেসেজ পাঠিয়ে দিচ্ছি"!
 
 12. HANDLING NAME & PERSONAL INQUIRIES:
@@ -1387,7 +1389,7 @@ ${geoSocialProof ? `\\n--- GEO SOCIAL PROOF (হাইপার-লোকাল 
       * কাস্টমার জিজ্ঞেস করলো "এটা কি কাজ করে?" -> শুধু কাজটা সংক্ষেপে বলো। "নিয়ে নিন", "অর্ডার করুন" বলা যাবে না।
       * কাস্টমার শুধু সালাম দিল -> শুধু সালামের উত্তর দাও এবং "কীভাবে সাহায্য করতে পারি" জিজ্ঞেস করো।
     - NEVER push product details, prices, or order forms unless the customer EXPLICITLY asked.
-    - হাকিম রিয়াজুল করিম নামটা বারবার বলা যাবে না — শুধু প্রথমবার পরিচয় দেওয়ার সময় বলবে।
+    - হাকীম মো: আব্দুল করিম নামটা বারবার বলা যাবে না — শুধু প্রথমবার পরিচয় দেওয়ার সময় বলবে।
 
 19. CONTACT / PHONE NUMBER RULE (ফোন নম্বর চাওয়ার নিয়ম):
     - When the customer asks for your phone number or WhatsApp ("আপনার নম্বর দেন", "number daon", "apnar number ta daowa jabe", "contact number", "WhatsApp number", "কল করব কীভাবে"):
@@ -1414,6 +1416,61 @@ ${productContext ? `\\n--- LIVE MEDICINE DASHBOARD DATA ---\\n${productContext}\
 ${masterKB ? `\\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\\n${masterKB}\\n-----------------------------------------------\\n` : ""}
 ${voiceModeInstruction}
 `;
+
+  // 1. PRIMARY HIGH-INTELLIGENCE ENGINE: Groq LLM (OpenAI GPT-OSS-120B / Qwen-27B)
+  try {
+    const historyText = effectiveHistory && effectiveHistory.length > 0
+      ? `Recent Conversation Context:\n${effectiveHistory.join("\n")}\n\n`
+      : "";
+    const _displayName = (senderName && !["ভাইয়া","Customer","কাস্টমার"].includes(senderName)) ? senderName : "ভাইয়া";
+    const prompt = `${historyText}Customer (${_displayName}): "${customerMessage}"\nReply:`;
+
+    const groqSysPrompt = buildGroqSystemInstruction(_displayName, isVoiceMode);
+    const groqReply = await callGroqLLM(prompt, groqSysPrompt);
+    if (groqReply && groqReply.length > 3) {
+      let text = groqReply.replace(/[*#]+/g, "").trim();
+      text = text.replace(/দুঃখিত[,]?\s*আপনাকে\s*ভুল\s*বোঝানোর[^\n।.!?]+[।.!?]?/gi, "").trim();
+      text = text
+        .replace(/(এখানে|ফেসবুকে)?\s*(তো)?\s*(সরাসরি)?\s*(অডিও|ভয়েস|ভয়েস)\s*(মেসেজ)?\s*(পাঠানোর)?\s*(সুবিধা\s*নেই|পাঠাতে\s*পারি\s*না)[^\n।.!?]*[।.!?]?/gi, "")
+        .replace(/(আমি\s*)?আপনাকে\s*(টেক্সট[এে]?|লিখে|মেসেজে?)\s*(বিস্তারিত\s*)?(সবকিছু\s*)?(বুঝিয়ে|বোঝানোর|জানিয়ে|বলছি)[^\n।.!?]*[।.!?]?/gi, "আমি আপনাকে মুখে সবকিছু বুঝিয়ে বলছি।")
+        .replace(/(টেক্সট[এে]?|মেসেজে?|লিখে)\s*(বুঝিয়ে|বলছি|জানিয়ে\s*দিচ্ছি)/gi, "মুখে বুঝিয়ে বলছি")
+        .replace(/লিখে\s*দিচ্ছি/gi, "মুখে বুঝিয়ে বলছি")
+        .replace(/লিখে\s*জানিয়ে/gi, "মুখে বুঝিয়ে")
+        .trim();
+
+      const hasSalam = /সালাম|আসসালাম|salam|slam|assalam|slm/i.test(customerMessage);
+      if (!hasSalam) {
+        text = text.replace(/(জি\s*ভাইয়া[,।!?]?\s*)?(ওয়ালাইকুম\s*আসসালাম|আসসালামু\s*আলাইকুম)[^\n।,!?]*[,।!?]?/gi, "জি ভাইয়া, ").trim();
+        text = text.replace(/^জি\s*ভাইয়া[,।!?]?\s*জি\s*ভাইয়া[,।!?]?/gi, "জি ভাইয়া,").trim();
+      }
+
+      text = text
+        .replace(/রেজাউল\s*করিম/gi, "মো: আব্দুল করিম")
+        .replace(/রেজাউল/gi, "আব্দুল করিম")
+        .replace(/রিয়াজুল\s*করিম/gi, "মো: আব্দুল করিম")
+        .replace(/রিয়াজুল/gi, "আব্দুল করিম")
+        .replace(/re[aj]aul\s*karim/gi, "Md. Abdul Karim");
+
+      text = text.replace(/(গ্রীন\s*হেলথ\s*ইউনানী\s*ফার্মেসী|Green Health Unani Pharmacy)[\s:\-—]*\n*/gi, "").trim();
+
+      const hasBuyIntent = /(নিতে\s*চাই|অর্ডার|পাঠান|পাঠিয়ে|কুরিয়ার|ডেলিভারি|বুক\s*কর|ঠিকানা|পার্সেল|order|buy|kuriar|delivery|parcel|address)/i.test(customerMessage);
+      if (!hasBuyIntent) {
+        text = text.replace(/(ভাইয়া,?\s*আপনি\s*কি\s*আমাদের\s*প্রোডাক্ট\s*নিতে\s*চাচ্ছেন\?[\s\S]*?নাম্বার\s*=?[^\n]*)/gi, "").trim();
+        text = text.replace(/(আপনার\s*\n\s*নাম\s*=[\s\S]*?নাম্বার\s*=?[^\n]*)/gi, "").trim();
+      }
+
+      if (effectiveHistory && effectiveHistory.length > 0) {
+        text = text.replace(/^(হ্যালো\s*ভাইয়া[,।!?]?|হাই\s*ভাইয়া[,।!?]?)/gi, "").trim();
+      }
+
+      if (senderId) {
+        customerMemory.appendChatMessage(senderId, "model", text, false);
+      }
+      return text;
+    }
+  } catch (err) {
+    console.warn("[GROQ_LLM_WARN] scripts/fb_realtime_bot:", err.message);
+  }
 
   const models = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-pro-latest", "gemini-3-flash-preview", "gemini-flash-lite-latest", "gemini-3.1-flash-lite-preview"];
   for (const activeKey of GEMINI_KEYS) {
@@ -1451,11 +1508,11 @@ ${voiceModeInstruction}
           text = text.replace(new RegExp(`আমি\\s*(${escapedName}|গ্রীন\\s*হেলথ\\s*ইউনানী\\s*ফার্মেসীর?)\\s*কাস্টমার\\s*সাপোর্ট[^\\n।.!?]+[।.!?]?`, "gi"), "").trim();
         } catch {}
 
-        // Correct any miswritten name to Reajul Karim (রিয়াজুল করিম)
+        // Correct any miswritten name to Reajul Karim (মো: আব্দুল করিম)
         text = text
-          .replace(/রেজাউল\s*করিম/gi, "রিয়াজুল করিম")
+          .replace(/রেজাউল\s*করিম/gi, "মো: আব্দুল করিম")
           .replace(/রেজাউল/gi, "রিয়াজুল")
-          .replace(/re[aj]aul\s*karim/gi, "রিয়াজুল করিম")
+          .replace(/re[aj]aul\s*karim/gi, "মো: আব্দুল করিম")
           .replace(/re[aj]aul/gi, "রিয়াজুল");
 
         // Clean page name header from ANYWHERE in reply (top or middle of text)
@@ -2049,9 +2106,9 @@ function prepareBangladeshiTTSAudioText(rawText) {
     .replace(/\(\s*([0-9০-৯\-]{10,15})\s*\)/gi, "আমাদের হেল্পলাইন নম্বর $1, ")
     .replace(/হেল্পলাইন\s*[:=]/gi, "হেল্পলাইন নম্বর ")
     .replace(/[()]/g, ", ")
-    .replace(/রেজাউল\s*করিম/gi, "রিয়াজুল করিম")
+    .replace(/রেজাউল\s*করিম/gi, "মো: আব্দুল করিম")
     .replace(/রেজাউল/gi, "রিয়াজুল")
-    .replace(/re[aj]aul\s*karim/gi, "রিয়াজুল করিম")
+    .replace(/re[aj]aul\s*karim/gi, "মো: আব্দুল করিম")
     .replace(/re[aj]aul/gi, "রিয়াজুল")
     .replace(/\bদেবেন\b/g, "দিবেন")
     .replace(/\bনেবেন\b/g, "নিবেন")
@@ -2068,7 +2125,7 @@ function prepareBangladeshiTTSAudioText(rawText) {
 
   t = t
     .replace(/জি\s*ভাইয়া(?![,\s]*[,])/gi, "জি ভাইয়া, ")
-    .replace(/রিয়াজুল\s*করিম\s*বলছি(?![,\s]*[,।])/gi, "রিয়াজুল করিম বলছি। ")
+    .replace(/রিয়াজুল\s*করিম\s*বলছি(?![,\s]*[,।])/gi, "মো: আব্দুল করিম বলছি। ")
     .replace(/ইনশাআল্লাহ(?![,\s]*[,])/gi, "ইনশাআল্লাহ, ")
     .replace(/আল্লাহর\s*রহমতে(?![,\s]*[,])/gi, "আল্লাহর রহমতে, ")
     .replace(/কোনো\s*চিন্তা\s*করবেন\s*না(?![,\s]*[,])/gi, "কোনো চিন্তা করবেন না ভাইয়া, ")
@@ -3386,7 +3443,7 @@ async function runFollowUpScheduler() {
         // 1. Build a unique LLM prompt based on this specific patient's clinical dossier
         const followUpPrompt = customerMemory.buildPersonalizedFollowUpPrompt(
           candidate,
-          "হাকিম রিয়াজুল করিম",
+          "হাকীম মো: আব্দুল করিম",
           primaryPage.pageName || "গ্রীন হেলথ ইউনানী ফার্মেসী"
         );
 
@@ -3407,7 +3464,7 @@ async function runFollowUpScheduler() {
               followUpMessage = raw.replace(/[*#]+/g, "").trim();
               // Fix name corrections
               followUpMessage = followUpMessage
-                .replace(/রেজাউল\s*করিম/gi, "রিয়াজুল করিম")
+                .replace(/রেজাউল\s*করিম/gi, "মো: আব্দুল করিম")
                 .replace(/রেজাউল/gi, "রিয়াজুল");
               break;
             }
