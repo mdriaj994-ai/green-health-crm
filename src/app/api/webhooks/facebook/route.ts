@@ -448,8 +448,7 @@ async function flushSenderEvent(senderId: string) {
 📍 ঠিকানা: ${orderData.address}${orderData.thana ? '\n🏘️ থানা: '+orderData.thana : ''}${orderData.district ? '\n📮 জেলা: '+orderData.district : ''}
 💊 পণ্য: ${orderData.product}
 📦 পরিমাণ: ${orderData.quantity} পিস
-💰 পেমেন্ট: ক্যাশ অন ডেলিভারি
-
+${(/কস্তুরী|kosturi|kasturi|আব্দুল করিম/i.test(orderData.product || "") || /কস্তুরী|kosturi|kasturi/i.test(text || "")) ? "💰 মূল্য: ২,৮০০ টাকা (বুকিং নিশ্চিত করতে ৫০০ টাকা অগ্রিম বিকাশ/নগদ প্রযোজ্য, বাকি ২,৩০০ টাকা ক্যাশ অন ডেলিভারি)\n📱 বিকাশ/নগদ: 01870-023804\n📌 বুকিং কনফার্ম করতে ৫০০ টাকা পাঠিয়ে লাস্ট ২/৩ ডিজিট জানান\n" : "💰 পেমেন্ট: ক্যাশ অন ডেলিভারি\n"}
 ━━━━━━━━━━━━━━━━━━━━
 🚚 ডেলিভারি: ২-৪ কার্যদিবস
 ⚠️ তথ্যে ভুল থাকলে এখনই জানান।

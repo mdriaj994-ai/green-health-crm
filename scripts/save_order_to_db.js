@@ -20,7 +20,8 @@ function detectProductInText(text) {
   if (prodMatch && prodMatch[1].trim()) return prodMatch[1].trim();
 
   const PRODS = [
-    [/কস্তুরী|কস্তুরি|হরিণের\s*কস্তুর|kasturi|kosturi/i, "Soul Mate (খাঁটি কস্তুরী ফর্মুলা)"],
+    [/কস্তুরী\s*পাউডার|কস্তুরি\s*পাউডার|kasturi\s*powder|kosturi\s*powder/i, "কস্তুরী পাউডার (Kasturi Powder)"],
+    [/কস্তুরী|কস্তুরি|হরিণের\s*কস্তুর|kasturi|kosturi|আব্দুল\s*করিম/i, "কস্তুরী পাউডার (Kasturi Powder)"],
     [/amber|ambar|অম্বার|অম্বর|অ্যাম্বার|বিছানা\s*রাজা/i, "AMBER Premium"],
     [/soul\s*mate|সোল\s*মেট|সুল\s*মেট/i, "Soul Mate"],
     [/dream\s*touch|ড্রিম\s*টাচ|ড্রিমটাচ/i, "Dream Touch"],
