@@ -547,9 +547,9 @@ async function flushSenderEvent(senderId: string) {
             await sendSenderAction(senderId, "typing_on", effectiveToken);
             let companionText = replyText;
             if (isPhoneReq && !replyText.includes("01870-023804")) {
-              companionText = `📞 আমাদের অফিসিয়াল হেল্পলাইন ও বুকিং নম্বর:\n👉 01870-023804 (বিকাশ / নগদ)\n\n(যেকোনো প্রয়োজনে সরাসরি কল দিতে বা কথা বলতে পারেন ভাইয়া)`;
+              companionText = `📞 আমাদের অফিসিয়াল হেল্পলাইন ও বুকিং নম্বর:\n👉 01870-023804 (বিকাশ)\n\n(যেকোনো প্রয়োজনে সরাসরি কল দিতে বা কথা বলতে পারেন ভাইয়া)`;
             } else if (isPhoneReq) {
-              companionText = `📞 আমাদের অফিসিয়াল হেল্পলাইন ও বুকিং নম্বর:\n👉 01870-023804 (বিকাশ / নগদ)\n\n(যেকোনো প্রয়োজনে সরাসরি কল দিতে বা কথা বলতে পারেন ভাইয়া)`;
+              companionText = `📞 আমাদের অফিসিয়াল হেল্পলাইন ও বুকিং নম্বর:\n👉 01870-023804 (বিকাশ)\n\n(যেকোনো প্রয়োজনে সরাসরি কল দিতে বা কথা বলতে পারেন ভাইয়া)`;
             }
             await sendMessengerReply(pageId, senderId, companionText, effectiveToken, items[items.length - 1].mid || null);
             console.log(`[COMPANION_TEXT] 📝 Also sent text version (phone/order) to ${senderId}`);
@@ -657,7 +657,7 @@ async function flushSenderEvent(senderId: string) {
 📍 ঠিকানা: ${orderData.address}${orderData.thana ? '\n🏘️ থানা: '+orderData.thana : ''}${orderData.district ? '\n📮 জেলা: '+orderData.district : ''}
 💊 পণ্য: ${orderData.product}
 📦 পরিমাণ: ${orderData.quantity} পিস
-${(/কস্তুরী|kosturi|kasturi|আব্দুল করিম/i.test(orderData.product || "") || /কস্তুরী|kosturi|kasturi/i.test(text || "")) ? "💰 মূল্য: ২,৮০০ টাকা (বুকিং নিশ্চিত করতে ৫০০ টাকা অগ্রিম বিকাশ/নগদ প্রযোজ্য, বাকি ২,৩০০ টাকা ক্যাশ অন ডেলিভারি)\n📱 বিকাশ/নগদ: 01870-023804\n📌 বুকিং কনফার্ম করতে ৫০০ টাকা পাঠিয়ে লাস্ট ২/৩ ডিজিট জানান\n" : "💰 পেমেন্ট: ক্যাশ অন ডেলিভারি\n"}
+${(/কস্তুরী|kosturi|kasturi|আব্দুল করিম/i.test(orderData.product || "") || /কস্তুরী|kosturi|kasturi/i.test(text || "")) ? "💰 মূল্য: ২,৮০০ টাকা (বুকিং নিশ্চিত করতে ৫০০ টাকা অগ্রিম বিকাশ প্রযোজ্য, বাকি ২,৩০০ টাকা ক্যাশ অন ডেলিভারি)\n📱 বিকাশ: 01870-023804\n📌 বুকিং কনফার্ম করতে ৫০০ টাকা পাঠিয়ে লাস্ট ২/৩ ডিজিট জানান\n" : "💰 পেমেন্ট: ক্যাশ অন ডেলিভারি\n"}
 ━━━━━━━━━━━━━━━━━━━━
 🚚 ডেলিভারি: ২-৪ কার্যদিবস
 ⚠️ তথ্যে ভুল থাকলে এখনই জানান।
