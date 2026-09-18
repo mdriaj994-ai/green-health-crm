@@ -188,6 +188,7 @@ async function flushSenderEvent(senderId: string) {
 
     // ── Picture Request Detection: Send authentic medicine photo if asked ──
     let picProduct: any = null;
+    let certImagesSent = false;
     try {
       const { isPictureRequest, findProductForImage, isCertificateOrLicenseRequest } = await import("@/lib/product-db");
       if (isPictureRequest(text)) {
@@ -203,7 +204,9 @@ async function flushSenderEvent(senderId: string) {
         if (effectiveToken) {
           console.log(`[AUTO_REPLY_CERT] Customer requested certificate/license. Sending credentials to ${senderId}`);
           await sendMessengerImage(senderId, "hakim_abdul_karim_certificate.jpg", effectiveToken);
+          await sleep(800);
           await sendMessengerImage(senderId, "hakim_abdul_karim_license.jpg", effectiveToken);
+          certImagesSent = true;
         }
       }
     } catch (picErr: any) {
@@ -316,6 +319,21 @@ async function flushSenderEvent(senderId: string) {
       customerName: resolvedCustomerName || undefined,
       isVoiceMode: isVoiceReq,
     });
+
+    const mentionsCertInReply = /(?:৫৮৪২|5842|সনদপত্র|লাইসেন্স|সার্টিফিকেট|certificate|license|অনুমোদন|ট্রেড\s*লাইসেন্স)/i.test(replyText);
+    if (!certImagesSent && (mentionsCertInReply || (text && isCertificateOrLicenseRequest(text)))) {
+      if (effectiveToken) {
+        try {
+          console.log(`[AUTO_REPLY_CERT_SAFETY] Credentials referenced in reply/context. Ensuring certificates sent to ${senderId}`);
+          await sendMessengerImage(senderId, "hakim_abdul_karim_certificate.jpg", effectiveToken);
+          await sleep(800);
+          await sendMessengerImage(senderId, "hakim_abdul_karim_license.jpg", effectiveToken);
+          certImagesSent = true;
+        } catch (certErr) {
+          console.warn("[AUTO_REPLY_CERT_ERR]", certErr);
+        }
+      }
+    }
 
     const userPrefersText = isTextModeRequested(text);
     const shouldSendVoice = !userPrefersText && (userInVoiceMode || isVoiceRequested(text));

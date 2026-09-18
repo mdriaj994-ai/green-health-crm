@@ -1,5 +1,5 @@
 import { GoogleGenerativeAI } from "@google/generative-ai";
-import { MergedProduct, findProductInDB, buildProductAIContext } from "./product-db";
+import { MergedProduct, findProductInDB, buildProductAIContext, isCertificateOrLicenseRequest } from "./product-db";
 import { buildCustomerMemoryPrompt, extractCustomerFacts, appendChatMessage, getCustomerProfile, getRecentChatHistory, isValidPersonName } from "./customer-memory";
 import { getGeoSocialProofFromProfile, detectDistrictFromText } from "./geo-social-proof";
 import fs from "fs";
@@ -481,9 +481,9 @@ export async function generateAutoReply(
 
   // 5. Why buy from us / Why trust / Certificate / Govt license (কেন আপনাদের থেকে নিব / কেন বিশ্বাস করব)
   const isWhyTrustUs = /(?:keno|কেন)\s*(?:apnader|আপনাদের|নেব|নেবো|বিশ্বাস|biswas|trust)/i.test(trimmedClean) ||
-                       /(?:certificate|license|অনুমোদন|সরকারি|লাইসেন্স|প্রমাণ|proof)/i.test(trimmedClean);
+                       isCertificateOrLicenseRequest(effectiveMessage);
   if (isWhyTrustUs) {
-    const reply = "জি ভাইয়া, আমাদের কস্তুরী পাউডার স্বাস্থ্য মন্ত্রণালয় ও বাংলাদেশ ইউনানী বোর্ডের ক্যাটাগরি-এ নিবন্ধিত হাকীম মো: আব্দুল করিম (রেজি নং: ৫৮৪২/২০১৮)-এর নিজস্ব প্রস্তুতকৃত (জনতা ইউনানী চিকিৎসালয়, দোকান ৩৩, ৩য় তলা, আলীকদম কাঁচাবাজার, বান্দরবান; ই-ট্রেড লাইসেন্স নং: TRAD/ALIKADAM/0482/2026)। এটি ১০০% প্রাকৃতিক ভেষজ—কোনো কেমিক্যাল বা ক্ষতিকর ভায়াগ্রা নেই, কোনো সাইড এফেক্ট নেই। ওনার সরকারি সনদপত্র ও লাইসেন্সের ছবি আমাদের পেজে দেওয়া আছে।";
+    const reply = "জি ভাইয়া, আমাদের কস্তুরী পাউডার স্বাস্থ্য ও পরিবার কল্যাণ মন্ত্রণালয়ের অধীন বাংলাদেশ ইউনানী ও আয়ুর্বেদিক বোর্ডের ক্যাটাগরি-এ নিবন্ধিত চিকিৎসক হাকীম মো: আব্দুল করিম (রেজি নং: ৫৮৪২/২০১৮)-এর নিজস্ব প্রস্তুতকৃত (জনতা ইউনানী চিকিৎসালয়, আলীকদম কাঁচাবাজার, বান্দরবান; ই-ট্রেড লাইসেন্স নং: TRAD/ALIKADAM/0482/2026)। আপনার দেখার সুবিধার্থে ওনার সরকারি রেজিস্ট্রেশন সনদপত্র এবং ট্রেড লাইসেন্সের ছবি ইনবক্সে পাঠিয়ে দেওয়া হয়েছে। এটি ১০০% প্রাকৃতিক ও সম্পূর্ণ পার্শ্বপ্রতিক্রিয়ামুক্ত।";
     if (senderId) appendChatMessage(senderId, "model", reply, false);
     return reply;
   }
@@ -729,8 +729,8 @@ function generateFallbackReply(
   }
 
   // License / Certificate / Proof request
-  if (/(?:certificate|licence|license|regist|sanad|proof|kagoj|অনুমোদন|লাইসেন্স|সার্টিফিকেট|সনদ|নিবন্ধন|প্রমাণ|কাগজপত্র)/i.test(lower)) {
-    return "জি ভাইয়া, আমাদের হাকীম মো: আব্দুল করিম মহোদয় বাংলাদেশ সরকার স্বাস্থ্য ও পরিবার কল্যাণ মন্ত্রণালয়ের আওতাধীন বাংলাদেশ বোর্ড অব ইউনানী এন্ড আয়ুর্বেদিক সিস্টেমস অব মেডিসিন কর্তৃক ক্যাটাগরি-এ নিবন্ধিত হাকীম (রেজিস্ট্রেশন নং: ৫৮৪২/২০১৮) এবং আলীকদম উপজেলা পরিষদের বৈধ ই-ট্রেড লাইসেন্সপ্রাপ্ত (নং: TRAD/ALIKADAM/0482/2026)। ওনার সরকারি সনদপত্র ও লাইসেন্সের ছবি ইনবক্সে পাঠিয়ে দেওয়া হয়েছে।";
+  if (isCertificateOrLicenseRequest(message)) {
+    return "জি ভাইয়া, আমাদের কস্তুরী পাউডার স্বাস্থ্য ও পরিবার কল্যাণ মন্ত্রণালয়ের অধীন বাংলাদেশ ইউনানী ও আয়ুর্বেদিক বোর্ডের ক্যাটাগরি-এ নিবন্ধিত চিকিৎসক হাকীম মো: আব্দুল করিম (রেজি নং: ৫৮৪২/২০১৮)-এর নিজস্ব প্রস্তুতকৃত (জনতা ইউনানী চিকিৎসালয়, আলীকদম কাঁচাবাজার, বান্দরবান; ই-ট্রেড লাইসেন্স নং: TRAD/ALIKADAM/0482/2026)। আপনার দেখার সুবিধার্থে ওনার সরকারি রেজিস্ট্রেশন সনদপত্র এবং ট্রেড লাইসেন্সের ছবি ইনবক্সে পাঠিয়ে দেওয়া হয়েছে। এটি ১০০% প্রাকৃতিক ও সম্পূর্ণ পার্শ্বপ্রতিক্রিয়ামুক্ত।";
   }
 
   // Order Intent with Geo Social Proof if location detected

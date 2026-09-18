@@ -732,9 +732,9 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
 
   // 5. Why buy from us / Why trust / Certificate / Govt license (কেন আপনাদের থেকে নিব / কেন বিশ্বাস করব)
   const isWhyTrustUs = /(?:keno|কেন)\s*(?:apnader|আপনাদের|নেব|নেবো|বিশ্বাস|biswas|trust)/i.test(trimmedClean) ||
-                       /(?:certificate|license|অনুমোদন|সরকারি|লাইসেন্স|প্রমাণ|proof)/i.test(trimmedClean);
+                       isCertificateOrLicenseRequest(customerMessage);
   if (isWhyTrustUs) {
-    const reply = "জি ভাইয়া, আমাদের কস্তুরী পাউডার স্বাস্থ্য মন্ত্রণালয় ও বাংলাদেশ ইউনানী বোর্ডের ক্যাটাগরি-এ নিবন্ধিত হাকীম মো: আব্দুল করিম (রেজি নং: ৫৮৪২/২০১৮)-এর নিজস্ব প্রস্তুতকৃত (জনতা ইউনানী চিকিৎসালয়, দোকান ৩৩, ৩য় তলা, আলীকদম কাঁচাবাজার, বান্দরবান; ই-ট্রেড লাইসেন্স নং: TRAD/ALIKADAM/0482/2026)। এটি ১০০% প্রাকৃতিক ভেষজ—কোনো কেমিক্যাল বা ক্ষতিকর ভায়াগ্রা নেই, কোনো সাইড এফেক্ট নেই। ওনার সরকারি সনদপত্র ও লাইসেন্সের ছবি আমাদের পেজে দেওয়া আছে।";
+    const reply = "জি ভাইয়া, আমাদের কস্তুরী পাউডার স্বাস্থ্য ও পরিবার কল্যাণ মন্ত্রণালয়ের অধীন বাংলাদেশ ইউনানী ও আয়ুর্বেদিক বোর্ডের ক্যাটাগরি-এ নিবন্ধিত চিকিৎসক হাকীম মো: আব্দুল করিম (রেজি নং: ৫৮৪২/২০১৮)-এর নিজস্ব প্রস্তুতকৃত (জনতা ইউনানী চিকিৎসালয়, আলীকদম কাঁচাবাজার, বান্দরবান; ই-ট্রেড লাইসেন্স নং: TRAD/ALIKADAM/0482/2026)। আপনার দেখার সুবিধার্থে ওনার সরকারি রেজিস্ট্রেশন সনদপত্র এবং ট্রেড লাইসেন্সের ছবি ইনবক্সে পাঠিয়ে দেওয়া হয়েছে। এটি ১০০% প্রাকৃতিক ও সম্পূর্ণ পার্শ্বপ্রতিক্রিয়ামুক্ত।";
     if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", reply, false);
     return reply;
   }
@@ -1248,8 +1248,8 @@ ${voiceModeInstruction}
   }
 
   // License / Certificate / Proof request
-  if (/(?:certificate|licence|license|regist|sanad|proof|kagoj|অনুমোদন|লাইসেন্স|সার্টিফিকেট|সনদ|নিবন্ধন|প্রমাণ|কাগজপত্র)/i.test(qLowerFb)) {
-    return "জি ভাইয়া, আমাদের হাকীম মো: আব্দুল করিম মহোদয় বাংলাদেশ সরকার স্বাস্থ্য ও পরিবার কল্যাণ মন্ত্রণালয়ের আওতাধীন বাংলাদেশ বোর্ড অব ইউনানী এন্ড আয়ুর্বেদিক সিস্টেমস অব মেডিসিন কর্তৃক ক্যাটাগরি-এ নিবন্ধিত হাকীম (রেজিস্ট্রেশন নং: ৫৮৪২/২০১৮) এবং আলীকদম উপজেলা পরিষদের বৈধ ই-ট্রেড লাইসেন্সপ্রাপ্ত (নং: TRAD/ALIKADAM/0482/2026)। ওনার সরকারি সনদপত্র ও লাইসেন্সের ছবি ইনবক্সে পাঠিয়ে দেওয়া হয়েছে।";
+  if (isCertificateOrLicenseRequest(customerMessage || qLowerFb)) {
+    return "জি ভাইয়া, আমাদের কস্তুরী পাউডার স্বাস্থ্য ও পরিবার কল্যাণ মন্ত্রণালয়ের অধীন বাংলাদেশ ইউনানী ও আয়ুর্বেদিক বোর্ডের ক্যাটাগরি-এ নিবন্ধিত চিকিৎসক হাকীম মো: আব্দুল করিম (রেজি নং: ৫৮৪২/২০১৮)-এর নিজস্ব প্রস্তুতকৃত (জনতা ইউনানী চিকিৎসালয়, আলীকদম কাঁচাবাজার, বান্দরবান; ই-ট্রেড লাইসেন্স নং: TRAD/ALIKADAM/0482/2026)। আপনার দেখার সুবিধার্থে ওনার সরকারি রেজিস্ট্রেশন সনদপত্র এবং ট্রেড লাইসেন্সের ছবি ইনবক্সে পাঠিয়ে দেওয়া হয়েছে। এটি ১০০% প্রাকৃতিক ও সম্পূর্ণ পার্শ্বপ্রতিক্রিয়ামুক্ত।";
   }
 
   if (geoSocialProof && (/order|অর্ডার|নিতে চাই|পাঠিয়ে|পাঠান|delivery|পার্সেল/i.test(qLowerFb) || qLowerFb.includes("থেকে"))) {
@@ -1402,9 +1402,13 @@ function isCertificateOrLicenseRequest(text) {
   if (!text) return false;
   const q = text.toLowerCase();
   return (
-    /certificate|licence|license|regist|reg\b|proof|dokhol|kagoj|kagojpotro|onumodon/i.test(q) ||
-    /সার্টিফিকেট|লাইসেন্স|সনদ|নিবন্ধন|অনুমোদন|কাগজ|কাগজপত্র|প্রমাণ|প্রুফ|ডকুমেন্ট|কাগজপাতি/i.test(q) ||
-    /ডাক্তারের\s*প্রমাণ|হাকিমের\s*প্রমাণ|ডাক্তার\s*কিনা|আসল\s*কিনা|বৈধ\s*কিনা|সরকারি\s*অনুমোদন/i.test(q)
+    /certificate|licen[sc]e|regist|\breg\b|proof|dokhol|kagoj|sanad|onumodon/i.test(q) ||
+    /সা[রট্রি]+ফিকে[টড]|লাই[সছ][েএ]?[নন][্সস]|সন[দত]|নিবন্ধন|অনুমোদন|কাগজ|প্রমা[ণন]|প্রুফ|ডকুমেন্ট/i.test(q) ||
+    /(?:ডাক্তার|হাকিম|প্রোডাক্ট|ওষুধ|ঔষধ|কোম্পানি|পেজ).*(?:প্রমা[ণন]|আসল|বৈধ|সত্য|অনুমোদন|কিনা|কে|নাম|সা[রট্রি]+ফিকে|লাই[সছ])/i.test(q) ||
+    /(?:তৈরি|বানাইছে|বানায়|বানায়|প্রস্তুত).*(?:কে|কার|নাম|হাকিম|ডাক্তার)/i.test(q) ||
+    /(?:ছবি|সবি|pic|photo|দেখ|দাও|দেন|পাঠা|দেখা).*(?:সা[রট্রি]+ফিকে|লাই[সছ]|সন[দত]|কাগজ|অনুমোদন|প্রমা[ণন])/i.test(q) ||
+    /(?:সা[রট্রি]+ফিকে|লাই[সছ]|সন[দত]|কাগজ|অনুমোদন|প্রমা[ণন]).*(?:ছবি|সবি|pic|photo|দেখ|দাও|দেন|পাঠা|দেখা|আসে|আছে|হবে|পাব)/i.test(q) ||
+    /(?:হাকিম|ডাক্তার|কবিরাজ|চিকিৎসক).*(?:সার্টিফিকেট|সাটিফিকেট|লাইসেন্স|লাইসন্স|সনদ|কাগজ|প্রমাণ|প্রমান)/i.test(q)
   );
 }
 
@@ -1920,12 +1924,14 @@ async function pollOnce() {
             }
 
             // Check if customer asked for certificate or license of Hakim
+            let certImagesSent = false;
             if (isCertificateOrLicenseRequest(messageText)) {
               try {
                 console.log(`[FB_BOT] Customer asked for certificate/license. Sending Hakim Abdul Karim credentials to ${senderId}...`);
                 await sendFacebookImage(senderId, "hakim_abdul_karim_certificate.jpg", page.accessToken);
-                await sleep(600);
+                await sleep(800);
                 await sendFacebookImage(senderId, "hakim_abdul_karim_license.jpg", page.accessToken);
+                certImagesSent = true;
               } catch (certErr) {
                 console.warn("[FB_BOT_CERT_ERR]", certErr.message);
               }
@@ -1983,6 +1989,20 @@ async function pollOnce() {
             const botConfirmedOrder = /(?:অর্ডারটি|অর্ডার|পার্সেলটি|পার্সেল)\s*(?:সফলভাবে\s*)?(?:কনফার্ম|নিশ্চিত|বুকিং)/i.test(replyText);
             console.log(`[ORDER_DETECT] parsed=${parsedOrder ? 'YES phone:'+parsedOrder.phone : 'null'} | isOrderPlaced=${orderPlacedDetected} | botConfirmed=${botConfirmedOrder} | msg="${messageText.slice(0,50).replace(/\n/g,' ')}"`);
 
+            // Guarantee: If bot reply or customer message mentions credentials/license/certificate, ALWAYS deliver certificate images
+            const mentionsCertInReply = /(?:৫৮৪২|5842|সনদপত্র|লাইসেন্স|সার্টিফিকেট|certificate|license|অনুমোদন|ট্রেড\s*লাইসেন্স)/i.test(replyText);
+            if (!certImagesSent && (mentionsCertInReply || isCertificateOrLicenseRequest(messageText))) {
+              try {
+                console.log(`[FB_BOT] Credentials referenced in reply/context. Ensuring certificate images sent to ${senderId}...`);
+                await sendFacebookImage(senderId, "hakim_abdul_karim_certificate.jpg", page.accessToken);
+                await sleep(800);
+                await sendFacebookImage(senderId, "hakim_abdul_karim_license.jpg", page.accessToken);
+                certImagesSent = true;
+              } catch (certErr) {
+                console.warn("[FB_BOT_CERT_SAFETY_ERR]", certErr.message);
+              }
+            }
+
             if (parsedOrder || orderPlacedDetected || botConfirmedOrder) {
               // Customer gave order info or bot confirmed → cancel any pending reminder
               cancelScheduledReminder(senderId);
@@ -1998,7 +2018,7 @@ async function pollOnce() {
                 let addrFromReply = "";
                 if (replyText) {
                   const nm = replyText.match(/(?:জি\s+)?([^\s,।.!?]+)\s+ভাই(?:য়া|য়া)?/i);
-                  if (nm && nm[1] && isValidPersonName(nm[1])) nameFromReply = nm[1].trim();
+                  if (nm && nm[1] && customerMemory.isValidPersonName(nm[1])) nameFromReply = nm[1].trim();
 
                   const dm = replyText.match(/([^\s,।.!?]+)\s*(?:জেলার|জেলা)/i);
                   if (dm && dm[1]) distFromReply = dm[1].trim();
