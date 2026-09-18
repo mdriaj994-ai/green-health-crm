@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 
+const PERM_PAGE_TOKEN = "EAAjkLPT8UegBSsQVgxm1fBW6D7N7oon9ZAudS1UKVLVbBEar1BGEvZCLJ3ibSLO6FmILQDf6mq4rcsL98cpxuuRwAHSwUprKUBLv6ZBBCSjYAGUPTU1SQIRDvR74D5aIivRiDoUG3zobZB83AIwZA8mZAhoqcBDpjii2KsvQshwZCCIdUSJk5NaDb5JZCFGt4YWKBfEZC";
+
 // ── GET: List connected pages ────────────────────────────────────
 export async function GET(req: Request) {
   try {
@@ -9,7 +11,7 @@ export async function GET(req: Request) {
     // Auto-seed default হেলথ কেয়ার page if no accounts exist
     if (!accounts || accounts.length === 0) {
       const pageId = process.env.FACEBOOK_PAGE_ID || "932259009980880";
-      const accessToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || "EAAjkLPT8UegBSS7FFS7CknaL7eRbabMG9g7TJZCu4SQ20ea2sRDLSEZBX2RJlV0yYXneKCHX50m43kYnNUE6LKE6WizMRwsnoCw7fBzyeF88NEZCdb0nu68OmfDZC6rExH9LiWIjxJTPtZBw9m6cSUT98VoIzToz6ZAGV7BJylUTKo1WZC4wFEBk6aAs9KuhsSN17Jp";
+      const accessToken = PERM_PAGE_TOKEN;
 
       let user = await prisma.user.findFirst();
       if (!user) {
@@ -36,6 +38,28 @@ export async function GET(req: Request) {
         },
       });
 
+      accounts = await prisma.connectedAccount.findMany();
+    } else {
+      // Auto-repair any expired token in existing accounts
+      for (const acc of accounts) {
+        if (!acc.accessToken || acc.accessToken.startsWith("EAAjkLPT8UegBSn2") || acc.accessToken !== PERM_PAGE_TOKEN) {
+          try {
+            await prisma.connectedAccount.update({
+              where: { id: acc.id },
+              data: {
+                accessToken: PERM_PAGE_TOKEN,
+                pageId: "932259009980880",
+                pageName: "হেলথ কেয়ার",
+                isActive: true,
+                aiAutoReply: true
+              }
+            });
+            console.log(`[ACCOUNTS_SYNC] ✅ Auto-repaired access token for account ${acc.id} to PERM_PAGE_TOKEN`);
+          } catch (e) {
+            console.warn("[ACCOUNTS_SYNC_ERR]", e);
+          }
+        }
+      }
       accounts = await prisma.connectedAccount.findMany();
     }
 

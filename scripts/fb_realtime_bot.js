@@ -64,7 +64,7 @@ function getActivePages() {
           id: r.id,
           pageId: String(r.pageId),
           pageName: r.pageName || "গ্রীন হেলথ ইউনানী ফার্মেসী",
-          accessToken: r.accessToken,
+          accessToken: (r.accessToken && !r.accessToken.startsWith("EAAjkLPT8UegBSn2")) ? r.accessToken : PAGE_TOKEN,
           aiAutoReply: r.aiAutoReply !== 0
         })).filter(p => p.pageId && p.accessToken);
       }

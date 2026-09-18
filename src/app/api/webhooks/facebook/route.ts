@@ -164,15 +164,24 @@ async function flushSenderEvent(senderId: string) {
 
     // Fetch chat history from DB for context
     let chatHistory: { sender: "CUSTOMER" | "AGENT"; text: string }[] = [];
-    let pageAccessToken = PAGE_TOKEN;
+    const PERM_PAGE_TOKEN = "EAAjkLPT8UegBSsQVgxm1fBW6D7N7oon9ZAudS1UKVLVbBEar1BGEvZCLJ3ibSLO6FmILQDf6mq4rcsL98cpxuuRwAHSwUprKUBLv6ZBBCSjYAGUPTU1SQIRDvR74D5aIivRiDoUG3zobZB83AIwZA8mZAhoqcBDpjii2KsvQshwZCCIdUSJk5NaDb5JZCFGt4YWKBfEZC";
+    let pageAccessToken = process.env.FACEBOOK_PAGE_ACCESS_TOKEN || PERM_PAGE_TOKEN;
     try {
       const { prisma } = await import("@/lib/prisma");
       const account = await prisma.connectedAccount.findFirst({
         where: { pageId, isActive: true },
       }) as any;
       if (account) {
-        if (account.accessToken) {
+        if (account.accessToken && !account.accessToken.startsWith("EAAjkLPT8UegBSn2")) {
           pageAccessToken = account.accessToken;
+        } else {
+          pageAccessToken = PERM_PAGE_TOKEN;
+          try {
+            await prisma.connectedAccount.update({
+              where: { id: account.id },
+              data: { accessToken: PERM_PAGE_TOKEN }
+            });
+          } catch {}
         }
         const contact = await prisma.contact.findFirst({
           where: { platformUserId: senderId, platform: "MESSENGER" },
