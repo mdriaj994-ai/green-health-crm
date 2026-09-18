@@ -640,6 +640,38 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     return reply;
   }
 
+  // Instant interceptor for customer asking their name (e.g. "amar name jano", "amar name ki", "আমার নাম কি জানো")
+  const isAskingName = /(?:name|nam|naam|নাম)\s*(?:ki|konta|koto|jano|jaano|janen|bolen|bolo|bolun|boloto|mone|mon|ase|ache|জান|জানো|জানেন|বলেন|বলো|বলুন|কি|কী|মনে\s*আছে|আছে)/i.test(trimmedClean) ||
+                       /(?:jano|jaano|janen|জান|জানো|জানেন)\s+(?:amar|amr|আমার)\s+(?:name|nam|naam|নাম)/i.test(trimmedClean) ||
+                       /(?:amar|amr|আমার)\s+(?:name|naam|nam|নাম)\s*(?:ki|jano|jaano|janen|bolen|bolo)/i.test(trimmedClean);
+  if (isAskingName) {
+    let foundName = "";
+    const savedProf = senderId ? customerMemory.getCustomerProfile(senderId) : null;
+    if (savedProf && savedProf.name && !["Customer", "কাস্টমার", "ভাইয়া"].includes(savedProf.name) && customerMemory.isValidPersonName(savedProf.name)) {
+      foundName = savedProf.name;
+    }
+    if (!foundName && senderId) {
+      try {
+        const Database = require("better-sqlite3");
+        const db = new Database(path.join(process.cwd(), "prisma", "social_inbox.db"), { readonly: true });
+        const row = db.prepare('SELECT customerName FROM "Order" WHERE senderId = ? AND customerName != "" ORDER BY createdAt DESC LIMIT 1').get(senderId);
+        if (row && row.customerName && customerMemory.isValidPersonName(row.customerName)) {
+          foundName = row.customerName;
+          customerMemory.updateCustomerProfile(senderId, { name: foundName });
+        }
+        db.close();
+      } catch (e) {}
+    }
+    if (foundName) {
+      const reply = `জি ভাইয়া, আপনার নাম তো ${foundName}! বলুন ${foundName} ভাইয়া, কীভাবে সাহায্য করতে পারি?`;
+      if (senderId) customerMemory.appendChatMessage(senderId, "model", reply, false);
+      return reply;
+    }
+    const noNameReply = "জি না ভাইয়া, আপনার শুভ নামটি তো এখনো জানা হয়নি। আপনার নামটি যদি বলতেন, খুব ভালো লাগত।";
+    if (senderId) customerMemory.appendChatMessage(senderId, "model", noNameReply, false);
+    return noNameReply;
+  }
+
   // Instant interceptor for delay objections ("বিকেলে জানাবো", "পরে বলব", "টাকা নেই")
   const isDelayIntent = /(?:বিকেলে\s*জানাব|বিকেলে\s*বলব|বিকেলে\s*নেব|পরে\s*জানাব|পরে\s*বলব|পরে\s*নেব|পরে\s*নিব|টাকা\s*নাই|টাকা\s*নেই|টাকা\s*হলে|রাতে\s*জানাব|রাতে\s*বলব|bikel.*janabo|pore.*janabo|pore.*nibo|taka.*nai)/i.test(trimmedClean);
   if (isDelayIntent) {
@@ -1078,22 +1110,9 @@ ${voiceModeInstruction}
     return "জি ভাইয়া, আমাদের সাথে এই Messenger-এ চ্যাটের মাধ্যমেই সরাসরি যোগাযোগ করতে পারেন। আপনার সমস্যাটা এখানেই বলুন — আমি এখনই উত্তর দেব।";
   }
 
-  // Check if customer is ASKING what their name is or if bot knows it (e.g. "amar name jano", "আমার নাম কি জানো", "amar name ki")
-  const isAskingName = /(?:name|nam|naam|নাম)\s*(?:ki|konta|koto|jano|jaano|janen|bolen|bolo|bolun|boloto|mone|mon|ase|ache|জান|জানো|জানেন|বলেন|বলো|বলুন|কি|কী|মনে\s*আছে|আছে)/i.test(qLowerFb) ||
-                       /(?:jano|jaano|janen|জান|জানো|জানেন)\s+(?:amar|amr|আমার)\s+(?:name|nam|naam|নাম)/i.test(qLowerFb) ||
-                       /(?:amar|amr|আমার)\s+(?:name|naam|nam|নাম)\s*(?:ki|jano|jaano|janen|bolen|bolo)/i.test(qLowerFb);
-
-  if (isAskingName) {
-    const savedProf = senderId ? customerMemory.getCustomerProfile(senderId) : null;
-    if (savedProf && savedProf.name && !["Customer", "কাস্টমার", "ভাইয়া"].includes(savedProf.name) && customerMemory.isValidPersonName(savedProf.name)) {
-      return `জি ভাইয়া, আপনার নাম তো ${savedProf.name}! বলুন ${savedProf.name} ভাইয়া, কীভাবে সাহায্য করতে পারি?`;
-    }
-    return "জি না ভাইয়া, আপনার শুভ নামটি তো এখনো জানা হয়নি। আপনার নামটি যদি বলতেন, খুব ভালো লাগত।";
-  }
-
   // Check if customer is TELLING their name (e.g., "amar name rakib", "আমার নাম রাকিব", "আমি রাকিব")
   // Guard: !isAskingName prevents "jano" being saved as a name when customer is asking
-  const tellingNameMatch = !isAskingName && (
+  const tellingNameMatch = (
     customerMessage.match(/(?:amar|amr|আমার)\s+(?:name|naam|nam|নাম)\s*(?:is|holo|hlo|হলো|হল)?\s*[:=]?\s*([A-Za-z\u0980-\u09FF]{2,20})(?:\s|$|[.,!?])/i) ||
     customerMessage.match(/(?:my\s*name\s*is|\bnam\s*[:=]|\bনাম\s*[:=]|\bনামঃ|\bname\s*[:=])\s*([A-Za-z\u0980-\u09FF]{2,20})(?:\s|$|[.,!?])/i) ||
     customerMessage.match(/(?:^|\s)(?:ami|আমি)\s+([A-Za-z\u0980-\u09FF]{2,20})\s+(?:bolsi|bolchi|বলছি|বলসি)(?:$|[.,!?\s])/i)

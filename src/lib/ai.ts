@@ -395,6 +395,39 @@ export async function generateAutoReply(
   const profile = options.senderId ? getCustomerProfile(options.senderId, options.customerName) : null;
   const effectiveCustomerName = options.customerName || profile?.name || "";
 
+  // Instant interceptor for name inquiry (e.g. "amar name jano", "আমার নাম কি জানো", "amar name ki")
+  const isAskingName = /(?:name|nam|naam|নাম)\s*(?:ki|konta|koto|jano|jaano|janen|bolen|bolo|bolun|boloto|mone|mon|ase|ache|জান|জানো|জানেন|বলেন|বলো|বলুন|কি|কী|মনে\s*আছে|আছে)/i.test(trimmedClean) ||
+                       /(?:jano|jaano|janen|জান|জানো|জানেন)\s+(?:amar|amr|আমার)\s+(?:name|nam|naam|নাম)/i.test(trimmedClean) ||
+                       /(?:amar|amr|আমার)\s+(?:name|naam|nam|নাম)\s*(?:ki|jano|jaano|janen|bolen|bolo)/i.test(trimmedClean);
+  if (isAskingName) {
+    let resolvedName = "";
+    if (options.customerName && isValidPersonName(options.customerName)) {
+      resolvedName = options.customerName;
+    } else if (profile && profile.name && isValidPersonName(profile.name)) {
+      resolvedName = profile.name;
+    }
+    // Fallback: check Order table if customer previously placed an order
+    if (!resolvedName && options.senderId) {
+      try {
+        const Database = require("better-sqlite3");
+        const db = new Database(path.join(process.cwd(), "prisma", "social_inbox.db"), { readonly: true });
+        const row = db.prepare('SELECT customerName FROM "Order" WHERE senderId = ? AND customerName != "" ORDER BY createdAt DESC LIMIT 1').get(options.senderId);
+        if (row && row.customerName && isValidPersonName(row.customerName)) {
+          resolvedName = row.customerName;
+        }
+        db.close();
+      } catch (e) {}
+    }
+    if (resolvedName) {
+      const reply = `জি ভাইয়া, আপনার নাম তো ${resolvedName}! বলুন ${resolvedName} ভাইয়া, কীভাবে সাহায্য করতে পারি?`;
+      if (options.senderId) appendChatMessage(options.senderId, "model", reply);
+      return reply;
+    }
+    const noNameReply = "জি না ভাইয়া, আপনার শুভ নামটি তো এখনো জানা হয়নি। আপনার নামটি যদি বলতেন, খুব ভালো লাগত।";
+    if (options.senderId) appendChatMessage(options.senderId, "model", noNameReply);
+    return noNameReply;
+  }
+
   // Extract facts & update permanent customer profile if senderId is present
   if (options.senderId) {
     extractCustomerFacts(options.senderId, effectiveMessage, effectiveCustomerName);
