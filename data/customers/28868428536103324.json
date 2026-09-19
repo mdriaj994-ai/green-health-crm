@@ -1,0 +1,50 @@
+{
+  "senderId": "28868428536103324",
+  "name": "",
+  "age": "",
+  "maritalStatus": "",
+  "symptoms": [],
+  "duration": "",
+  "productDiscussed": "Soul Mate (খাঁটি কস্তুরী ফর্মুলা)",
+  "productsDiscussedAll": [
+    "Soul Mate (খাঁটি কস্তুরী ফর্মুলা)"
+  ],
+  "orderStatus": "inquiry",
+  "ordersPlaced": [],
+  "phone": "",
+  "district": "",
+  "thana": "",
+  "address": "",
+  "lastVoiceTranscript": "",
+  "sessionSummaries": [],
+  "chatLog": [
+    {
+      "role": "user",
+      "text": "এদের মূল্য কত",
+      "isVoice": false,
+      "time": 1789763687134
+    },
+    {
+      "role": "model",
+      "text": "জি ভাইয়া, আমাদের ২৫০ গ্রামের ১ মাসের ফুল কোর্সের 'কস্তুরী পাউডার'-এর অফার মূল্য মাত্র ২,৮০০ টাকা লাগবে। অর্ডার কনফার্ম করতে ৫০০ টাকা অগ্রিম বিকাশ বা নগদে (হেল্পলাইন: 01870-023804) পরিশোধ করতে হয়, বাকি ২,৩০০ টাকা কুরিয়ারে পার্সেল হাতে পেয়ে ক্যাশ অন ডেলিভারিতে দেখে পরিশোধ করবেন। আপনি কি নিতে চাচ্ছেন ভাইয়া?",
+      "isVoice": false,
+      "time": 1789763687138
+    },
+    {
+      "role": "model",
+      "text": "জি ভাইয়া, আপনি কি অর্ডারটি কনফার্ম করতে চাচ্ছেন? নিতে চাইলে আপনার নাম, জেলা, থানা, বিস্তারিত ঠিকানা ও মোবাইল নম্বরটি পাঠিয়ে দিন, আমি অর্ডার বুকিং করে দিচ্ছি।",
+      "isVoice": false,
+      "time": 1789765283697
+    }
+  ],
+  "firstContact": 1789763687110,
+  "lastContact": 1789765283697,
+  "totalMessages": 9,
+  "prefersVoice": false,
+  "facebookName": "Abu Shayed",
+  "extraFacts": [],
+  "mentionedLocations": [],
+  "allHealthKeywords": [],
+  "budgetMentioned": [],
+  "productSl": "39"
+}

@@ -1,0 +1,40 @@
+{
+  "senderId": "test-sender-2",
+  "name": "Rakib",
+  "age": "",
+  "maritalStatus": "",
+  "symptoms": [],
+  "duration": "",
+  "productDiscussed": "",
+  "productsDiscussedAll": [],
+  "orderStatus": "inquiry",
+  "ordersPlaced": [],
+  "phone": "",
+  "district": "",
+  "thana": "",
+  "address": "",
+  "lastVoiceTranscript": "",
+  "sessionSummaries": [],
+  "chatLog": [
+    {
+      "role": "user",
+      "text": "আপনাদের হাকিমের কি সরকারি লাইসেন্স বা সার্টিফিকেট আছে? প্রমাণ দেন",
+      "isVoice": false,
+      "time": 1789750326273
+    },
+    {
+      "role": "model",
+      "text": "জি রাকিব ভাইয়া, আমাদের হাকীম মো: আব্দুল করিম স্বাস্থ্য ও পরিবার কল্যাণ মন্ত্রণালয়ের অধীনে বাংলাদেশ বোর্ড অব ইউনানী অ্যান্ড আয়ুর্বেদিক সিস্টেমস অব মেডিসিন কর্তৃক নিবন্ধিত ক্যাটাগরি-এ রেজিস্টার্ড হাকিম (রেজিস্ট্রেশন নং: ৫৮৪২/২০১৮)। আপনার দেখার সুবিধার্থে আমাদের সার্ভার থেকে ওনার সরকারি সনদপত্র এবং ই-ট্রেড লাইসেন্সের ছবি ইনবক্সে পাঠিয়ে দেওয়া হয়েছে।",
+      "isVoice": false,
+      "time": 1789750335597
+    }
+  ],
+  "firstContact": 1789750326267,
+  "lastContact": 1789750335597,
+  "totalMessages": 1,
+  "prefersVoice": false,
+  "extraFacts": [],
+  "mentionedLocations": [],
+  "allHealthKeywords": [],
+  "budgetMentioned": []
+}
