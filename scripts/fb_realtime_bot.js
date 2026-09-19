@@ -171,6 +171,7 @@ const THREAD_MEMORY_FILE = path.join(process.cwd(), "data", "thread_memory.json"
 const VOICE_USERS_FILE = path.join(process.cwd(), "data", "voice_users.json");
 const SCHEDULED_REMINDERS_FILE = path.join(process.cwd(), "data", "scheduled_reminders.json");
 const processedIds = new Set();
+const inFlightMsgIds = new Set();
 const threadMemory = new Map();
 const voiceUsers = new Set();
 
@@ -337,6 +338,7 @@ try {
 
 function isProcessedId(id) {
   if (!id) return false;
+  if (inFlightMsgIds.has(id)) return true;
   if (processedIds.has(id)) return true;
   try {
     if (fs.existsSync(PROCESSED_FILE)) {
@@ -2391,9 +2393,9 @@ async function pollOnce() {
           const senderId = newestMsg.from?.id ? String(newestMsg.from.id) : null;
           if (!senderId) continue;
 
-          // Mark all batch message IDs as processed immediately
+          // Track in-flight message IDs so parallel poll ticks don't duplicate
           for (const m of unrepliedCustomerMsgs) {
-            saveProcessedId(m.id);
+            inFlightMsgIds.add(m.id);
           }
 
           // ── HUMAN BEHAVIOR: Instantly mark message as SEEN (blue tick) ──────
@@ -2533,6 +2535,9 @@ async function pollOnce() {
               }
             }
 
+            for (const m of unrepliedCustomerMsgs) {
+              saveProcessedId(m.id);
+            }
             continue; // Multi-message batch finished!
           }
 

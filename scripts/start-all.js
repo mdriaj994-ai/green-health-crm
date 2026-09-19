@@ -18,6 +18,8 @@ if (!process.env.FACEBOOK_PAGE_ACCESS_TOKEN || !process.env.FACEBOOK_PAGE_ACCESS
   process.env.FACEBOOK_PAGE_ACCESS_TOKEN = PERM_PAGE_TOKEN;
 }
 
+process.env.STANDALONE_BOT_ACTIVE = "true";
+
 console.log("==========================================");
 console.log("  STARTING SOCIAL INBOX & FB REALTIME BOT ");
 console.log("==========================================");

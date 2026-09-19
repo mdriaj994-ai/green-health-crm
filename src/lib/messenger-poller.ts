@@ -160,8 +160,8 @@ export async function startMessengerPoller() {
             if (!isFromCustomer) break; // reached bot/agent reply
             if (isProcessed(m.id)) break; // already handled
 
-            // Atomically mark as processed
-            markProcessed(m.id);
+            // Track in memory loop so poller doesn't re-enter in the same interval
+            inMemoryProcessedIds.add(m.id);
             console.log(`[MESSENGER_POLLER] 🎯 Handling customer message from ${m.from?.name || m.from?.id}: "${m.message}"`);
 
             // Extract attachments

@@ -3,6 +3,10 @@
 
 export async function register() {
   if (process.env.NEXT_RUNTIME === "nodejs") {
+    if (process.env.STANDALONE_BOT_ACTIVE === "true" || process.env.DISABLE_NEXT_POLLER === "true") {
+      console.log("[INSTRUMENTATION] Standalone FB Realtime Bot is active. Skipping Next.js poller to prevent dual-poller process collision.");
+      return;
+    }
     console.log("[INSTRUMENTATION] Bootstrapping 24/7 background messenger poller on Next.js runtime...");
     try {
       const { startMessengerPoller } = await import("@/lib/messenger-poller");
