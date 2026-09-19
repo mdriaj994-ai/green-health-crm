@@ -533,57 +533,31 @@ async function flushSenderEvent(senderId: string) {
     }
 
     const userPrefersText = isTextModeRequested(text);
-    const shouldSendVoice = !userPrefersText && (userInVoiceMode || isVoiceRequested(text));
+    const shouldSendVoice = !userPrefersText && (userInVoiceMode || isVoiceRequested(text) || Boolean(audioUrl));
 
     if (replyText && effectiveToken) {
+      // 1. ALWAYS SEND TEXT FIRST (Instant 1s response)
+      await sendSenderAction(senderId, "typing_on", effectiveToken);
+      await new Promise(r => setTimeout(r, 800));
+      await sendMessengerReply(pageId, senderId, replyText, effectiveToken, items[items.length - 1].mid || null);
+      console.log(`[AUTO_REPLY_SENT] Text to: ${senderId} | Reply: "${replyText.substring(0, 80)}..."`);
+      try {
+        const { appendChatMessage } = await import("@/lib/customer-memory");
+        appendChatMessage(senderId, "model", replyText, false);
+      } catch {}
+
+      // 2. ALSO SEND VOICE NOTE IF REQUESTED
       if (shouldSendVoice) {
-        // Customer is in persistent voice mode OR explicitly asked for voice
-        // → send reply as voice note FIRST
-        console.log(`[VOICE_MODE_ACTIVE] Sending response as voice note to ${senderId}: "${replyText.substring(0, 80)}..."`);
-        await sendSenderAction(senderId, "typing_on", effectiveToken);
-        const sentVoice = await sendMessengerVoiceNote(senderId, replyText, effectiveToken);
+        console.log(`[VOICE_MODE_ACTIVE] Also sending voice note to ${senderId}: "${replyText.substring(0, 80)}..."`);
         try {
-          const { appendChatMessage } = await import("@/lib/customer-memory");
-          appendChatMessage(senderId, "model", replyText, true);
-        } catch {}
-        if (!sentVoice) {
-          // Fallback to text if voice note generation/upload failed
-          console.log(`[VOICE_MODE_ACTIVE] Voice failed, fallback to text for ${senderId}`);
-          await sendMessengerReply(pageId, senderId, replyText, effectiveToken, items[items.length - 1].mid || null);
-        } else {
-          // Voice sent — but if customer asked HOW TO ORDER / WHAT IS NEEDED or reply has order form,
-          // ALSO send the text so they can READ and COPY the order form format
-          const isOrderInfoReq = isOrderInfoRequest(text, replyText);
-          const isPhoneReq = isPhoneNumberRequest(text, replyText);
-          if (isOrderInfoReq || isPhoneReq) {
-            await new Promise(r => setTimeout(r, 1200));
-            await sendSenderAction(senderId, "typing_on", effectiveToken);
-            let companionText = replyText;
-            if (isPhoneReq && !replyText.includes("01870-023804")) {
-              companionText = `📞 আমাদের অফিসিয়াল হেল্পলাইন ও বুকিং নম্বর:\n👉 01870-023804 (বিকাশ)\n\n(যেকোনো প্রয়োজনে সরাসরি কল দিতে বা কথা বলতে পারেন ভাইয়া)`;
-            } else if (isPhoneReq) {
-              companionText = `📞 আমাদের অফিসিয়াল হেল্পলাইন ও বুকিং নম্বর:\n👉 01870-023804 (বিকাশ)\n\n(যেকোনো প্রয়োজনে সরাসরি কল দিতে বা কথা বলতে পারেন ভাইয়া)`;
-            }
-            await sendMessengerReply(pageId, senderId, companionText, effectiveToken, items[items.length - 1].mid || null);
-            console.log(`[COMPANION_TEXT] 📝 Also sent text version (phone/order) to ${senderId}`);
-          }
-        }
-      } else {
-        const charCount = replyText.length;
-        const rawDelay = 1800 + (charCount * 25);
-        const jitter = (Math.random() * 800) - 400;
-        const delayMs = Math.min(9500, Math.max(2200, Math.round(rawDelay + jitter)));
-
-        if (delayMs > 4500) {
-          await new Promise(r => setTimeout(r, 3500));
           await sendSenderAction(senderId, "typing_on", effectiveToken);
-          await new Promise(r => setTimeout(r, delayMs - 3500));
-        } else {
-          await new Promise(r => setTimeout(r, delayMs));
+          const sentVoice = await sendMessengerVoiceNote(senderId, replyText, effectiveToken);
+          if (sentVoice) {
+            console.log(`[VOICE_NOTE_SENT] Voice delivered to ${senderId}`);
+          }
+        } catch (vErr: any) {
+          console.warn("[VOICE_SEND_ERR]", vErr.message);
         }
-
-        await sendMessengerReply(pageId, senderId, replyText, effectiveToken, items[items.length - 1].mid || null);
-        console.log(`[AUTO_REPLY_SENT] To: ${senderId} | Reply: "${replyText.substring(0, 80)}..."`);
       }
 
       // ── ORDER DETECTION & SAVE ─────────────────────────────────────────────

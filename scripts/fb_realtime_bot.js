@@ -2952,60 +2952,30 @@ ${paymentLine}
             }
             console.log(`[FB_BOT] 🤖 [${page.pageName}] REPLY: "${replyText.slice(0, 70)}..."`);
 
-            // ── DECIDE: Voice or Text? ────────────────────────────────────────
-            // shouldSendVoice = true if:
-            //   • Customer sent a voice/audio attachment
-            //   • Customer explicitly requested voice in THIS message
-            //   • Customer is in PERSISTENT voice mode (set in a previous message)
-            const userPrefersText = isTextModeRequested(messageText);
-            const shouldSendVoice = !userPrefersText && (
-              Boolean(audioAttach)
-              || isOnlyVoiceRequest(messageText)
-              || isVoiceRequested(messageText)
-              || isVoiceMode(senderId)   // ← persistent mode across all messages
-            );
+            // ── 1. ALWAYS SEND TEXT REPLY IMMEDIATELY ────────────────────────────
+            // Send text first so customer instantly sees the human answer (within 1-2s)
+            const delay = calculateHumanTypingDelay(replyText);
+            await sendSenderAction(senderId, "typing_on", page.accessToken);
+            await sleep(Math.min(delay, 1500));
+            const sendResult = await sendFacebookMessage(senderId, replyText, page.accessToken, lastMsg.id);
+            console.log(`[FB_BOT] 🚀 [${page.pageName}] TEXT SENT [${sendResult.status}]:`, sendResult.data?.message_id || sendResult.data);
+            recordOutgoingBotMessageInDb(senderId, replyText, false);
+            customerMemory.appendChatMessage(senderId, "model", replyText, false);
 
-            // ── SPECIAL: Order info requests ALWAYS need text (customer must READ & fill form) ──
-            // Even if customer is in voice mode, if they're asking HOW to order / WHAT is needed,
-            // send voice explanation first, THEN also send the text so they can copy the format.
-            const isOrderInfoReq = isOrderInfoRequest(messageText, replyText);
-
-            if (shouldSendVoice) {
-              console.log(`[FB_BOT] 🎙️ [VOICE_MODE] Sending voice note to ${senderId}: "${replyText.slice(0, 70)}..."`);
-              await sendSenderAction(senderId, "typing_on", page.accessToken);
-              const sentVoice = await sendFacebookVoiceNote(senderId, replyText, page.accessToken);
-              if (sentVoice) {
-                customerMemory.appendChatMessage(senderId, "model", replyText, true);
-                recordOutgoingBotMessageInDb(senderId, replyText, true);
-
-                // ── If order info requested: ALSO send text version after voice ──
-                // Customer needs to SEE the format to copy & fill it
-                const isPhoneReq = isPhoneNumberRequest(messageText, replyText);
-                if (isOrderInfoReq || isPhoneReq) {
-                  await sleep(1200);
-                  await sendSenderAction(senderId, "typing_on", page.accessToken);
-                  let companionText = replyText;
-                  if (isPhoneReq && !replyText.includes("01870-023804")) {
-                    companionText = `📞 আমাদের অফিসিয়াল হেল্পলাইন ও বুকিং নম্বর:\n👉 01870-023804 (বিকাশ)\n\n(যেকোনো প্রয়োজনে সরাসরি কল দিতে বা কথা বলতে পারেন ভাইয়া)`;
-                  } else if (isPhoneReq) {
-                    companionText = `📞 আমাদের অফিসিয়াল হেল্পলাইন ও বুকিং নম্বর:\n👉 01870-023804 (বিকাশ)\n\n(যেকোনো প্রয়োজনে সরাসরি কল দিতে বা কথা বলতে পারেন ভাইয়া)`;
-                  }
-                  await sendFacebookMessage(senderId, companionText, page.accessToken);
-                  console.log(`[FB_BOT] 📝 [COMPANION_TEXT] Also sent text version (phone/order) so customer can copy & dial`);
+            // ── 2. ALSO SEND VOICE NOTE IF VOICE REQUESTED OR SENT AUDIO ─────────
+            const wantsVoice = Boolean(audioAttach) || isOnlyVoiceRequest(messageText) || isVoiceRequested(messageText);
+            if (wantsVoice) {
+              console.log(`[FB_BOT] 🎙️ [VOICE_MODE] Also sending voice note to ${senderId}...`);
+              try {
+                await sendSenderAction(senderId, "typing_on", page.accessToken);
+                const sentVoice = await sendFacebookVoiceNote(senderId, replyText, page.accessToken);
+                if (sentVoice) {
+                  recordOutgoingBotMessageInDb(senderId, replyText, true);
+                  console.log(`[FB_BOT] 🎙️ Voice note delivered to ${senderId}`);
                 }
-              } else {
-                // Voice generation failed → fallback to text
-                console.log(`[FB_BOT] ⚠️ Voice note failed, falling back to text for ${senderId}`);
-                await sendFacebookMessage(senderId, replyText, page.accessToken);
-                recordOutgoingBotMessageInDb(senderId, replyText, false);
+              } catch (vErr) {
+                console.warn("[FB_BOT_VOICE_ERR]", vErr.message);
               }
-            } else {
-              const delay = calculateHumanTypingDelay(replyText);
-              await sendSenderAction(senderId, "typing_on", page.accessToken);
-              await sleep(Math.min(delay, 2500));
-              const sendResult = await sendFacebookMessage(senderId, replyText, page.accessToken);
-              console.log(`[FB_BOT] 🚀 [${page.pageName}] SENT [${sendResult.status}]:`, sendResult.data?.message_id || sendResult.data);
-              recordOutgoingBotMessageInDb(senderId, replyText, false);
             }
 
             saveProcessedId(lastMsg.id); // Persist to file once successfully attempted
