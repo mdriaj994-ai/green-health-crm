@@ -19,7 +19,6 @@ console.log("  STARTING SOCIAL INBOX & FB REALTIME BOT ");
 console.log("==========================================");
 
 // Ensure ConnectedAccount has permanent token in database before starting services
-const PERM_PAGE_TOKEN = "EAAjkLPT8UegBSsQVgxm1fBW6D7N7oon9ZAudS1UKVLVbBEar1BGEvZCLJ3ibSLO6FmILQDf6mq4rcsL98cpxuuRwAHSwUprKUBLv6ZBBCSjYAGUPTU1SQIRDvR74D5aIivRiDoUG3zobZB83AIwZA8mZAhoqcBDpjii2KsvQshwZCCIdUSJk5NaDb5JZCFGt4YWKBfEZC";
 try {
   const Database = require("better-sqlite3");
   const dbPath = path.join(process.cwd(), "prisma", "social_inbox.db");
