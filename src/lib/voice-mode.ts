@@ -82,14 +82,14 @@ export function isVoiceRequested(text: string): boolean {
 
   // Negative intent: customer wants to STOP voice or doesn't want voice
   if (
-    /(?:voice|voyes|boyes|বয়েস|ভয়েস|ভয়েস).*(?:dio\s*na|diyo\s*na|lagbe\s*na|bondho|off|চাই\s*না|দিবেন\s*না|দিও\s*না|লাগবে\s*না|বন্ধ|off\s*koro)/i.test(clean) ||
-    /(?:dio\s*na|lagbe\s*na|না\s*দিয়ে|না\s*দিয়ে).*(?:voice|voyes|boyes|বয়েস|ভয়েস|ভয়েস)/i.test(clean)
+    /(?:voice|voyes|ভয়েস|ভয়েস|ভয়েজ|ভয়েজ).*(?:dio\s*na|diyo\s*na|lagbe\s*na|bondho|off|চাই\s*না|দিবেন\s*না|দিও\s*না|লাগবে\s*না|বন্ধ|off\s*koro)/i.test(clean) ||
+    /(?:dio\s*na|lagbe\s*na|না\s*দিয়ে|না\s*দিয়ে).*(?:voice|voyes|ভয়েস|ভয়েস|ভয়েজ|ভয়েজ)/i.test(clean)
   ) {
     return false;
   }
 
   return (
-    /voice|boyes|boes|voyes|ভয়েস|ভয়েস|বয়েজ|বয়েজ|বয়েস|বয়েস|কথা বলুন|মুখে বলুন|মুখে বলেন|মুখে বলো|অডিও|audio/i.test(clean) ||
+    /voice|voyes|ভয়েস|ভয়েস|ভয়েজ|ভয়েজ|কথা বলুন|মুখে বলুন|মুখে বলেন|মুখে বলো|অডিও|audio/i.test(clean) ||
     /(?:shunte|sunte|shunbo|sunbo)\s*chai/i.test(clean) ||
     /(?:shunte|sunte)\s*parbo/i.test(clean) ||
     /মুখে\s*(?:শুনতে|শুনব|বলুন|বলেন)/i.test(clean)

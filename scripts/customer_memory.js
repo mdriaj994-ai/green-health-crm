@@ -103,7 +103,7 @@ function isValidPersonName(n) {
 function getCustomerProfile(senderId, defaultName = "") {
   if (!isLoaded) loadMemory();
   const idStr = String(senderId);
-  const validName = isValidPersonName(defaultName) ? defaultName.trim() : "";
+  const validName = (typeof defaultName === "string" && isValidPersonName(defaultName)) ? defaultName.trim() : "";
   if (!memoryCache.has(idStr)) {
     const newProfile = {
       senderId: idStr,
@@ -329,7 +329,7 @@ function extractCustomerFacts(senderId, text, senderName) {
     const toBN = (s) => String(s).replace(/\d/g, d => bDigits[parseInt(d,10)] || d);
     const toEN = (s) => String(s).replace(/[০-৯]/g, d => "০১২৩৪৫৬৭৮৯".indexOf(d).toString());
     const am = clean.match(/(?:বয়স|বয়েস|boyos|age)\s*[:=]?\s*([০-৯0-9]{2})/i) ||
-               clean.match(/([০-৯0-9]{2})\s*(?:বছর|bochor|years?|yr)/i) ||
+               clean.match(/([০-৯0-9]{2})\s*(?:বছর|বচর|bochor|bosor|bochhor|years?|yr)/i) ||
                clean.match(/(?:আমার\s*(?:বয়স|বয়েস))\s*([০-৯0-9]{2})/i);
     if (am && am[1]) {
       const v = parseInt(toEN(am[1]), 10);
@@ -430,8 +430,8 @@ function extractCustomerFacts(senderId, text, senderName) {
 
   // 8. DURATION
   if (!profile.duration) {
-    const dm = clean.match(/(?:সমস্যা|দুর্বলতা|রোগ|কষ্ট)?\s*(?:প্রায়|প্রায়)?\s*([\u09e6-\u09ef0-9]+|এক|দুই|তিন|চার|পাঁচ|ছয়|সাত|আট|দশ)\s*(?:বছর|মাস|দিন|bochor|year|mash|month|din|day)\s*(?:ধরে|যাবত|থেকে|হলো|হচ্ছে|চলছে|ফেস\s*করছি)/i) ||
-               clean.match(/([\u09e6-\u09ef0-9]+)\s*(?:বছর|মাস|দিন|bochor|year|mash|month)\s*(?:ধরে|যাবত|থেকে|হলো|হচ্ছে)/i) ||
+    const dm = clean.match(/(?:সমস্যা|দুর্বলতা|রোগ|কষ্ট)?\s*(?:প্রায়|প্রায়)?\s*([\u09e6-\u09ef0-9]+|এক|দুই|তিন|চার|পাঁচ|ছয়|সাত|আট|দশ)\s*(?:বছর|মাস|দিন|bochor|year|mash|mas|month|din|day)\s*(?:ধরে|যাবত|থেকে|হলো|হচ্ছে|চলছে|ফেস\s*করছি)/i) ||
+               clean.match(/([\u09e6-\u09ef0-9]+)\s*(?:বছর|মাস|দিন|bochor|year|mash|mas|month)\s*(?:ধরে|যাবত|থেকে|হলো|হচ্ছে|thaka|theke|hoise|hoyche)/i) ||
                clean.match(/(?:কয়েক|অনেক|কিছু)\s*(?:বছর|মাস|দিন)\s*(?:ধরে|যাবত|হলো)/i);
     if (dm) profile.duration = dm[0].trim();
   }

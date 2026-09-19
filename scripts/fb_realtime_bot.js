@@ -244,14 +244,14 @@ function isVoiceRequested(text) {
 
   // Negative intent: customer wants to STOP voice or doesn't want voice
   if (
-    /(?:voice|voyes|boyes|বয়েস|ভয়েস|ভয়েস).*(?:dio\s*na|diyo\s*na|lagbe\s*na|bondho|off|চাই\s*না|দিবেন\s*না|দিও\s*না|লাগবে\s*না|বন্ধ|off\s*koro)/i.test(clean) ||
-    /(?:dio\s*na|lagbe\s*na|না\s*দিয়ে|না\s*দিয়ে).*(?:voice|voyes|boyes|বয়েস|ভয়েস|ভয়েস)/i.test(clean)
+    /(?:voice|voyes|ভয়েস|ভয়েস|ভয়েজ|ভয়েজ).*(?:dio\s*na|diyo\s*na|lagbe\s*na|bondho|off|চাই\s*না|দিবেন\s*না|দিও\s*না|লাগবে\s*না|বন্ধ|off\s*koro)/i.test(clean) ||
+    /(?:dio\s*na|lagbe\s*na|না\s*দিয়ে|না\s*দিয়ে).*(?:voice|voyes|ভয়েস|ভয়েস|ভয়েজ|ভয়েজ)/i.test(clean)
   ) {
     return false;
   }
 
   return (
-    /voice|boyes|boes|voyes|ভয়েস|ভয়েস|বয়েজ|বয়েজ|বয়েস|বয়েস|কথা বলুন|মুখে বলুন|মুখে বলেন|মুখে বলো|অডিও|audio/i.test(clean) ||
+    /voice|voyes|ভয়েস|ভয়েস|ভয়েজ|ভয়েজ|কথা বলুন|মুখে বলুন|মুখে বলেন|মুখে বলো|অডিও|audio/i.test(clean) ||
     /(?:shunte|sunte|shunbo|sunbo)\s*chai/i.test(clean) ||
     /(?:shunte|sunte)\s*parbo/i.test(clean) ||
     /মুখে\s*(?:শুনতে|শুনব|বলুন|বলেন)/i.test(clean)
@@ -848,15 +848,15 @@ function getClinicalConsultationReply(senderId = "", senderName = "", customerMe
 ১) সহবাসে প্রবেশের পর স্বাভাবিকভাবে কতক্ষণ সময় পান? মিলন চলাকালীন কি মাঝপথে নরম বা ঢিলা হয়ে যায়?
 ২) বীর্য কি অতিরিক্ত পাতলা বা পানির মতো? আর উত্তেজনার শুরুতে বা ফোনে কথা বললে কি আগাম আঠালো কামরস/পানি আসে?`,
 
-      `ধন্যবাদ । ${prof.age} বছর বয়সে সঠিক ভেষজ চিকিৎসায় নার্ভ খুব দ্রুত সক্রিয় হয়। পারফেক্ট ডোজ নির্ধারণে চিকিৎসকের পক্ষ থেকে ২টি প্রশ্ন ছিল:
+      `ধন্যবাদ ${nameSalute}। ${prof.age} বছর বয়সে সঠিক ভেষজ চিকিৎসায় নার্ভ খুব দ্রুত সক্রিয় হয়। পারফেক্ট ডোজ নির্ধারণে চিকিৎসকের পক্ষ থেকে ২টি প্রশ্ন ছিল:
 ১) মিলনে প্রবেশের পর স্থায়ী কত মিনিট সময় পান ভাইয়া? প্রবেশের আগেই কি বীর্যপাত হয়ে যায়?
 ২) লিঙ্গের উত্থান কি সম্পূর্ণ শক্ত ও টানটান হয়, নাকি নিস্তেজ থাকে? আর বীর্যের ঘনত্ব কেমন?`,
 
-      `জি , আপনার সমস্যাটি সম্পূর্ণ নিরাময়যোগ্য। উপযুক্ত ভেষজ ফাইল সাজাতে ২টি প্রধান লক্ষণ সম্পর্কে জানতে চাই:
+      `জি ${nameSalute}, আপনার সমস্যাটি সম্পূর্ণ নিরাময়যোগ্য। উপযুক্ত ভেষজ ফাইল সাজাতে ২টি প্রধান লক্ষণ সম্পর্কে জানতে চাই:
 ১) সহবাসের স্থায়িত্ব কতক্ষণ থাকে এবং লিঙ্গ কি মাঝপথে নিস্তেজ হয়ে যাওয়ার সমস্যা হয়?
 ২) বীর্য কি পানির মতো তরল এবং সামান্য উত্তেজনায় কি কাপড় ভিজে যায় ভাইয়া?`,
 
-      `মাশাআল্লাহ । ইউনানী বোর্ডের সঠিক প্রেসক্রিপশনের জন্য যৌন লক্ষণের গভীরতা জানা জরুরি:
+      `মাশাআল্লাহ ${nameSalute}। ইউনানী বোর্ডের সঠিক প্রেসক্রিপশনের জন্য যৌন লক্ষণের গভীরতা জানা জরুরি:
 ১) মিলনের সময় কি ১-২ মিনিট বা তার কম পান? মাঝপথে নরম হওয়ার সমস্যা আছে কি?
 ২) ধাতু বা বীর্য কি ঘন নাকি অতিরিক্ত পাতলা পানির মতো?`
     ];
@@ -1069,20 +1069,47 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     return reply;
   }
 
-  // ── KASTURI POWDER COMPREHENSIVE CLINICAL CONSULTATION & DIAGNOSTIC INTERCEPTOR ──
-  // Covers: Details, how it works, what medicine, symptom description, will it work, and customer answering diagnostic questions
-  // [BYPASSED FOR DYNAMIC AI DOCTOR REPLIES]: isClinicalConsultation
+  // ── CLINICAL CONSULTATION FLOW INTERCEPTOR ────────────────────────────────
+  // When customer asks about product/price/symptoms/ordering
+  // FIRST gather clinical facts (age, problems, blood group) BEFORE offering product.
+  // Bypass: pure greetings, nagad/phone/address-only queries, certificate, catalog listing.
+  const isConsultationBypass =
+    /(?:নগদ|nagad)/i.test(trimmedClean) ||
+    /(?:number|namber|নম্বর|নাম্বার|helpline|হেল্পলাইন)\s*(?:den|din|dao|দেন|দিন|দাও)/i.test(trimmedClean) ||
+    /(?:বাসা|বাড়ি|ঠিকানা|চেম্বার|chamber|address)/i.test(trimmedClean) ||
+    /(?:certificate|সনদ|license|লাইসেন্স)/i.test(trimmedClean) ||
+    /(?:ki\s*ki|কি\s*কি|কী\s*কী)\s*(?:product|item|osudh|ওষুধ|আছে|paoya)/i.test(trimmedClean);
 
-  // 5. Why buy from us / Why trust / Certificate / Govt license (কেন আপনাদের থেকে নিব / কেন বিশ্বাস করব)
-  // [BYPASSED FOR DYNAMIC AI DOCTOR REPLIES]: isWhyTrustUs
+  const isConsultationTrigger =
+    /(?:দাম|dam|কত|koto|price|প্রাইস|টাকা|taka)/i.test(trimmedClean) ||
+    /(?:নিতে\s*চাই|নেব|নিব|order|অর্ডার|কিনতে|buy|পাঠান|পাঠিয়ে|কুরিয়ার|delivery|parcel)/i.test(trimmedClean) ||
+    /(?:কাজ\s*করে|কাজ\s*কি|উপকার|কীভাবে\s*কাজ)/i.test(trimmedClean) ||
+    /(?:সমস্যা|problem|দুর্বল|শক্তি|stamina|বীর্য|dhatu|ধাতু)/i.test(trimmedClean) ||
+    /(?:দ্রুত|চিকিৎসা|ওষুধ|medicine|osudh|কস্তুরী|kosturi|kasturi)/i.test(trimmedClean) ||
+    /(?:বয়স|boyos|age|\d{2,3}\s*(?:বছর|bochor|year))/i.test(trimmedClean) ||
+    /(?:বিবাহিত|bibahito|married|অবিবাহিত|single|বিয়ে)/i.test(trimmedClean) ||
+    /(?:রক্ত|blood|রক্তের\s*গ্রুপ|blood\s*group)/i.test(trimmedClean) ||
+    /(?:ডায়াবেটিস|diabetes|প্রেশার|pressure|গ্যাস্ট্রিক|gastric)/i.test(trimmedClean) ||
+    /(?:কতদিন|কত\s*মাস|how\s*long|duration)/i.test(trimmedClean) ||
+    /(?:খাওয়ার\s*নিয়ম|সেবন|dosage|নিয়ম)/i.test(trimmedClean) ||
+    /(?:উপাদান|ingredients)/i.test(trimmedClean);
 
-  // 6. Ingredients used (এটিতে কী কী ব্যবহার করেছে / কী কী উপাদান আছে)
-  // [BYPASSED FOR DYNAMIC AI DOCTOR REPLIES]: isIngredientsQuery
+  if (!isConsultationBypass && isConsultationTrigger) {
+    const consultReply = getClinicalConsultationReply(
+      senderId || '',
+      senderName || '',
+      customerMessage,
+      isVoiceMode
+    );
+    if (consultReply) {
+      if (senderId) customerMemory.appendChatMessage(senderId, 'model', consultReply, isVoiceMode);
+      console.log('[CONSULTATION_FLOW] Reply (' + consultReply.length + ' chars): "' + consultReply.slice(0, 60) + '..."');
+      return consultReply;
+    }
+  }
+  // ── END CLINICAL CONSULTATION FLOW ────────────────────────────────────────
 
-  // 7. How to consume / Dosage (কীভাবে খাবো / খাওয়ার নিয়ম)
-  // [BYPASSED FOR DYNAMIC AI DOCTOR REPLIES]: isUsageRule
-
-  // 8. Price & Order advance rule (দাম কত / প্রাইস কত)
+  // 8. Price and Order advance rule
   // [BYPASSED FOR DYNAMIC AI DOCTOR REPLIES]: isPriceQuery
 
   // Dedicated Nagad Inquiry -> Clarify ONLY bKash is available
@@ -1108,13 +1135,8 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     /(?:নাম্বার|নম্বর|phone|number)\s*(?:টা|টি)?\s*(?:দেন|দিন|দাও|বলেন|বলুন)/i.test(trimmedClean);
 
   if (isHelplineOrPhoneQuery) {
-    if (isVoiceMode) {
-      const voiceNumberReply = "জি ভাইয়া, আমাদের অফিসিয়াল হেল্পলাইন নম্বর হলো শূন্য এক আট সাত শূন্য, শূন্য দুই তিন আট শূন্য চার। আপনার দেখার সুবিধার্থে নম্বরটি নিচে মেসেজেও লিখে দেওয়া হয়েছে ভাইয়া। আপনি সরাসরি কল দিয়ে কথা বলতে পারেন।";
-      if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", voiceNumberReply, true);
-      return voiceNumberReply;
-    }
-    const textNumberReply = `জি ভাইয়া, আমাদের অফিসিয়াল হেল্পলাইন ও সরাসরি যোগাযোগের নম্বর:\n📞 01870-023804 (বিকাশ)\n\nআপনি সরাসরি কল দিয়ে কথা বলতে পারেন অথবা যেকোনো পরামর্শের জন্য যোগাযোগ করতে পারেন ভাইয়া।`;
-    if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", textNumberReply, false);
+    const textNumberReply = `জি ভাইয়া, আমাদের অফিসিয়াল হেল্পলাইন ও সরাসরি যোগাযোগের নম্বর:\n📞 01870-023804 (বিকাশ)\n\nআপনি সরাসরি কল দিয়ে কথা বলতে পারেন অথবা যেকোনো প্রয়োজনে যোগাযোগ করতে পারেন ভাইয়া।`;
+    if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", textNumberReply, isVoiceMode);
     return textNumberReply;
   }
 
@@ -3297,9 +3319,9 @@ async function startBot() {
             const m = msgs[i];
             const isLatest = (i === 0);
             const isFromCustomer = m.from?.id && String(m.from.id) !== String(page.pageId);
-            const isRecent = (now - new Date(m.created_time).getTime()) < 24 * 60 * 60 * 1000;
 
-            if (isLatest && isFromCustomer && isRecent && !processedIds.has(m.id)) {
+            // If latest message in thread is from customer and not replied, NEVER ignore it!
+            if (isLatest && isFromCustomer && !processedIds.has(m.id)) {
               console.log(`[FB_BOT] [${page.pageName}] Found pending unreplied message from ${m.from?.name || "Customer"}: "${m.message}". Processing on first tick.`);
             } else {
               if (m.id) processedIds.add(m.id);
@@ -3428,7 +3450,15 @@ async function runFollowUpScheduler() {
 if (require.main === module) {
   startBot();
 } else {
-  module.exports = { generateReply };
+  module.exports = {
+    generateReply,
+    sendFacebookMessage,
+    sendFacebookVoiceNote,
+    isVoiceMode,
+    recordOutgoingBotMessageInDb,
+    saveProcessedId,
+    fetchConversations
+  };
 }
 
 
