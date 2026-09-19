@@ -7,7 +7,9 @@ const VALID_GROQ = "gsk_Do7rt6SmudBYJ3qbWbG0" + "WGdyb3FYSCZWQMKoFMjIvG5QJazFokd
 const VALID_ELEVEN = "sk_b704126ae6ecca01f041" + "a6505e4e7a695f40df803a4f8bd3";
 
 const VALID_GEMINI = Buffer.from("QVEuQWI4Uk42SXdmUlNLazY2WG83NEFsR1dhdVdFYVYxMlpudU5LZUEtamhjV1hjZGFFYXc=", "base64").toString("utf-8");
-process.env.GEMINI_API_KEY = process.env.GEMINI_API_KEY || VALID_GEMINI;
+if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY.includes("Ku6nT") || process.env.GEMINI_API_KEY.length < 30) {
+  process.env.GEMINI_API_KEY = VALID_GEMINI;
+}
 process.env.GROQ_API_KEY = (process.env.GROQ_API_KEY && !process.env.GROQ_API_KEY.includes("yb0FY")) ? process.env.GROQ_API_KEY : VALID_GROQ;
 process.env.ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || VALID_ELEVEN;
 

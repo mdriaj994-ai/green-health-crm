@@ -49,8 +49,9 @@ const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET || "73a482e9d5815a34
 const FACEBOOK_PAGE_ID = process.env.FACEBOOK_PAGE_ID || "932259009980880";
 
 const VALID_GEMINI_KEY = Buffer.from("QVEuQWI4Uk42SXdmUlNLazY2WG83NEFsR1dhdVdFYVYxMlpudU5LZUEtamhjV1hjZGFFYXc=", "base64").toString("utf-8");
+const rawGeminiEnv = (process.env.GEMINI_API_KEY && !process.env.GEMINI_API_KEY.includes("Ku6nT") && process.env.GEMINI_API_KEY.length > 30) ? process.env.GEMINI_API_KEY : null;
 const GEMINI_KEYS = Array.from(new Set([
-  process.env.GEMINI_API_KEY,
+  rawGeminiEnv,
   VALID_GEMINI_KEY,
 ].filter(Boolean)));
 const GEMINI_KEY = GEMINI_KEYS[0];

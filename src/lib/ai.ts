@@ -89,7 +89,8 @@ async function callGroqLLM(prompt: string, systemInstruction: string): Promise<s
 }
 
 function getGenAI(): GoogleGenerativeAI | null {
-  const apiKey = process.env.GEMINI_API_KEY || FALLBACK_GEMINI_KEY;
+  const envKey = process.env.GEMINI_API_KEY;
+  const apiKey = (envKey && !envKey.includes("Ku6nT") && envKey.length > 30) ? envKey : FALLBACK_GEMINI_KEY;
   if (!apiKey) return null;
   if (!genAIInstance) {
     genAIInstance = new GoogleGenerativeAI(apiKey);
