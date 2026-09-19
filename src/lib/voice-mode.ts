@@ -88,7 +88,12 @@ export function isVoiceRequested(text: string): boolean {
     return false;
   }
 
-  return /voice|boyes|boes|voyes|ভয়েস|ভয়েস|বয়েজ|বয়েজ|বয়েস|বয়েস|কথা বলুন|মুখে বলুন|মুখে বলেন|মুখে বলো|অডিও|audio/i.test(clean);
+  return (
+    /voice|boyes|boes|voyes|ভয়েস|ভয়েস|বয়েজ|বয়েজ|বয়েস|বয়েস|কথা বলুন|মুখে বলুন|মুখে বলেন|মুখে বলো|অডিও|audio/i.test(clean) ||
+    /(?:shunte|sunte|shunbo|sunbo)\s*chai/i.test(clean) ||
+    /(?:shunte|sunte)\s*parbo/i.test(clean) ||
+    /মুখে\s*(?:শুনতে|শুনব|বলুন|বলেন)/i.test(clean)
+  );
 }
 
 export function isTextModeRequested(text: string): boolean {
@@ -97,16 +102,16 @@ export function isTextModeRequested(text: string): boolean {
   return (
     // Explicit text / txt / sms / message requests
     /\b(text|txt|sms|msg|message)\b.*(dao|den|din|bolen|bolun|bolo|pathan|pathao|koro|koren|দাও|দেন|দিন|বলেন|বলুন|পাঠান|পাঠাও)/i.test(clean) ||
-    /(টেক্সট|টেক্সটে|মেসেজ|মেসেজে?|এসএমএস)\s*(দাও|দেন|দিন|বলেন|বলুন|বলো|পাঠান|পাঠাও|করুন|লিখুন)/i.test(clean) ||
-    /^(text|txt|sms|মেসেজ|message)$/i.test(clean) ||
+    /(টেক্সট|টেক্সটে|মেসেজ|মেসেজে?|এসএমএস)\s*(দাও|দেন|দিন|বলেন|বলুন|বলো|পাঠান|পাঠাও|করুন|লিখুন|করো)/i.test(clean) ||
+    /^(text|txt|sms|মেসেজ|message|text koro|text dao|text den)$/i.test(clean) ||
     // Negative voice expressions ("voice dio na", "voice lagbe na", "voice bondho koro", "ভয়েস বন্ধ", etc.)
-    /(?:voice|voyes|boyes|বয়েস|ভয়েস|ভয়েস)\s*(?:dio\s*na|diyo\s*na|lagbe\s*na|bondho|off|চাই\s*না|দিবেন\s*না|দিও\s*না|লাগবে\s*না|বন্ধ|off\s*koro)/i.test(clean) ||
+    /(?:voice|voyes|boyes|বয়েস|ভয়েস|ভয়েস)\s*(?:dio\s*na|diyo\s*na|lagbe\s*na|bondho|off|চাই\s*না|দিবেন\s*না|দিও\s*না|লাগবে\s*না|বন্ধ|off\s*koro|শুনতে\s*পারব\s*না|sunte\s*parbo\s*na|shunte\s*parbo\s*na)/i.test(clean) ||
     // "lekhe dao" / "lekehe dao" / "likhe dao" / "lekhe pathao" Banglish variations
     /(?:lekehe|lekhe|lekh[ea]|likhe|likh[ea]|leke|like)\s*(?:dao|den|din|patho|pathao|pathan|de|daw|dile|koro|koren|bolo|bolen|bolun)/i.test(clean) ||
-    /^(?:lekehe|lekhe|likhe|leke)\s*dao$/i.test(clean) ||
+    /^(?:lekehe|lekhe|likhe|leke)\s*(?:dao|den|din|bolen|bolun)$/i.test(clean) ||
     // Bengali variations ("লিখে দাও", "লেখে দাও", "লিখে পাঠান", etc.)
     /(লিখে|লেখে|লিখিয়া|লিখিয়ে)\s*(দাও|দেন|দিন|পাঠাও|পাঠান|বলুন|বলেন|বলো|করুন)/i.test(clean) ||
-    /^(লিখে|লেখে|লিখুন|লেখা)$/i.test(clean)
+    /^(লিখে|লেখে|লিখুন|লেখা|লিখে দাও|লিখে দিন|লেখে দিন|লেখে দাও)$/i.test(clean)
   );
 }
 
