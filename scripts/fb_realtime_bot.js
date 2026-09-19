@@ -48,10 +48,10 @@ const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID || "2502681553555944";
 const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET || "73a482e9d5815a344205c92f1c83d5a8";
 const FACEBOOK_PAGE_ID = process.env.FACEBOOK_PAGE_ID || "932259009980880";
 
+const VALID_GEMINI_KEY = Buffer.from("QVEuQWI4Uk42SXdmUlNLazY2WG83NEFsR1dhdVdFYVYxMlpudU5LZUEtamhjV1hjZGFFYXc=", "base64").toString("utf-8");
 const GEMINI_KEYS = Array.from(new Set([
   process.env.GEMINI_API_KEY,
-  Buffer.from("QVEuQWI4Uk42TG5MaHh5bzZWaGR1d0NSYm52a1UyenhkbEJMR3diVWw5UEwxSk5Pb00zWUE=", "base64").toString("utf-8"),
-  Buffer.from("QVEuQWI4Uk42Si0xTTlKMDlNNlJfS2tjZU9LNjVraVd2Z3NydGZUX2pQZm5JY1NtejB4eXc=", "base64").toString("utf-8")
+  VALID_GEMINI_KEY,
 ].filter(Boolean)));
 const GEMINI_KEY = GEMINI_KEYS[0];
 
@@ -1479,23 +1479,8 @@ ${voiceModeInstruction}
   const _displayName = (senderName && !["ভাইয়া","Customer","কাস্টমার"].includes(senderName)) ? senderName : "ভাইয়া";
   const prompt = `${historyText}Customer (${_displayName}): "${customerMessage}"\nReply:`;
 
-  // 1. PRIMARY FAST ENGINE: Groq LLM (Qwen-27B / GPT-OSS-120B)
-  // Groq is PRIMARY because it's consistently fast and reliable for Bengali
-  try {
-    const groqSysPrompt = buildGroqSystemInstruction(_displayName, isVoiceMode);
-    const groqReply = await callGroqLLM(prompt, groqSysPrompt);
-    if (groqReply && groqReply.length > 3) {
-      let text = sanitizeReplyText(groqReply, customerMessage, _displayName);
-      if (senderId) customerMemory.appendChatMessage(senderId, "model", text, false);
-      console.log(`[GROQ_PRIMARY_OK] Reply (${text.length} chars): "${text.slice(0, 60)}..."`);
-      return text;
-    }
-  } catch (err) {
-    console.warn("[GROQ_PRIMARY_WARN]:", err.message);
-  }
-
-  // 2. SECONDARY ENGINE: Gemini Flash (fallback when Groq is unavailable)
-  const geminiModels = ["gemini-3.6-flash"];
+  // 1. PRIMARY ENGINE: Google Gemini Premium (gemini-3.1-flash-lite, gemini-3.6-flash)
+  const geminiModels = ["gemini-3.1-flash-lite", "gemini-3.6-flash", "gemini-flash-latest"];
   for (const activeKey of GEMINI_KEYS) {
     const keyGenAI = new GoogleGenerativeAI(activeKey);
     for (const m of geminiModels) {
@@ -1503,7 +1488,7 @@ ${voiceModeInstruction}
         const model = keyGenAI.getGenerativeModel({
           model: m,
           systemInstruction,
-          generationConfig: { maxOutputTokens: 1024, temperature: 0.45 }
+          generationConfig: { maxOutputTokens: 1024, temperature: 0.5 }
         });
 
         const res = await model.generateContent(prompt);
@@ -1511,13 +1496,27 @@ ${voiceModeInstruction}
         if (text && text.length > 3) {
           text = sanitizeReplyText(text, customerMessage, _displayName);
           if (senderId) customerMemory.appendChatMessage(senderId, "model", text, false);
-          console.log(`[GEMINI_SECONDARY_OK] (${m}) Reply: "${text.slice(0, 60)}..."`);
+          console.log(`[GEMINI_PREMIUM_OK] (${m}) Reply: "${text.slice(0, 60)}..."`);
           return text;
         }
       } catch (err) {
-        console.warn(`[GEMINI_SECONDARY_WARN] (${m}):`, err.message);
+        console.warn(`[GEMINI_PREMIUM_WARN] (${m}):`, err.message);
       }
     }
+  }
+
+  // 2. SECONDARY FAIL-SAFE ENGINE: Groq LLM (Qwen-27B / GPT-OSS-120B)
+  try {
+    const groqSysPrompt = buildGroqSystemInstruction(_displayName, isVoiceMode);
+    const groqReply = await callGroqLLM(prompt, groqSysPrompt);
+    if (groqReply && groqReply.length > 3) {
+      let text = sanitizeReplyText(groqReply, customerMessage, _displayName);
+      if (senderId) customerMemory.appendChatMessage(senderId, "model", text, false);
+      console.log(`[GROQ_FALLBACK_OK] Reply (${text.length} chars): "${text.slice(0, 60)}..."`);
+      return text;
+    }
+  } catch (err) {
+    console.warn("[GROQ_FALLBACK_WARN]:", err.message);
   }
 
 

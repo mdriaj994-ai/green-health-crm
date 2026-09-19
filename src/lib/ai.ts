@@ -7,7 +7,7 @@ import path from "path";
 
 let genAIInstance: GoogleGenerativeAI | null = null;
 
-const FALLBACK_GEMINI_KEY = Buffer.from("QVEuQWI4Uk42Si0xTTlKMDlNNlJfS2tjZU9LNjVraVd2Z3NydGZUX2pQZm5JY1NtejB4eXc=", "base64").toString("utf-8");
+const FALLBACK_GEMINI_KEY = Buffer.from("QVEuQWI4Uk42SXdmUlNLazY2WG83NEFsR1dhdVdFYVYxMlpudU5LZUEtamhjV1hjZGFFYXc=", "base64").toString("utf-8");
 
 const VALID_GROQ_KEY = "gsk_Do7rt6SmudBYJ3qbWbG0" + "WGdyb3FYSCZWQMKoFMjIvG5QJazFokds";
 
@@ -429,9 +429,11 @@ Knowledge Base:
 ${kb}`.trim();
 }
 
-// Verified Gemini model names — Google recommended for this API key (Sept 2026)
+// Verified Gemini Premium model names (Sept 2026)
 const PRIMARY_MODELS = [
+  "gemini-3.1-flash-lite",
   "gemini-3.6-flash",
+  "gemini-flash-latest",
 ];
 
 
@@ -843,24 +845,7 @@ export async function generateAutoReply(
     return reply;
   }
 
-  // 1. PRIMARY FAST ENGINE: Groq LLM (Qwen-27B / GPT-OSS-120B)
-  // Groq is PRIMARY because it's consistently fast and reliable for Bengali
-  try {
-    const groqSysPrompt = buildGroqSystemInstruction(effectiveCustomerName, options.isVoiceMode);
-    const groqReply = await callGroqLLM(userPrompt, groqSysPrompt);
-    if (groqReply && groqReply.length > 3) {
-      let reply = sanitizeReply(groqReply);
-      if (options.senderId) {
-        appendChatMessage(options.senderId, "model", reply, false);
-      }
-      console.log(`[GROQ_PRIMARY_OK] Reply (${reply.length} chars): "${reply.slice(0, 60)}..."`);
-      return reply;
-    }
-  } catch (groqErr: any) {
-    console.warn("[GROQ_PRIMARY_WARN]:", groqErr.message);
-  }
-
-  // 2. SECONDARY ENGINE: Gemini Flash (fallback when Groq is unavailable)
+  // 1. PRIMARY ENGINE: Google Gemini Premium (gemini-3.1-flash-lite, gemini-3.6-flash)
   const genAI = getGenAI();
   if (genAI) {
     for (const modelName of PRIMARY_MODELS) {
@@ -870,7 +855,7 @@ export async function generateAutoReply(
           systemInstruction,
           generationConfig: {
             maxOutputTokens: 1024,
-            temperature: 0.45,
+            temperature: 0.5,
           },
         });
 
@@ -881,13 +866,29 @@ export async function generateAutoReply(
           if (options.senderId) {
             appendChatMessage(options.senderId, "model", reply, false);
           }
-          console.log(`[GEMINI_SECONDARY_OK] (${modelName}) Reply: "${reply.slice(0, 60)}..."`);
+          console.log(`[GEMINI_PREMIUM_OK] (${modelName}) Reply: "${reply.slice(0, 60)}..."`);
           return reply;
         }
       } catch (modelErr: any) {
-        console.warn(`[GEMINI_SECONDARY_WARN] (${modelName}):`, modelErr.message);
+        console.warn(`[GEMINI_PREMIUM_WARN] (${modelName}):`, modelErr.message);
       }
     }
+  }
+
+  // 2. SECONDARY FAIL-SAFE ENGINE: Groq LLM (Qwen-27B / GPT-OSS-120B)
+  try {
+    const groqSysPrompt = buildGroqSystemInstruction(effectiveCustomerName, options.isVoiceMode);
+    const groqReply = await callGroqLLM(userPrompt, groqSysPrompt);
+    if (groqReply && groqReply.length > 3) {
+      let reply = sanitizeReply(groqReply);
+      if (options.senderId) {
+        appendChatMessage(options.senderId, "model", reply, false);
+      }
+      console.log(`[GROQ_FALLBACK_OK] Reply (${reply.length} chars): "${reply.slice(0, 60)}..."`);
+      return reply;
+    }
+  } catch (groqErr: any) {
+    console.warn("[GROQ_FALLBACK_WARN]:", groqErr.message);
   }
 
   return generateFallbackReply(effectiveMessage, options.chatHistory, options.imageUrl, matchedProduct);
