@@ -71,14 +71,22 @@ CLINICAL & PRODUCT KNOWLEDGE:
 - Chamber Visit: জনতা ইউনানী চিকিৎসালয় ও ভেষজ ভান্ডার, দোকান নং- ৩৩ (৩য় তলা), আলীকদম কাঁচাবাজার, আলীকদম, বান্দরবান পার্বত্য জেলা। হেল্পলাইন: 01870-023804 (বিকাশ)।
 - Government License / Proof: হাকীম মো: আব্দুল করিম স্বাস্থ্য ও পরিবার কল্যাণ মন্ত্রণালয়ের অধীন বাংলাদেশ ইউনানী ও আয়ুর্বেদিক বোর্ডের ক্যাটাগরি-এ নিবন্ধিত চিকিৎসক (রেজি নং: ৫৮৪২/২০১৮)।
 
-CONVERSATIONAL RULES:
+CONVERSATIONAL RULES (STRICT & ABSOLUTE):
 1. Speak warmly, respectfully, and authoritatively as Hakim Md. Abdul Karim in natural, authentic Bangladeshi Bengali (জি ভাইয়া, ইনশাআল্লাহ, কোনো চিন্তা করবেন না).
-2. Keep responses brief and conversational (2 to 4 sentences maximum). Real doctors don't send huge essay templates.
-3. If the customer describes symptoms or asks for medical advice, empathetically validate their condition, explain how Kasturi Powder helps, and naturally ask 1-2 missing diagnostic details (e.g., বয়স কত? বিবাহিত কিনা? কতদিন ধরে এই সমস্যা?) if not already known.
-4. STRICT BAN on markdown bolding or asterisks (NO ** or ## or *).
-5. STRICT BAN on unsolicited order forms: NEVER send the order form unless the customer EXPLICITLY says they want to order or take the medicine.
-6. Strictly bKash only (01870-023804). NEVER mention Nagad.
-${isVoiceMode ? "7. VOICE MODE: This reply will be spoken out loud via doctor voice note. Speak warmly and naturally directly to the patient." : ""}`;
+2. Keep responses brief, conversational, and natural (2 to 4 sentences maximum). Real doctors don't send huge essay templates.
+3. THE ABSOLUTE DIRECTIVE — ANSWER ONLY WHAT WAS ASKED:
+   - If customer says "আমি কি বলছি যে আমার কোনো সমস্যা আছে?" or "আমার কোনো সমস্যা নেই" — DO NOT diagnose them! Reply with respect: "জি না ভাইয়া, আপনি এমন কিছু বলেননি। ভুল বোঝাবুঝির জন্য আন্তরিকভাবে দুঃখিত। সুস্থ মানুষও সাধারণ শারীরিক শক্তি, পুষ্টি ও চিরতারুণ্য ধরে রাখতে কস্তুরী পাউডার সেবন করতে পারেন। বলুন ভাইয়া, আপনাকে কীভাবে সহযোগিতা করতে পারি?"
+   - If customer asks "তাহলে?" — Ask warmly whether they want to know the price, ingredients, usage rule, or chamber address.
+   - If customer gives Salam — reply with "ওয়ালাইকুম আসসালাম ভাইয়া। বলুন, কীভাবে সাহায্য করতে পারি?".
+   - If customer asks "কেমন আছেন" — reply "আলহামদুলিল্লাহ ভাইয়া, ভালো আছি। আপনি কেমন আছেন?".
+   - If customer asks about shop/chamber address — give the exact Alikadam, Bandarban address.
+   - If customer asks about price — tell 2,800 BDT offer price, 500 advance via bKash only (01870-023804), remainder 2,300 cash on delivery.
+   - If customer asks about delay ("পরে নেব", "টাকা নেই", "বিকেলে জানাবো") — "আচ্ছা ঠিক আছে ভাই, বিকেলে বা রাতে যখনই ফ্রি হন আমাকে জানাবেন। আমি আপনার জন্য একটি বয়াম স্টক হোল্ড করে রাখছি। আমাদের বিকাশ হেল্পলাইন: 01870-023804।"
+4. NO CANNED OR REPETITIVE TEMPLATES: Never send pre-saved rigid text blocks. Adapt every sentence dynamically to the customer's exact message and conversation context.
+5. STRICT BAN on markdown bolding or asterisks (NO ** or ## or *).
+6. STRICT BAN on unsolicited order forms: NEVER send the order form unless the customer EXPLICITLY says they want to order or take the medicine.
+7. Strictly bKash only (01870-023804). NEVER mention Nagad.
+${isVoiceMode ? "8. VOICE MODE: This reply will be spoken out loud via doctor voice note. Speak warmly and naturally directly to the patient." : ""}`;
 }
 
 async function callGroqLLM(prompt, systemInstruction) {
@@ -87,7 +95,8 @@ async function callGroqLLM(prompt, systemInstruction) {
     : VALID_GROQ_KEY;
   if (!apiKey) return null;
 
-  const models = ["groq/compound", "groq/compound-mini", "qwen/qwen3.8-27b"];
+  // Pure LLM models without web search (no custard powder or external search hallucination)
+  const models = ["qwen/qwen3.8-27b", "openai/gpt-oss-120b"];
   for (const model of models) {
     try {
       const res = await fetch("https://api.groq.com/openai/v1/chat/completions", {
@@ -1420,146 +1429,94 @@ ${masterKB ? `\\n--- MASTER CLINICAL & SALES KNOWLEDGE BASE ---\\n${masterKB}\\n
 ${voiceModeInstruction}
 `;
 
-  // 1. PRIMARY HIGH-INTELLIGENCE ENGINE: Groq LLM (OpenAI GPT-OSS-120B / Qwen-27B)
-  try {
-    const historyText = effectiveHistory && effectiveHistory.length > 0
-      ? `Recent Conversation Context:\n${effectiveHistory.join("\n")}\n\n`
-      : "";
-    const _displayName = (senderName && !["ভাইয়া","Customer","কাস্টমার"].includes(senderName)) ? senderName : "ভাইয়া";
-    const prompt = `${historyText}Customer (${_displayName}): "${customerMessage}"\nReply:`;
+  function sanitizeReplyText(rawText, custMsg, dispName) {
+    let text = (rawText || "").replace(/[*#]+/g, "").trim();
+    text = text.replace(/দুঃখিত[,]?\s*আপনাকে\s*ভুল\s*বোঝানোর[^\n।.!?]+[।.!?]?/gi, "").trim();
+    text = text
+      .replace(/(এখানে|ফেসবুকে)?\s*(তো)?\s*(সরাসরি)?\s*(অডিও|ভয়েস|ভয়েস)\s*(মেসেজ)?\s*(পাঠানোর)?\s*(সুবিধা\s*নেই|পাঠাতে\s*পারি\s*না)[^\n।.!?]*[।.!?]?/gi, "")
+      .replace(/(আমি\s*)?আপনাকে\s*(টেক্সট[এে]?|লিখে|মেসেজে?)\s*(বিস্তারিত\s*)?(সবকিছু\s*)?(বুঝিয়ে|বোঝানোর|জানিয়ে|বলছি)[^\n।.!?]*[।.!?]?/gi, "আমি আপনাকে মুখে সবকিছু বুঝিয়ে বলছি।")
+      .replace(/(টেক্সট[এে]?|মেসেজে?|লিখে)\s*(বুঝিয়ে|বলছি|জানিয়ে\s*দিচ্ছি)/gi, "মুখে বুঝিয়ে বলছি")
+      .replace(/লিখে\s*দিচ্ছি/gi, "মুখে বুঝিয়ে বলছি")
+      .replace(/লিখে\s*জানিয়ে/gi, "মুখে বুঝিয়ে")
+      .trim();
 
-    const groqSysPrompt = buildGroqSystemInstruction(_displayName, isVoiceMode);
-    const groqReply = await callGroqLLM(prompt, groqSysPrompt);
-    if (groqReply && groqReply.length > 3) {
-      let text = groqReply.replace(/[*#]+/g, "").trim();
-      text = text.replace(/দুঃখিত[,]?\s*আপনাকে\s*ভুল\s*বোঝানোর[^\n।.!?]+[।.!?]?/gi, "").trim();
-      text = text
-        .replace(/(এখানে|ফেসবুকে)?\s*(তো)?\s*(সরাসরি)?\s*(অডিও|ভয়েস|ভয়েস)\s*(মেসেজ)?\s*(পাঠানোর)?\s*(সুবিধা\s*নেই|পাঠাতে\s*পারি\s*না)[^\n।.!?]*[।.!?]?/gi, "")
-        .replace(/(আমি\s*)?আপনাকে\s*(টেক্সট[এে]?|লিখে|মেসেজে?)\s*(বিস্তারিত\s*)?(সবকিছু\s*)?(বুঝিয়ে|বোঝানোর|জানিয়ে|বলছি)[^\n।.!?]*[।.!?]?/gi, "আমি আপনাকে মুখে সবকিছু বুঝিয়ে বলছি।")
-        .replace(/(টেক্সট[এে]?|মেসেজে?|লিখে)\s*(বুঝিয়ে|বলছি|জানিয়ে\s*দিচ্ছি)/gi, "মুখে বুঝিয়ে বলছি")
-        .replace(/লিখে\s*দিচ্ছি/gi, "মুখে বুঝিয়ে বলছি")
-        .replace(/লিখে\s*জানিয়ে/gi, "মুখে বুঝিয়ে")
-        .trim();
+    try {
+      const escapedName = pageName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
+      text = text.replace(new RegExp(`আমি\\s*(${escapedName}|গ্রীন\\s*হেলথ\\s*ইউনানী\\s*ফার্মেসীর?)\\s*কাস্টমার\\s*সাপোর্ট[^\\n।.!?]+[।.!?]?`, "gi"), "").trim();
+    } catch {}
 
-      const hasSalam = /সালাম|আসসালাম|salam|slam|assalam|slm/i.test(customerMessage);
-      if (!hasSalam) {
-        text = text.replace(/(জি\s*ভাইয়া[,।!?]?\s*)?(ওয়ালাইকুম\s*আসসালাম|আসসালামু\s*আলাইকুম)[^\n।,!?]*[,।!?]?/gi, "জি ভাইয়া, ").trim();
-        text = text.replace(/^জি\s*ভাইয়া[,।!?]?\s*জি\s*ভাইয়া[,।!?]?/gi, "জি ভাইয়া,").trim();
-      }
+    text = text
+      .replace(/রেজাউল\s*করিম/gi, "মো: আব্দুল করিম")
+      .replace(/রেজাউল/gi, "আব্দুল করিম")
+      .replace(/রিয়াজুল\s*করিম/gi, "মো: আব্দুল করিম")
+      .replace(/রিয়াজুল/gi, "আব্দুল করিম")
+      .replace(/re[aj]aul\s*karim/gi, "Md. Abdul Karim");
 
-      text = text
-        .replace(/রেজাউল\s*করিম/gi, "মো: আব্দুল করিম")
-        .replace(/রেজাউল/gi, "আব্দুল করিম")
-        .replace(/রিয়াজুল\s*করিম/gi, "মো: আব্দুল করিম")
-        .replace(/রিয়াজুল/gi, "আব্দুল করিম")
-        .replace(/re[aj]aul\s*karim/gi, "Md. Abdul Karim");
+    text = text.replace(/(গ্রীন\s*হেলথ\s*ইউনানী\s*ফার্মেসী|Green Health Unani Pharmacy)[\s:\-—]*\n*/gi, "").trim();
 
-      text = text.replace(/(গ্রীন\s*হেলথ\s*ইউনানী\s*ফার্মেসী|Green Health Unani Pharmacy)[\s:\-—]*\n*/gi, "").trim();
-
-      const hasBuyIntent = /(নিতে\s*চাই|অর্ডার|পাঠান|পাঠিয়ে|কুরিয়ার|ডেলিভারি|বুক\s*কর|ঠিকানা|পার্সেল|order|buy|kuriar|delivery|parcel|address)/i.test(customerMessage);
-      if (!hasBuyIntent) {
-        text = text.replace(/(ভাইয়া,?\s*আপনি\s*কি\s*আমাদের\s*প্রোডাক্ট\s*নিতে\s*চাচ্ছেন\?[\s\S]*?নাম্বার\s*=?[^\n]*)/gi, "").trim();
-        text = text.replace(/(আপনার\s*\n\s*নাম\s*=[\s\S]*?নাম্বার\s*=?[^\n]*)/gi, "").trim();
-      }
-
-      if (effectiveHistory && effectiveHistory.length > 0) {
-        text = text.replace(/^(হ্যালো\s*ভাইয়া[,।!?]?|হাই\s*ভাইয়া[,।!?]?)/gi, "").trim();
-      }
-
-      if (senderId) {
-        customerMemory.appendChatMessage(senderId, "model", text, false);
-      }
-      return text;
+    const hasSalam = /সালাম|আসসালাম|salam|slam|assalam|slm/i.test(custMsg);
+    if (!hasSalam) {
+      text = text.replace(/(জি\s*ভাইয়া[,।!?]?\s*)?(ওয়ালাইকুম\s*আসসালাম|আসসালামু\s*আলাইকুম)[^\n।,!?]*[,।!?]?/gi, "জি ভাইয়া, ").trim();
+      text = text.replace(/^জি\s*ভাইয়া[,।!?]?\s*জি\s*ভাইয়া[,।!?]?/gi, "জি ভাইয়া,").trim();
     }
-  } catch (err) {
-    console.warn("[GROQ_LLM_WARN] scripts/fb_realtime_bot:", err.message);
+
+    const hasBuyIntent = /(নিতে\s*চাই|অর্ডার|পাঠান|পাঠিয়ে|কুরিয়ার|ডেলিভারি|বুক\s*কর|ঠিকানা|পার্সেল|order|buy|kuriar|delivery|parcel|address)/i.test(custMsg);
+    if (!hasBuyIntent) {
+      text = text.replace(/(ভাইয়া,?\s*আপনি\s*কি\s*আমাদের\s*প্রোডাক্ট\s*নিতে\s*চাচ্ছেন\?[\s\S]*?নাম্বার\s*=?[^\n]*)/gi, "").trim();
+      text = text.replace(/(আপনার\s*\n\s*নাম\s*=[\s\S]*?নাম্বার\s*=?[^\n]*)/gi, "").trim();
+    }
+
+    if (effectiveHistory && effectiveHistory.length > 0) {
+      text = text.replace(/^(হ্যালো\s*ভাইয়া[,।!?]?|হাই\s*ভাইয়া[,।!?]?)/gi, "").trim();
+    }
+
+    return text;
   }
 
-  const models = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-pro-latest", "gemini-3-flash-preview", "gemini-flash-lite-latest", "gemini-3.1-flash-lite-preview"];
+  const historyText = effectiveHistory && effectiveHistory.length > 0
+    ? `Recent Conversation Context:\n${effectiveHistory.join("\n")}\n\n`
+    : "";
+  const _displayName = (senderName && !["ভাইয়া","Customer","কাস্টমার"].includes(senderName)) ? senderName : "ভাইয়া";
+  const prompt = `${historyText}Customer (${_displayName}): "${customerMessage}"\nReply:`;
+
+  // 1. PRIMARY HIGH-INTELLIGENCE ENGINE: Gemini Flash (Exact local behavior)
+  const geminiModels = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"];
   for (const activeKey of GEMINI_KEYS) {
     const keyGenAI = new GoogleGenerativeAI(activeKey);
-    for (const m of models) {
+    for (const m of geminiModels) {
       try {
         const model = keyGenAI.getGenerativeModel({
           model: m,
           systemInstruction,
-          generationConfig: { maxOutputTokens: 2048, temperature: 0.45 }
+          generationConfig: { maxOutputTokens: 1024, temperature: 0.45 }
         });
 
-      const historyText = effectiveHistory && effectiveHistory.length > 0
-        ? `Recent Conversation Context:\n${effectiveHistory.join("\n")}\n\n`
-        : "";
-      const _displayName = (senderName && !["ভাইয়া","Customer","কাস্টমার"].includes(senderName)) ? senderName : "ভাইয়া";
-      const prompt = `${historyText}Customer (${_displayName}): "${customerMessage}"\nReply:`;
-      const res = await model.generateContent(prompt);
-      let text = res.response.text().trim();
-      if (text && text.length > 3) {
-        // Strip markdown asterisks and hashtags
-        text = text.replace(/[*#]+/g, "").trim();
-        // Strict safety: remove any accidental defensive apology or robotic excuses
-        text = text.replace(/দুঃখিত[,]?\s*আপনাকে\s*ভুল\s*বোঝানোর[^\n।.!?]+[।.!?]?/gi, "").trim();
-        // Strict safety: remove any accidental AI excuses about not sending voice or explaining in text
-        text = text
-          .replace(/(এখানে|ফেসবুকে)?\s*(তো)?\s*(সরাসরি)?\s*(অডিও|ভয়েস|ভয়েস)\s*(মেসেজ)?\s*(পাঠানোর)?\s*(সুবিধা\s*নেই|পাঠাতে\s*পারি\s*না)[^\n।.!?]*[।.!?]?/gi, "")
-          .replace(/(আমি\s*)?আপনাকে\s*(টেক্সট[এে]?|লিখে|মেসেজে?)\s*(বিস্তারিত\s*)?(সবকিছু\s*)?(বুঝিয়ে|বোঝানোর|জানিয়ে|বলছি)[^\n।.!?]*[।.!?]?/gi, "আমি আপনাকে মুখে সবকিছু বুঝিয়ে বলছি।")
-          .replace(/(টেক্সট[এে]?|মেসেজে?|লিখে)\s*(বুঝিয়ে|বলছি|জানিয়ে\s*দিচ্ছি)/gi, "মুখে বুঝিয়ে বলছি")
-          .replace(/লিখে\s*দিচ্ছি/gi, "মুখে বুঝিয়ে বলছি")
-          .replace(/লিখে\s*জানিয়ে/gi, "মুখে বুঝিয়ে")
-          .trim();
-        try {
-          const escapedName = pageName.replace(/[-/\\^$*+?.()|[\]{}]/g, '\\$&');
-          text = text.replace(new RegExp(`আমি\\s*(${escapedName}|গ্রীন\\s*হেলথ\\s*ইউনানী\\s*ফার্মেসীর?)\\s*কাস্টমার\\s*সাপোর্ট[^\\n।.!?]+[।.!?]?`, "gi"), "").trim();
-        } catch {}
-
-        // Correct any miswritten name to Reajul Karim (মো: আব্দুল করিম)
-        text = text
-          .replace(/রেজাউল\s*করিম/gi, "মো: আব্দুল করিম")
-          .replace(/রেজাউল/gi, "রিয়াজুল")
-          .replace(/re[aj]aul\s*karim/gi, "মো: আব্দুল করিম")
-          .replace(/re[aj]aul/gi, "রিয়াজুল");
-
-        // Clean page name header from ANYWHERE in reply (top or middle of text)
-        text = text.replace(/(গ্রীন\s*হেলথ\s*ইউনানী\s*ফার্মেসী|Green Health Unani Pharmacy)[\s:\-—]*\n*/gi, "").trim();
-
-        // Safety Guard: If customer did not express buying intent, strip any unsolicited order form
-        const hasBuyIntent = /(নিতে\s*চাই|অর্ডার|পাঠান|পাঠিয়ে|কুরিয়ার|ডেলিভারি|বুক\s*কর|ঠিকানা|পার্সেল|order|buy|kuriar|delivery|parcel|address)/i.test(customerMessage);
-        if (!hasBuyIntent) {
-          text = text.replace(/(ভাইয়া,?\s*আপনি\s*কি\s*আমাদের\s*প্রোডাক্ট\s*নিতে\s*চাচ্ছেন\?[\s\S]*?নাম্বার\s*=?[^\n]*)/gi, "").trim();
-          text = text.replace(/(আপনার\s*\n\s*নাম\s*=[\s\S]*?নাম্বার\s*=?[^\n]*)/gi, "").trim();
-        } else {
-          // Repeat order: remind customer of their saved phone/address
-          if (senderId) {
-            try {
-              const savedProf = customerMemory.getCustomerProfile(senderId);
-              if (savedProf && savedProf.phone && savedProf.ordersPlaced && savedProf.ordersPlaced.length > 0) {
-                const sPhone = savedProf.phone;
-                const sDist = savedProf.district || "";
-                const reminder = sDist
-                  ? ("\n\n" + String.fromCharCode(2477,2494,2439,2527,2479,2494) + ", " + String.fromCharCode(2438,2474,2472,2495) + " " + String.fromCharCode(2472,2509,2479,2494,2480,2494) + " " + String.fromCharCode(2472,2478,209486) + " " + sPhone + " " + String.fromCharCode(2451) + " " + sDist + ".")
-                  : ("\n\n" + "\u09ad\u09be\u0987\u09af\u09bc\u09be, \u0986\u09aa\u09a8\u09bf \u0986\u0997\u09c7 \u09af\u09c7 \u09a8\u09ae\u09cd\u09ac\u09b0\u099f\u09bf \u09a6\u09bf\u09af\u09bc\u09c7\u099b\u09bf\u09b2\u09c7\u09a8 \u09b8\u09c7\u099f\u09bf \u09b9\u09b2\u09cb " + sPhone + "\u0964 \u098f\u0987 \u09a8\u09ae\u09cd\u09ac\u09b0\u09c7\u0987 \u0995\u09bf \u09a1\u09c7\u09b2\u09bf\u09ad\u09be\u09b0\u09bf \u09a6\u09c7\u09ac, \u09a8\u09be\u0995\u09bf \u09a8\u09a4\u09c1\u09a8 \u09a8\u09ae\u09cd\u09ac\u09b0 \u09a6\u09c7\u09ac\u09c7\u09a8?");
-                text = text.trimEnd() + reminder;
-              }
-            } catch (e) {}
-          }
+        const res = await model.generateContent(prompt);
+        let text = res.response.text()?.trim();
+        if (text && text.length > 3) {
+          text = sanitizeReplyText(text, customerMessage, _displayName);
+          if (senderId) customerMemory.appendChatMessage(senderId, "model", text, false);
+          return text;
         }
-
-        // If ongoing conversation, strip any accidental mid-chat greeting slipped by LLM
-        if (effectiveHistory && effectiveHistory.length > 0) {
-          text = text.replace(/^(ওয়ালাইকুম\s*আসসালাম[^\n।,!?]*[,।!?]?|আসসালামু\s*আলাইকুম[^\n।,!?]*[,।!?]?|হ্যালো\s*ভাইয়া[,।!?]?|হাই\s*ভাইয়া[,।!?]?)/gi, "").trim();
-        }
-
-        // Persist model reply to customer permanent memory
-        if (senderId) {
-          customerMemory.appendChatMessage(senderId, "model", text, false);
-        }
-
-        return text;
+      } catch (err) {
+        console.warn(`[GEMINI_PRIMARY_WARN] (${m}):`, err.message);
       }
-    } catch (err) {
-      console.warn(`[AI_MODEL_WARN] (${m}):`, err.message);
     }
   }
+
+  // 2. SECONDARY / FAST FALLBACK ENGINE: Groq LLM (Qwen-27B / GPT-OSS-120B without web search)
+  try {
+    const groqSysPrompt = buildGroqSystemInstruction(_displayName, isVoiceMode);
+    const groqReply = await callGroqLLM(prompt, groqSysPrompt);
+    if (groqReply && groqReply.length > 3) {
+      let text = sanitizeReplyText(groqReply, customerMessage, _displayName);
+      if (senderId) customerMemory.appendChatMessage(senderId, "model", text, false);
+      return text;
+    }
+  } catch (err) {
+    console.warn("[GROQ_FALLBACK_WARN]:", err.message);
   }
+
 
 
 

@@ -48,6 +48,8 @@ cloudflared.exe
 .processed_msg_ids.json
 data/customer_memory.json
 data/processed_msg_ids.json
+data/customers/
+scratch/
 data/thread_memory.json
 data/webhook_hits.log
 # Keep data/customers/ and data/voice_users.json tracked for VPS deployment
