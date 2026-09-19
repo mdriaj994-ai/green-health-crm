@@ -431,11 +431,7 @@ ${kb}`.trim();
 
 // Verified Gemini model names — Google recommended for this API key (Sept 2026)
 const PRIMARY_MODELS = [
-  "gemini-3.8-flash",
   "gemini-3.6-flash",
-  "gemini-flash-latest",
-  "gemini-3.1-flash-lite",
-  "gemini-flash-lite-latest",
 ];
 
 
@@ -847,7 +843,24 @@ export async function generateAutoReply(
     return reply;
   }
 
-  // 1. PRIMARY HIGH-INTELLIGENCE ENGINE: Gemini Flash (Exact local behavior)
+  // 1. PRIMARY FAST ENGINE: Groq LLM (Qwen-27B / GPT-OSS-120B)
+  // Groq is PRIMARY because it's consistently fast and reliable for Bengali
+  try {
+    const groqSysPrompt = buildGroqSystemInstruction(effectiveCustomerName, options.isVoiceMode);
+    const groqReply = await callGroqLLM(userPrompt, groqSysPrompt);
+    if (groqReply && groqReply.length > 3) {
+      let reply = sanitizeReply(groqReply);
+      if (options.senderId) {
+        appendChatMessage(options.senderId, "model", reply, false);
+      }
+      console.log(`[GROQ_PRIMARY_OK] Reply (${reply.length} chars): "${reply.slice(0, 60)}..."`);
+      return reply;
+    }
+  } catch (groqErr: any) {
+    console.warn("[GROQ_PRIMARY_WARN]:", groqErr.message);
+  }
+
+  // 2. SECONDARY ENGINE: Gemini Flash (fallback when Groq is unavailable)
   const genAI = getGenAI();
   if (genAI) {
     for (const modelName of PRIMARY_MODELS) {
@@ -868,27 +881,13 @@ export async function generateAutoReply(
           if (options.senderId) {
             appendChatMessage(options.senderId, "model", reply, false);
           }
+          console.log(`[GEMINI_SECONDARY_OK] (${modelName}) Reply: "${reply.slice(0, 60)}..."`);
           return reply;
         }
       } catch (modelErr: any) {
-        console.warn(`[AI_GEMINI_WARN] (${modelName}):`, modelErr.message);
+        console.warn(`[GEMINI_SECONDARY_WARN] (${modelName}):`, modelErr.message);
       }
     }
-  }
-
-  // 2. SECONDARY / FAST FALLBACK ENGINE: Groq LLM (Qwen-27B / GPT-OSS-120B without web search)
-  try {
-    const groqSysPrompt = buildGroqSystemInstruction(effectiveCustomerName, options.isVoiceMode);
-    const groqReply = await callGroqLLM(userPrompt, groqSysPrompt);
-    if (groqReply && groqReply.length > 3) {
-      let reply = sanitizeReply(groqReply);
-      if (options.senderId) {
-        appendChatMessage(options.senderId, "model", reply, false);
-      }
-      return reply;
-    }
-  } catch (groqErr: any) {
-    console.warn("[GROQ_FALLBACK_WARN]:", groqErr.message);
   }
 
   return generateFallbackReply(effectiveMessage, options.chatHistory, options.imageUrl, matchedProduct);

@@ -1479,8 +1479,23 @@ ${voiceModeInstruction}
   const _displayName = (senderName && !["ভাইয়া","Customer","কাস্টমার"].includes(senderName)) ? senderName : "ভাইয়া";
   const prompt = `${historyText}Customer (${_displayName}): "${customerMessage}"\nReply:`;
 
-  // 1. PRIMARY HIGH-INTELLIGENCE ENGINE: Gemini Flash (Exact local behavior)
-  const geminiModels = ["gemini-3.6-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"];
+  // 1. PRIMARY FAST ENGINE: Groq LLM (Qwen-27B / GPT-OSS-120B)
+  // Groq is PRIMARY because it's consistently fast and reliable for Bengali
+  try {
+    const groqSysPrompt = buildGroqSystemInstruction(_displayName, isVoiceMode);
+    const groqReply = await callGroqLLM(prompt, groqSysPrompt);
+    if (groqReply && groqReply.length > 3) {
+      let text = sanitizeReplyText(groqReply, customerMessage, _displayName);
+      if (senderId) customerMemory.appendChatMessage(senderId, "model", text, false);
+      console.log(`[GROQ_PRIMARY_OK] Reply (${text.length} chars): "${text.slice(0, 60)}..."`);
+      return text;
+    }
+  } catch (err) {
+    console.warn("[GROQ_PRIMARY_WARN]:", err.message);
+  }
+
+  // 2. SECONDARY ENGINE: Gemini Flash (fallback when Groq is unavailable)
+  const geminiModels = ["gemini-3.6-flash"];
   for (const activeKey of GEMINI_KEYS) {
     const keyGenAI = new GoogleGenerativeAI(activeKey);
     for (const m of geminiModels) {
@@ -1496,25 +1511,13 @@ ${voiceModeInstruction}
         if (text && text.length > 3) {
           text = sanitizeReplyText(text, customerMessage, _displayName);
           if (senderId) customerMemory.appendChatMessage(senderId, "model", text, false);
+          console.log(`[GEMINI_SECONDARY_OK] (${m}) Reply: "${text.slice(0, 60)}..."`);
           return text;
         }
       } catch (err) {
-        console.warn(`[GEMINI_PRIMARY_WARN] (${m}):`, err.message);
+        console.warn(`[GEMINI_SECONDARY_WARN] (${m}):`, err.message);
       }
     }
-  }
-
-  // 2. SECONDARY / FAST FALLBACK ENGINE: Groq LLM (Qwen-27B / GPT-OSS-120B without web search)
-  try {
-    const groqSysPrompt = buildGroqSystemInstruction(_displayName, isVoiceMode);
-    const groqReply = await callGroqLLM(prompt, groqSysPrompt);
-    if (groqReply && groqReply.length > 3) {
-      let text = sanitizeReplyText(groqReply, customerMessage, _displayName);
-      if (senderId) customerMemory.appendChatMessage(senderId, "model", text, false);
-      return text;
-    }
-  } catch (err) {
-    console.warn("[GROQ_FALLBACK_WARN]:", err.message);
   }
 
 
