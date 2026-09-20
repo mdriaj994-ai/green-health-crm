@@ -688,13 +688,13 @@ ${text}
         const parsedOrder = parseOrderFromMessage(text);
         const botConfirmedOrder = /(?:অর্ডারটি|অর্ডার|পার্সেলটি|পার্সেল)\s*(?:সফলভাবে\s*)?(?:কনফার্ম|নিশ্চিত|বুকিং)/i.test(replyText || "");
 
-        // Also check phone number pattern for order detection
-        const allTextForPhone = [text, (replyText || ""), (custProfile as any)?.phone].join(" ");
-        const enText = allTextForPhone.replace(/[০-৯]/g, (d: string) => "০১২৩৪৫৬৭৮৯".indexOf(d).toString());
+        // Phone detection: ONLY from current message text (NOT from stored profile!)
+        const textOnlyForPhone = [text, (replyText || "")].join(" ");
+        const enText = textOnlyForPhone.replace(/[০-৯]/g, (d: string) => "০১২৩৪৫৬৭৮৯".indexOf(d).toString());
         const phoneMatch = enText.match(/(?:\+?880|0)?1[3-9]\d{8}/);
-        const hasPhone = Boolean(phoneMatch);
+        const hasPhone = Boolean(phoneMatch); // Only true if phone is in THIS message
         const hasOrderForm = /(?:নাম\s*[=:]|নাম্বার\s*[=:]|ঠিকানা\s*[=:]|জেলা\s*[=:]|থানা\s*[=:])/.test(text);
-        const isOrderMsg = Boolean(parsedOrder) || hasOrderForm || hasPhone || botConfirmedOrder;
+        const isOrderMsg = Boolean(parsedOrder) || hasOrderForm || botConfirmedOrder || (hasPhone && hasOrderForm);
 
         console.log(`[ORDER_DETECT] parsed=${parsedOrder ? 'YES phone:'+parsedOrder.phone : 'null'} | hasPhone=${hasPhone} | botConfirmed=${botConfirmedOrder} | text="${text.slice(0,50).replace(/\n/g,' ')}"`);
 
