@@ -252,7 +252,32 @@ ${text}
     try { const { appendChatMessage } = await import("@/lib/customer-memory"); appendChatMessage(senderId, "model", orderReply, false); } catch {}
     return;
   }
-  // ── END INSTANT REPLY ─────────────────────────────────────────────────────
+
+  // ── INSTANT HARDCODED REPLY: Address / Location questions (bypass AI) ──────
+  const isAddressQuestion =
+    /(apnar|আপনার|tomar|তোমার).*(basa|bari|বাড়ি|বাসা|address|ঠিকানা|dokan|দোকান|chamber|চেম্বার|office|অফিস|thakena|থাকেন|kothay|কোথায়|kothai|kothai)/i.test(text) ||
+    /(dokan|দোকান|shop|chamber|চেম্বার).*(kothay|কোথায়|kothai|ache|আছে|address|ঠিকানা)/i.test(text) ||
+    /(kothay|কোথায়|kothai).*(achen|আছেন|thakena|থাকেন|pabo|পাব|pawa|পাওয়া)/i.test(text);
+
+  if (isAddressQuestion) {
+    const addressReply = `জি ভাইয়া, আমাদের চেম্বার ও দোকানের ঠিকানা:
+
+জনতা ইউনানী চিকিৎসালয় ও ভেষজ ভান্ডার
+দোকান নং-৩৩ (৩য় তলা)
+আলীকদম কাঁচাবাজার, আলীকদম, বান্দরবান পার্বত্য জেলা।
+
+হেল্পলাইন: 01870-023804 (বিকাশ)
+সারা দেশে কুরিয়ারে হোম ডেলিভারি দেওয়া হয়।`;
+
+    const PERM_TOK2 = "EAAjkLPT8UegBSsQVgxm1fBW6D7N7oon9ZAudS1UKVLVbBEar1BGEvZCLJ3ibSLO6FmILQDf6mq4rcsL98cpxuuRwAHSwUprKUBLv6ZBBCSjYAGUPTU1SQIRDvR74D5aIivRiDoUG3zobZB83AIwZA8mZAhoqcBDpjii2KsvQshwZCCIdUSJk5NaDb5JZCFGt4YWKBfEZC";
+    const envT2 = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+    const quickToken2 = (envT2 && envT2.length > 150) ? envT2 : PERM_TOK2;
+    await sendMessengerReply(pageId, senderId, addressReply, quickToken2);
+    console.log(`[ADDRESS_INSTANT] ✅ Sent hardcoded address reply to ${senderId}`);
+    try { const { appendChatMessage } = await import("@/lib/customer-memory"); appendChatMessage(senderId, "model", addressReply, false); } catch {}
+    return;
+  }
+  // ── END INSTANT REPLIES ───────────────────────────────────────────────────
 
   // Generate AI reply using Gemini (Hakim Rejaul Karim persona)
   try {
