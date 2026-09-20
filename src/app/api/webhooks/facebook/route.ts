@@ -227,10 +227,18 @@ ${text}
   // ── INSTANT HARDCODED REPLY: Order process questions (bypass AI) ──────────
   const textForOrderCheck = (text || "").toLowerCase().replace(/\s+/g, "");
   const isOrderProcessQuestion =
-    /(order|অর্ডার).*(kivabe|কিভাবে|kibhabe|kiভাবে|কীভাবে|korbo|করব|করবো|debo|দেব|dibo|দিবো|korte|করতে|process|prosess)/i.test(text) ||
+    // How to order questions
+    /(order|অর্ডার).*(kivabe|কিভাবে|kibhabe|kiভাবে|কীভাবে|process|prosess)/i.test(text) ||
     /(kivabe|কিভাবে|কীভাবে|kibhabe).*(order|অর্ডার|kinbo|কিনব|nibo|নিবো|pabo|পাব)/i.test(text) ||
     /অর্ডারকিভাবে|orderকিভাবে/.test(textForOrderCheck) ||
-    /order\s*form|অর্ডার\s*ফর্ম/i.test(text);
+    /order\s*form|অর্ডার\s*ফর্ম/i.test(text) ||
+    // "I want to order / buy / take" — clear purchase intent
+    /(order|অর্ডার|nite|নিতে|kinbo|কিনব|কিনতে|কিনবো).*(chai|চাই|chassi|চাছি|চাচ্ছি|chacchi|korte|করতে|debo|দেব|dibo|দিব)/i.test(text) ||
+    /(ami|আমি|amar|আমার).*(order|অর্ডার|nibo|নিবো|nite chai|নিতে চাই|kinbo|কিনব|নিতে চাচ্ছি)/i.test(text) ||
+    /order\s*korte\s*(chai|chacchi|chassi)|অর্ডার\s*করতে\s*চাই/i.test(text) ||
+    /ar\s*akta\s*order|আরেকটা?\s*অর্ডার|আর\s*একটা?\s*অর্ডার/i.test(text) ||
+    /(nite|নিতে|kinbo|কিনবো|nibo|নিবো)\s*(chai|চাই|chacchi|চাচ্ছি)/i.test(text);
+
 
   if (isOrderProcessQuestion) {
     const orderReply = `জি ভাইয়া, অর্ডার করা খুবই সহজ! শুধু নিচের তথ্যগুলো এখানে পাঠিয়ে দিন:
