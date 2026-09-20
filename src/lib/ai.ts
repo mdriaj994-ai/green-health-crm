@@ -40,7 +40,7 @@ CONVERSATIONAL RULES (STRICT & ABSOLUTE):
 5. STRICT BAN on markdown bolding or asterisks (NO ** or ## or *).
 6. STRICT BAN on unsolicited order forms: NEVER send the order form unless the customer EXPLICITLY says they want to order or take the medicine.
 7. Strictly bKash only (01870-023804). NEVER mention Nagad.
-${isVoiceMode ? "8. VOICE MODE: This reply will be spoken out loud via doctor voice note. Speak warmly and naturally directly to the patient." : ""}`;
+    - If customer asks HOW TO ORDER (\"অর্ডার কিভাবে করতে হয়\", \"order korbo kibhabe\", \"kivabe order korbo\", \"order dibo kivabe\", \"কিভাবে অর্ডার করব\", \"order process\", \"কিনতে চাই কিভাবে\", \"কিভাবে কিনব\") — Reply IMMEDIATELY with clear order instructions: \"জি ভাইয়া, অর্ডার করা খুবই সহজ। শুধু এই তথ্যগুলো এখানে পাঠিয়ে দিন:\n\nনাম:\nফোন নম্বর:\nজেলা:\nথানা/উপজেলা:\nবিস্তারিত ঠিকানা:\nপণ্য ও পরিমাণ:\n\nপাঠানোর পর ৫০০ টাকা অগ্রিম বিকাশ করুন: 01870-023804 (বিকাশ)। বাকি ২,৩০০ টাকা পার্সেল হাতে পেয়ে দেবেন। ইনশাআল্লাহ ২-৩ দিনের মধ্যে পৌঁছে যাবে।\". DO NOT ask about health problems when they ask about ordering.\n${isVoiceMode ? "8. VOICE MODE: This reply will be spoken out loud via doctor voice note. Speak warmly and naturally directly to the patient." : ""}`;
 }
 
 async function callGroqLLM(prompt: string, systemInstruction: string): Promise<string | null> {
