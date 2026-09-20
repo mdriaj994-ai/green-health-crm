@@ -160,7 +160,21 @@ export async function startMessengerPoller() {
             if (!isFromCustomer) break; // reached bot/agent reply
             if (isProcessed(m.id)) break; // already handled
 
-            // Track in memory loop so poller doesn't re-enter in the same interval
+            // ── DOUBLE REPLY FIX: Re-read file right before processing ──
+            // Webhook may have already handled this message and written to file
+            try {
+              if (fs.existsSync(PROCESSED_MSGS_FILE)) {
+                const freshList = JSON.parse(fs.readFileSync(PROCESSED_MSGS_FILE, "utf-8"));
+                if (Array.isArray(freshList) && freshList.includes(m.id)) {
+                  inMemoryProcessedIds.add(m.id);
+                  break; // Webhook already processed this
+                }
+              }
+            } catch {}
+            // ── END DOUBLE REPLY FIX ───────────────────────────────────
+
+            // Mark IMMEDIATELY before processing (prevent re-entry)
+            markProcessed(m.id);
             inMemoryProcessedIds.add(m.id);
             console.log(`[MESSENGER_POLLER] 🎯 Handling customer message from ${m.from?.name || m.from?.id}: "${m.message}"`);
 
