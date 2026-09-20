@@ -15,12 +15,14 @@ import {
   Radio,
   Sparkles,
   Crown,
-  PackageCheck
+  PackageCheck,
+  History
 } from "lucide-react";
 import { signOut } from "next-auth/react";
 
 const navItems = [
   { href: "/dashboard", label: "ইনবক্স", icon: MessageSquare, badge: "লাইভ" },
+  { href: "/dashboard/messages", label: "মেসেজ হিস্ট্রি", icon: History, badge: "সব" },
   { href: "/dashboard/comments", label: "কমেন্টস", icon: MessageCircle },
   { href: "/dashboard/agents", label: "এজেন্টস", icon: Users },
   { href: "/dashboard/products", label: "মেডিসিন ড্যাশবোর্ড", icon: ShoppingBag, badge: "৫৭ টি" },

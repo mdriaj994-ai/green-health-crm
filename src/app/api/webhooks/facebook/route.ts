@@ -160,6 +160,70 @@ async function flushSenderEvent(senderId: string) {
 
   console.log(`[AUTO_REPLY] Processing message(s) from ${senderId} | Batch Count: ${items.length} | Text: "${text}"`);
 
+  // ── TELEGRAM ALERT: Phone number বা হাকিমের সাথে কথা বলার request ──────
+  try {
+    const textLower = (text || "").toLowerCase();
+    const normalizedText = text.replace(/[০-৯]/g, (d: string) => "০১২৩৪৫৬৭৮৯".indexOf(d).toString());
+
+    // Phone number detection
+    const phoneMatch = normalizedText.match(/(?:\+?880|0)?1[3-9]\d{8}/);
+    const hasPhone = Boolean(phoneMatch);
+
+    // হাকিমের সাথে কথা বলার request detection
+    const hakimKeywords = [
+      "hakim", "হাকিম", "হাকিমের সাথে", "হাকিম সাহেব", "হাকিমের সাথে কথা",
+      "doctor", "ডাক্তার", "কথা বলব", "কথা বলতে চাই", "সরাসরি কথা",
+      "direct call", "ফোন করতে চাই", "call করতে চাই", "আপনার সাথে কথা",
+      "personal", "ব্যক্তিগত", "গোপনে", "একান্তে", "real person",
+      "মানুষের সাথে", "real doctor", "সরাসরি"
+    ];
+    const wantsHakim = hakimKeywords.some(kw => textLower.includes(kw.toLowerCase()));
+
+    if (hasPhone || wantsHakim) {
+      const tgBotToken = "8874694866:AAEmdXxd3DP3B8J4L2sHS0pIxVR98HV9vqI";
+      const tgChatId = "8279465535";
+      const fbProfileLink = `https://www.facebook.com/search/top?q=${senderId}`;
+      const fbMessengerLink = `https://m.me/${senderId}`;
+
+      let alertMsg = "";
+      if (hasPhone && wantsHakim) {
+        alertMsg = `🔔 *ফোন নম্বর + হাকিমের সাথে কথা বলতে চায়!*`;
+      } else if (hasPhone) {
+        alertMsg = `📱 *ফোন নম্বর দিয়েছে!*`;
+      } else {
+        alertMsg = `🩺 *হাকিমের সাথে সরাসরি কথা বলতে চায়!*`;
+      }
+
+      const tgMessage = `${alertMsg}
+
+👤 *FB নাম/ID:* \`${senderId}\`
+🔗 *FB Profile:* ${fbProfileLink}
+💬 *Messenger:* ${fbMessengerLink}
+${hasPhone ? `📱 *ফোন নম্বর:* \`${phoneMatch![0]}\`` : ""}
+
+📝 *যা লিখেছে:*
+${text}
+
+⏰ ${new Date().toLocaleString("bn-BD", { timeZone: "Asia/Dhaka" })}`;
+
+      await fetch(`https://api.telegram.org/bot${tgBotToken}/sendMessage`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          chat_id: tgChatId,
+          text: tgMessage,
+          parse_mode: "Markdown",
+          disable_web_page_preview: false,
+        }),
+      }).catch(e => console.warn("[TG_ALERT_ERR]", e.message));
+
+      console.log(`[TG_ALERT] ✅ Sent to Telegram for sender ${senderId} | phone=${hasPhone} | hakimReq=${wantsHakim}`);
+    }
+  } catch (tgErr: any) {
+    console.warn("[TG_ALERT_CATCH]", tgErr.message);
+  }
+  // ── END TELEGRAM ALERT ────────────────────────────────────────────────────
+
   // Generate AI reply using Gemini (Hakim Rejaul Karim persona)
   try {
     const { generateAutoReply } = await import("@/lib/ai");
@@ -620,7 +684,45 @@ async function flushSenderEvent(senderId: string) {
           // 1. Direct DB Save (bulletproof)
           saveOrderToDb(orderData);
 
-          // 2. Also notify HTTP API
+          // 2. Telegram Order Alert 🔔
+          try {
+            const tgBotToken = "8874694866:AAEmdXxd3DP3B8J4L2sHS0pIxVR98HV9vqI";
+            const tgChatId = "8279465535";
+            const fbMessengerLink = `https://m.me/${senderId}`;
+            const fbProfileLink = `https://www.facebook.com/search/top?q=${senderId}`;
+
+            const orderTgMsg = `🛒 *নতুন অর্ডার এসেছে!* 🎉
+
+━━━━━━━━━━━━━━━━━━━━
+👤 *নাম:* ${orderData.customerName}
+📱 *ফোন:* \`${orderData.phone}\`
+📍 *ঠিকানা:* ${orderData.address || "দেওয়া হয়নি"}${orderData.thana ? `\n🏘️ *থানা:* ${orderData.thana}` : ""}${orderData.district ? `\n📮 *জেলা:* ${orderData.district}` : ""}
+💊 *পণ্য:* ${orderData.product}
+📦 *পরিমাণ:* ${orderData.quantity} পিস
+━━━━━━━━━━━━━━━━━━━━
+🔗 *FB Profile:* ${fbProfileLink}
+💬 *Messenger:* ${fbMessengerLink}
+🆔 *FB ID:* \`${senderId}\`
+
+⏰ ${new Date().toLocaleString("bn-BD", { timeZone: "Asia/Dhaka" })}`;
+
+            await fetch(`https://api.telegram.org/bot${tgBotToken}/sendMessage`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({
+                chat_id: tgChatId,
+                text: orderTgMsg,
+                parse_mode: "Markdown",
+                disable_web_page_preview: false,
+              }),
+            }).catch(e => console.warn("[TG_ORDER_ALERT_ERR]", e.message));
+
+            console.log(`[TG_ORDER_ALERT] ✅ Order alert sent to Telegram for ${senderId}`);
+          } catch (tgOrderErr: any) {
+            console.warn("[TG_ORDER_ALERT_CATCH]", tgOrderErr.message);
+          }
+
+          // 3. Also notify HTTP API
           try {
             await fetch("http://localhost:3000/api/orders", {
               method: "POST",
@@ -628,6 +730,7 @@ async function flushSenderEvent(senderId: string) {
               body: JSON.stringify(orderData),
             }).catch(() => null);
           } catch {}
+
 
           if (!botConfirmedOrder) {
             // Send confirmation message to customer only if bot hasn't already sent confirmation
