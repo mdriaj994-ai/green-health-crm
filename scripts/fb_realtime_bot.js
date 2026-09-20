@@ -788,26 +788,33 @@ function getClinicalConsultationReply(senderId = "", senderName = "", customerMe
   // ──────────────────────────────────────────────────────────────────────────
   // STAGE 1: MISSING AGE OR DURATION
   // ──────────────────────────────────────────────────────────────────────────
+  const hasAgeInMessage = /(?:বয়স|বছর|bochor|age|\b\d{2}\b)/i.test(clean);
+  const hasDurationInMessage = /(?:মাস|বছর|দিন|din|mas|bochor|month|year|dhore|ধরে|যাবত|jabot)/i.test(clean);
+
   if (hasAge && !hasDuration) {
-    const stage1DurationVariations = [
-      `আলহামদুলিল্লাহ ${nameSalute}, আপনার বয়স ${prof.age} বছর জেনে খুব ভালো হলো। এই বয়সে শরীরের রক্ত সঞ্চালন ও কোষগুলো সতেজ থাকে, তাই খাঁটি প্রাকৃতিক ভেষজ গ্রহণ করলে খুব দ্রুত নার্ভ রিকভারি হয়। ভাইয়া, এই দুর্বলতা বা সমস্যাটি কতদিন বা কত মাস ধরে হচ্ছে একটু জানাবেন কি?`,
-
-      `ধন্যবাদ ${nameSalute} বয়সটি জানানোর জন্য। ${prof.age} বছর বয়সে সঠিক প্রাকৃতিক ভেষজ চিকিৎসা নিলে শারীরিক স্ট্যামিনা ও বীর্যের ঘনত্ব দ্রুত বাড়ে। এই সমস্যাটি কি নতুন, নাকি বিগত কয়েক মাস বা বছর ধরে ফেস করছেন ভাইয়া?`,
-
-      `মাশাআল্লাহ ${nameSalute}, বয়স ${prof.age} বছর নোট করে নিলাম। আপনার সমস্যার সঠিক রুট কজ বুঝতে আরেকটি বিষয় নিশ্চিত করুন—এই সমস্যাটি কতদিন যাবত হচ্ছে ভাইয়া?`
-    ];
-    return stage1DurationVariations[Math.floor(Math.random() * stage1DurationVariations.length)];
+    if (hasAgeInMessage) {
+      const stage1DurationVariations = [
+        `আলহামদুলিল্লাহ ${nameSalute}, আপনার বয়স ${prof.age} বছর জেনে খুব ভালো হলো। এই বয়সে শরীরের রক্ত সঞ্চালন ও কোষগুলো সতেজ থাকে, তাই খাঁটি প্রাকৃতিক ভেষজ গ্রহণ করলে খুব দ্রুত নার্ভ রিকভারি হয়। ভাইয়া, এই দুর্বলতা বা সমস্যাটি কতদিন বা কত মাস ধরে হচ্ছে একটু জানাবেন কি?`,
+        `ধন্যবাদ ${nameSalute} বয়সটি জানানোর জন্য। ${prof.age} বছর বয়সে সঠিক প্রাকৃতিক ভেষজ চিকিৎসা নিলে শারীরিক স্ট্যামিনা ও বীর্যের ঘনত্ব দ্রুত বাড়ে। এই সমস্যাটি কি নতুন, নাকি বিগত কয়েক মাস বা বছর ধরে ফেস করছেন ভাইয়া?`,
+        `মাশাআল্লাহ ${nameSalute}, বয়স ${prof.age} বছর নোট করে নিলাম। আপনার সমস্যার সঠিক রুট কজ বুঝতে আরেকটি বিষয় নিশ্চিত করুন—এই সমস্যাটি কতদিন যাবত হচ্ছে ভাইয়া?`
+      ];
+      return stage1DurationVariations[Math.floor(Math.random() * stage1DurationVariations.length)];
+    } else {
+      return `জি ${nameSalute}, আপনার সঠিক পরামর্শ নিশ্চিত করতে আরেকটি বিষয় জানা প্রয়োজন—এই শারীরিক দুর্বলতা বা সমস্যাটি কতদিন বা কত মাস ধরে অনুভব করছেন ভাইয়া?`;
+    }
   }
 
   if (!hasAge && hasDuration) {
-    const stage1AgeVariations = [
-      `জি ${nameSalute}, সমস্যাটি ${prof.duration} ধরে হচ্ছে জেনে বিস্তারিত বুঝতে পারলাম। দুশ্চিন্তার কোনো কারণ নেই, প্রাকৃতিক ভেষজে এটি স্থায়ীভাবে সমাধানযোগ্য। ভাইয়া, আপনার সঠিক ভেষজ ডোজ নির্ধারণে আপনার বর্তমান বয়স কত বছর একটু বলবেন কি?`,
-
-      `ধন্যবাদ ${nameSalute}। সমস্যার মেয়াদটি নোট করে নিলাম। আপনার শরীরে ওষুধটি কত দ্রুত কাজ করবে তা বয়সের মেটাবলিজমের ওপর নির্ভর করে। আপনার বর্তমান বয়স কত ভাইয়া?`,
-
-      `মাশাআল্লাহ ${nameSalute}, আপনার তথ্যটি বুঝলাম। শতভাগ কার্যকরী প্রেসক্রিপশন দিতে আপনার বর্তমান বয়স কত বছর একটু জানাবেন কি?`
-    ];
-    return stage1AgeVariations[Math.floor(Math.random() * stage1AgeVariations.length)];
+    if (hasDurationInMessage) {
+      const stage1AgeVariations = [
+        `জি ${nameSalute}, সমস্যাটি ${prof.duration} ধরে হচ্ছে জেনে বিস্তারিত বুঝতে পারলাম। দুশ্চিন্তার কোনো কারণ নেই, প্রাকৃতিক ভেষজে এটি স্থায়ীভাবে সমাধানযোগ্য। ভাইয়া, আপনার সঠিক ভেষজ ডোজ নির্ধারণে আপনার বর্তমান বয়স কত বছর একটু বলবেন কি?`,
+        `ধন্যবাদ ${nameSalute}। সমস্যার মেয়াদটি নোট করে নিলাম। আপনার শরীরে ওষুধটি কত দ্রুত কাজ করবে তা বয়সের মেটাবলিজমের ওপর নির্ভর করে। আপনার বর্তমান বয়স কত ভাইয়া?`,
+        `মাশাআল্লাহ ${nameSalute}, আপনার তথ্যটি বুঝলাম। শতভাগ কার্যকরী প্রেসক্রিপশন দিতে আপনার বর্তমান বয়স কত বছর একটু জানাবেন কি?`
+      ];
+      return stage1AgeVariations[Math.floor(Math.random() * stage1AgeVariations.length)];
+    } else {
+      return `জি ${nameSalute}, সঠিক ভেষজ ডোজ নির্ধারণে আপনার বর্তমান বয়স কত বছর একটু জানাবেন কি?`;
+    }
   }
 
   if (!hasAge && !hasDuration) {
@@ -1069,32 +1076,138 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     return reply;
   }
 
-  // ── CLINICAL CONSULTATION FLOW INTERCEPTOR ────────────────────────────────
-  // When customer asks about product/price/symptoms/ordering
-  // FIRST gather clinical facts (age, problems, blood group) BEFORE offering product.
-  // Bypass: pure greetings, nagad/phone/address-only queries, certificate, catalog listing.
-  const isConsultationBypass =
-    /(?:নগদ|nagad)/i.test(trimmedClean) ||
-    /(?:number|namber|নম্বর|নাম্বার|helpline|হেল্পলাইন)\s*(?:den|din|dao|দেন|দিন|দাও)/i.test(trimmedClean) ||
-    /(?:বাসা|বাড়ি|ঠিকানা|চেম্বার|chamber|address)/i.test(trimmedClean) ||
-    /(?:certificate|সনদ|license|লাইসেন্স)/i.test(trimmedClean) ||
-    /(?:ki\s*ki|কি\s*কি|কী\s*কী)\s*(?:product|item|osudh|ওষুধ|আছে|paoya)/i.test(trimmedClean);
+  // ── 1. ORDER PROCESS / PURCHASE INTENT INTERCEPTOR ─────────────────────────
+  const textForOrderCheck = (customerMessage || "").toLowerCase().replace(/\s+/g, "");
+  const isOrderProcessQuestion =
+    /(?:order|অর্ডার).*(?:kivabe|কিভাবে|kibhabe|kiভাবে|কীভাবে|process|prosess|নিয়ম|পদ্ধতি)/i.test(customerMessage) ||
+    /(?:kivabe|কিভাবে|কীভাবে|kibhabe).*(?:order|অর্ডার|kinbo|কিনব|nibo|নিবো|pabo|পাব)/i.test(customerMessage) ||
+    /অর্ডারকিভাবে|orderকিভাবে|কিভাবেঅর্ডার/.test(textForOrderCheck) ||
+    /order\s*form|অর্ডার\s*ফর্ম/i.test(customerMessage) ||
+    /(?:order|অর্ডার|nite|নিতে|kinbo|কিনব|কিনতে|কিনবো).*(?:chai|চাই|chassi|চাছি|চাচ্ছি|chacchi|korte|করতে|debo|দেব|dibo|দিব)/i.test(customerMessage) ||
+    /(?:ami|আমি|amar|আমার).*(?:order|অর্ডার|nibo|নিবো|nite chai|নিতে চাই|kinbo|কিনব|নিতে চাচ্ছি)/i.test(customerMessage) ||
+    /order\s*korte\s*(?:chai|chacchi|chassi)|অর্ডার\s*করতে\s*চাই/i.test(customerMessage) ||
+    /ar\s*akta\s*order|আরেকটা?\s*অর্ডার|আর\s*একটা?\s*অর্ডার/i.test(customerMessage) ||
+    /(?:nite|নিতে|kinbo|কিনবো|nibo|নিবো)\s*(?:chai|চাই|chacchi|চাচ্ছি)/i.test(customerMessage);
 
-  const isConsultationTrigger =
-    /(?:দাম|dam|কত|koto|price|প্রাইস|টাকা|taka)/i.test(trimmedClean) ||
-    /(?:নিতে\s*চাই|নেব|নিব|order|অর্ডার|কিনতে|buy|পাঠান|পাঠিয়ে|কুরিয়ার|delivery|parcel)/i.test(trimmedClean) ||
-    /(?:কাজ\s*করে|কাজ\s*কি|উপকার|কীভাবে\s*কাজ)/i.test(trimmedClean) ||
-    /(?:সমস্যা|problem|দুর্বল|শক্তি|stamina|বীর্য|dhatu|ধাতু)/i.test(trimmedClean) ||
-    /(?:দ্রুত|চিকিৎসা|ওষুধ|medicine|osudh|কস্তুরী|kosturi|kasturi)/i.test(trimmedClean) ||
-    /(?:বয়স|boyos|age|\d{2,3}\s*(?:বছর|bochor|year))/i.test(trimmedClean) ||
-    /(?:বিবাহিত|bibahito|married|অবিবাহিত|single|বিয়ে)/i.test(trimmedClean) ||
-    /(?:রক্ত|blood|রক্তের\s*গ্রুপ|blood\s*group)/i.test(trimmedClean) ||
-    /(?:ডায়াবেটিস|diabetes|প্রেশার|pressure|গ্যাস্ট্রিক|gastric)/i.test(trimmedClean) ||
-    /(?:কতদিন|কত\s*মাস|how\s*long|duration)/i.test(trimmedClean) ||
-    /(?:খাওয়ার\s*নিয়ম|সেবন|dosage|নিয়ম)/i.test(trimmedClean) ||
-    /(?:উপাদান|ingredients)/i.test(trimmedClean);
+  if (isOrderProcessQuestion) {
+    const orderReply = `জি ভাইয়া, অর্ডার করা খুবই সহজ! শুধু নিচের তথ্যগুলো এখানে পাঠিয়ে দিন:
 
-  if (!isConsultationBypass && isConsultationTrigger) {
+নাম:
+ফোন নম্বর:
+জেলা:
+থানা/উপজেলা:
+বিস্তারিত ঠিকানা:
+পণ্য ও পরিমাণ:
+
+তারপর ৫০০ টাকা অগ্রিম বিকাশ করুন: 01870-023804। বাকি ২,৩০০ টাকা পার্সেল হাতে পেয়ে দেখে দেবেন। ইনশাআল্লাহ ২-৩ দিনের মধ্যে পৌঁছে যাবে।`;
+    if (senderId) customerMemory.appendChatMessage(senderId, "model", orderReply, isVoiceMode);
+    return orderReply;
+  }
+
+  // ── 2. ADDRESS / CHAMBER / LOCATION INTERCEPTOR ───────────────────────────
+  const isAddressQuestion =
+    /(?:apnar|আপনার|tomar|তোমার).*(?:basa|bari|বাড়ি|বাসা|address|ঠিকানা|dokan|দোকান|chamber|চেম্বার|office|অফিস|thakena|থাকেন|kothay|কোথায়|kothai)/i.test(customerMessage) ||
+    /(?:dokan|দোকান|shop|chamber|চেম্বার).*(?:kothay|কোথায়|kothai|ache|আছে|address|ঠিকানা)/i.test(customerMessage) ||
+    /(?:kothay|কোথায়|kothai).*(?:achen|আছেন|thakena|থাকেন|pabo|পাব|pawa|পাওয়া)/i.test(customerMessage) ||
+    /(?:বাসা|বাড়ি|চেম্বার|দোকান|chamber)\s*(?:কোথায়|কই|kothay|kothai)/i.test(trimmedClean);
+
+  if (isAddressQuestion) {
+    const addressReply = `জি ভাইয়া, আমাদের চেম্বার ও দোকানের ঠিকানা:
+
+জনতা ইউনানী চিকিৎসালয় ও ভেষজ ভান্ডার
+দোকান নং-৩৩ (৩য় তলা)
+আলীকদম কাঁচাবাজার, আলীকদম, বান্দরবান পার্বত্য জেলা।
+
+হেল্পলাইন: 01870-023804 (বিকাশ)
+সারা দেশে কুরিয়ারে হোম ডেলিভারি দেওয়া হয়।`;
+    if (senderId) customerMemory.appendChatMessage(senderId, "model", addressReply, isVoiceMode);
+    return addressReply;
+  }
+
+  // ── 3. PRICE / DAM INTERCEPTOR ────────────────────────────────────────────
+  const isPriceQuery =
+    /(?:dam|দাম|price|প্রাইস|koto|কত|taka|টাকা)\s*(?:koto|কত|hobe|হবে|bhai|ভাই|plz)?/i.test(trimmedClean) &&
+    /(?:dam|দাম|price|প্রাইস|koto|কত|taka|টাকা|খরচ|khoroch)/i.test(trimmedClean);
+
+  if (isPriceQuery && !/(?:samprotik|somosya|সমস্যা|durbol|দুর্বল)/i.test(trimmedClean)) {
+    if (/(?:joubon|যৌবন|raja|রাজা)/i.test(trimmedClean)) {
+      const pReply = "জি ভাইয়া, 'যৌবনের রাজা' (২০০ গ্রাম) এর রেগুলার মূল্য ৩,০০০ টাকা। কুরিয়ারে ক্যাশ অন ডেলিভারিতে সারাদেশে পাঠানো হয়।";
+      if (senderId) customerMemory.appendChatMessage(senderId, "model", pReply, isVoiceMode);
+      return pReply;
+    }
+    if (/(?:baji|বাজী|halua|হালুয়া)/i.test(trimmedClean)) {
+      const pReply = "জি ভাইয়া, 'বাজীকরণ হালুয়া' (৩৫০ গ্রাম) এর মূল্য ২,৫০০ টাকা।";
+      if (senderId) customerMemory.appendChatMessage(senderId, "model", pReply, isVoiceMode);
+      return pReply;
+    }
+    const pReply = `জি ভাইয়া, আমাদের ১ মাসের ফুল কোর্স (২৫০ গ্রাম) খাঁটি 'কস্তুরী পাউডার'-এর বর্তমান অফার মূল্য মাত্র ২,৮০০ টাকা।
+
+বুকিং নিশ্চিত করতে ৫০০ টাকা অগ্রিম বিকাশে দিতে হয় (হেল্পলাইন: 01870-023804), বাকি ২,৩০০ টাকা পার্সেল হাতে পেয়ে ডেলিভারি ম্যানকে দেবেন। আপনি কি অর্ডার করতে চান ভাইয়া?`;
+    if (senderId) customerMemory.appendChatMessage(senderId, "model", pReply, isVoiceMode);
+    return pReply;
+  }
+
+  // ── 4. USAGE / SEBON BIDHI / DOSAGE INTERCEPTOR ───────────────────────────
+  const isUsageQuery = /(?:khawar|খাওয়ার|sebon|সেবন|khabo|খাব|kivabe\s*khabo|কিভাবে\s*খাব|niyom|নিয়ম|dosage|ডোজ)\s*(?:ki|কী|kivabe|কীভাবে|bolen|বলেন)?/i.test(trimmedClean) &&
+    /(?:khawa|খাওয়া|sebon|সেবন|khabo|খাব|niyom|নিয়ম)/i.test(trimmedClean);
+
+  if (isUsageQuery) {
+    const usageReply = `জি ভাইয়া, সেবনবিধি খুবই সহজ:
+
+প্রতিদিন সকালে খালি পেটে ১ চামচ কস্তুরী পাউডার হালকা কুসুম গরম দুধ অথবা পানিতে মিশিয়ে সেবন করবেন। 
+
+নিয়মিত সেবনে ৩ থেকে ৫ দিনেই পরিবর্তন বোঝা যায় এবং ইনশাআল্লাহ স্থায়ী ফলাফল পাওয়া যায়।`;
+    if (senderId) customerMemory.appendChatMessage(senderId, "model", usageReply, isVoiceMode);
+    return usageReply;
+  }
+
+  // ── 5. INGREDIENTS INTERCEPTOR ────────────────────────────────────────────
+  const isIngredientsQuery = /(?:upadan|উপাদান|ki\s*diye|কী\s*দিয়ে|ingredients|ki\s*ki\s*ache|কী\s*কী\s*আছে)/i.test(trimmedClean) &&
+    /(?:upadan|উপাদান|toiri|তৈরি|উপাদানগুলো|বানানো)/i.test(trimmedClean);
+
+  if (isIngredientsQuery) {
+    const ingReply = `জি ভাইয়া, আমাদের কস্তুরী পাউডারে রয়েছে ৬টি দুর্লভ ও খাঁটি প্রাকৃতিক উপাদান:
+
+১) খাঁটি মৃগনাভি কস্তুরী
+২) হিমালয়ান বন্য শিলাজিৎ
+৩) আসল কোরিয়ান রেড জিনসেং
+৪) কাশ্মীরি জাফরান
+৫) অশ্বগন্ধা ও শ্বেত মুসলি
+৬) বিশেষ ভেষজ মিশ্রণ (তালমাখনা, সর্পগন্ধা ও জয়ফল-জয়ত্রী)।
+
+এটি শতভাগ প্রাকৃতিক এবং কোনো রাসায়নিক বা পার্শ্বপ্রতিক্রিয়া নেই ভাইয়া।`;
+    if (senderId) customerMemory.appendChatMessage(senderId, "model", ingReply, isVoiceMode);
+    return ingReply;
+  }
+
+  // ── 6. SIDE EFFECTS INTERCEPTOR ───────────────────────────────────────────
+  const isSideEffectsQuery = /(?:parsho|পার্শ্ব|side\s*effect|ক্ষতি|khoti|problem\s*hobe|সমস্যা\s*হবে|side\s*effects)/i.test(trimmedClean);
+  if (isSideEffectsQuery && !/(?:amar|আমার|problem|সমস্যা\s*আছে)/i.test(trimmedClean)) {
+    const seReply = "জি না ভাইয়া, আলহামদুলিল্লাহ কোনো প্রকার পার্শ্বপ্রতিক্রিয়া নেই। এটি সম্পূর্ণ প্রাকৃতিক ও ভেষজ উপাদানে স্বাস্থ্য মন্ত্রণালয়ের নিবন্ধিত চিকিৎসকের ফর্মুলায় তৈরি ১০০% কেমিক্যালমুক্ত চিকিৎসা।";
+    if (senderId) customerMemory.appendChatMessage(senderId, "model", seReply, isVoiceMode);
+    return seReply;
+  }
+
+  // ── 7. AVAILABLE PRODUCTS CATALOG INTERCEPTOR ──────────────────────────────
+  const isCatalogQuery = /(?:ki\s*ki|কি\s*কি|কী\s*কী)\s*(?:product|item|osudh|ওষুধ|course|কোর্স|আছে|paoya\s*jay|পাওয়া\s*যায়)/i.test(trimmedClean);
+  if (isCatalogQuery) {
+    const catReply = `জি ভাইয়া, আমাদের প্রধান ৩টি বিশেষ প্রাকৃতিক কোর্স রয়েছে:
+
+১. কস্তুরী পাউডার (১ মাসের ফুল কোর্স, ২৫০ গ্রাম) — অফার মূল্য ২,৮০০ টাকা (দুর্বলতা দূর ও স্থায়ী শক্তি বৃদ্ধি)।
+২. যৌবনের রাজা (২০০ গ্রাম) — মূল্য ৩,০০০ টাকা (তীব্র স্ট্যামিনা ও হরমোন বৃদ্ধি)।
+৩. বাজীকরণ হালুয়া (৩৫০ গ্রাম) — মূল্য ২,৫০০ টাকা (নার্ভ মজবুত ও সুস্বাদু হালুয়া)।
+
+আপনার শারীরিক অবস্থা অনুযায়ী কোনটি প্রয়োজন ভাইয়া?`;
+    if (senderId) customerMemory.appendChatMessage(senderId, "model", catReply, isVoiceMode);
+    return catReply;
+  }
+
+  // ── 8. CLINICAL HEALTH SYMPTOMS CONSULTATION TRIGGER ──────────────────────
+  // ONLY trigger consultation if customer is explicitly describing personal health symptoms:
+  const isHealthSymptomComplaint =
+    /(?:বীর্য\s*পাতলা|birjo\s*patla|দ্রুত\s*বীর্যপাত|druto\s*birjopat|টাইমিং\s*কম|timing\s*kom|নার্ভ\s*দুর্বল|শক্ত\s*হয়\s*না|নরম\s*হয়ে\s*যায়|আঠালো\s*পানি|কামরস|স্বপ্নদোষ|হস্তমৈথুন|লিঙ্গ\s*ছোট|উত্থান\s*হয়\s*না|সহবাসে\s*দুর্বল)/i.test(trimmedClean);
+
+  if (isHealthSymptomComplaint) {
     const consultReply = getClinicalConsultationReply(
       senderId || '',
       senderName || '',
@@ -1275,8 +1388,7 @@ When asked ANY personal question (বাড়ি, বাসা, চেম্ব
 - অভিজ্ঞতা: "১৮ বছরেরও বেশি সময় ধরে ইউনানী চিকিৎসা করছি।"
 - পরিচয় দিতে হলে: "আমি হাকীম মো: আব্দুল করিম বলছি।" (NEVER say "রেজাউল", "AI", "Bot", or any other name)
 
-CRITICAL PIVOT RULE: After answering any personal question with the fixed backstory, ALWAYS immediately pivot back to the customer's health using this bridge:
-"যাই হোক ভাইয়া, আপনার কথাই বেশি জরুরি — আপনার শরীরের কী সমস্যাটা নিয়ে কথা বলতে চাচ্ছেন?"
+IMPORTANT: After answering personal questions, simply stop. Do NOT push health topics. Wait for the customer to ask their next question naturally. Only discuss health/products if the customer THEMSELVES brings it up.
 ══════════════════════════════════════════════════════════
 
 ══════════════════════════════════════════════════════════
