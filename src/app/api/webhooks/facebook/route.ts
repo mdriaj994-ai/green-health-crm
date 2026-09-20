@@ -224,9 +224,40 @@ ${text}
   }
   // ── END TELEGRAM ALERT ────────────────────────────────────────────────────
 
+  // ── INSTANT HARDCODED REPLY: Order process questions (bypass AI) ──────────
+  const textForOrderCheck = (text || "").toLowerCase().replace(/\s+/g, "");
+  const isOrderProcessQuestion =
+    /(order|অর্ডার).*(kivabe|কিভাবে|kibhabe|kiভাবে|কীভাবে|korbo|করব|করবো|debo|দেব|dibo|দিবো|korte|করতে|process|prosess)/i.test(text) ||
+    /(kivabe|কিভাবে|কীভাবে|kibhabe).*(order|অর্ডার|kinbo|কিনব|nibo|নিবো|pabo|পাব)/i.test(text) ||
+    /অর্ডারকিভাবে|orderকিভাবে/.test(textForOrderCheck) ||
+    /order\s*form|অর্ডার\s*ফর্ম/i.test(text);
+
+  if (isOrderProcessQuestion) {
+    const orderReply = `জি ভাইয়া, অর্ডার করা খুবই সহজ! শুধু নিচের তথ্যগুলো এখানে পাঠিয়ে দিন:
+
+নাম:
+ফোন নম্বর:
+জেলা:
+থানা/উপজেলা:
+বিস্তারিত ঠিকানা:
+পণ্য ও পরিমাণ:
+
+তারপর ৫০০ টাকা অগ্রিম বিকাশ করুন: 01870-023804। বাকি ২,৩০০ টাকা পার্সেল হাতে পেয়ে দেবেন। ইনশাআল্লাহ ২-৩ দিনের মধ্যে পৌঁছে যাবে।`;
+
+    const PERM_TOK = "EAAjkLPT8UegBSsQVgxm1fBW6D7N7oon9ZAudS1UKVLVbBEar1BGEvZCLJ3ibSLO6FmILQDf6mq4rcsL98cpxuuRwAHSwUprKUBLv6ZBBCSjYAGUPTU1SQIRDvR74D5aIivRiDoUG3zobZB83AIwZA8mZAhoqcBDpjii2KsvQshwZCCIdUSJk5NaDb5JZCFGt4YWKBfEZC";
+    const envT = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+    const quickToken = (envT && envT.length > 150) ? envT : PERM_TOK;
+    await sendMessengerReply(pageId, senderId, orderReply, quickToken);
+    console.log(`[ORDER_PROCESS_INSTANT] ✅ Sent hardcoded order instructions to ${senderId}`);
+    try { const { appendChatMessage } = await import("@/lib/customer-memory"); appendChatMessage(senderId, "model", orderReply, false); } catch {}
+    return;
+  }
+  // ── END INSTANT REPLY ─────────────────────────────────────────────────────
+
   // Generate AI reply using Gemini (Hakim Rejaul Karim persona)
   try {
     const { generateAutoReply } = await import("@/lib/ai");
+
 
     // Fetch chat history from DB for context
     let chatHistory: { sender: "CUSTOMER" | "AGENT"; text: string }[] = [];
