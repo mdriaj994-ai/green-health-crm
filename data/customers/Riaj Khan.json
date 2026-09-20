@@ -1,0 +1,77 @@
+{
+  "senderId": "Riaj Khan",
+  "name": "",
+  "age": "৩৩",
+  "maritalStatus": "",
+  "symptoms": [],
+  "duration": "4 mas thaka",
+  "productDiscussed": "",
+  "productsDiscussedAll": [],
+  "orderStatus": "inquiry",
+  "ordersPlaced": [],
+  "phone": "",
+  "district": "",
+  "thana": "",
+  "address": "",
+  "lastVoiceTranscript": "",
+  "sessionSummaries": [],
+  "chatLog": [
+    {
+      "role": "user",
+      "text": "amar boyos 33 bosor aita ami 4 mas thaka",
+      "isVoice": false,
+      "time": 1789821660462
+    },
+    {
+      "role": "model",
+      "text": "ধন্যবাদ । ৩৩ বছর বয়সে সঠিক ভেষজ চিকিৎসায় নার্ভ খুব দ্রুত সক্রিয় হয়। পারফেক্ট ডোজ নির্ধারণে চিকিৎসকের পক্ষ থেকে ২টি প্রশ্ন ছিল:\n১) মিলনে প্রবেশের পর স্থায়ী কত মিনিট সময় পান ভাইয়া? প্রবেশের আগেই কি বীর্যপাত হয়ে যায়?\n২) লিঙ্গের উত্থান কি সম্পূর্ণ শক্ত ও টানটান হয়, নাকি নিস্তেজ থাকে? আর বীর্যের ঘনত্ব কেমন?",
+      "isVoice": false,
+      "time": 1789821660484
+    },
+    {
+      "role": "user",
+      "text": "amar boyos 33 bosor aita ami 4 mas thaka",
+      "isVoice": false,
+      "time": 1789821681331
+    },
+    {
+      "role": "model",
+      "text": "আলহামদুলিল্লাহ ভাইয়া, বয়স ও সমস্যার মেয়াদ গুরুত্বের সাথে নোট করলাম। চিকিৎসার সঠিক ফর্মুলা ও মাত্রা নির্ধারণে অত্যন্ত গোপনীয় ২টি বিষয় একটু জানাবেন:\n১) সহবাসে প্রবেশের পর স্বাভাবিকভাবে কতক্ষণ সময় পান? মিলন চলাকালীন কি মাঝপথে নরম বা ঢিলা হয়ে যায়?\n২) বীর্য কি অতিরিক্ত পাতলা বা পানির মতো? আর উত্তেজনার শুরুতে বা ফোনে কথা বললে কি আগাম আঠালো কামরস/পানি আসে?",
+      "isVoice": false,
+      "time": 1789821681355
+    },
+    {
+      "role": "user",
+      "text": "number den apnar",
+      "isVoice": false,
+      "time": 1789822671625
+    },
+    {
+      "role": "model",
+      "text": "জি ভাইয়া, আমাদের অফিসিয়াল হেল্পলাইন ও সরাসরি যোগাযোগের নম্বর:\n📞 01870-023804 (বিকাশ)\n\nআপনি সরাসরি কল দিয়ে কথা বলতে পারেন অথবা যেকোনো প্রয়োজনে যোগাযোগ করতে পারেন ভাইয়া।",
+      "isVoice": false,
+      "time": 1789822671637
+    }
+  ],
+  "firstContact": 1789821660251,
+  "lastContact": 1789822671637,
+  "totalMessages": 53,
+  "prefersVoice": false,
+  "bloodGroup": "",
+  "diabetes": "",
+  "bloodPressure": "",
+  "previousMedication": "",
+  "marriageDuration": "",
+  "diagnosticStage": 0,
+  "timing": "",
+  "erectionQuality": "",
+  "semenQuality": "",
+  "preCum": "",
+  "sleepQuality": "",
+  "gastric": "",
+  "probashi": "",
+  "extraFacts": [],
+  "mentionedLocations": [],
+  "allHealthKeywords": [],
+  "budgetMentioned": []
+}

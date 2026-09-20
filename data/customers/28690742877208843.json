@@ -1,0 +1,53 @@
+{
+  "senderId": "28690742877208843",
+  "name": "Rejaul Islam",
+  "age": "",
+  "maritalStatus": "",
+  "symptoms": [],
+  "duration": "",
+  "productDiscussed": "",
+  "productsDiscussedAll": [],
+  "orderStatus": "inquiry",
+  "ordersPlaced": [],
+  "phone": "",
+  "district": "",
+  "thana": "",
+  "address": "",
+  "lastVoiceTranscript": "",
+  "sessionSummaries": [],
+  "chatLog": [
+    {
+      "role": "user",
+      "text": "আপনাদের অফিস কোথায়।সরা সরি দেকা করা ষাবে।",
+      "isVoice": false,
+      "time": 1789819020027
+    },
+    {
+      "role": "model",
+      "text": "জি ভাইয়া, আমাদের প্রধান চেম্বারগুলো বান্দরবানের আলীকদম, রামু এবং রাঙ্গামাটির রিজার্ভ বাজারে অবস্থিত। আপনি চাইলে আপনার সুবিধামতো যেকোনো একটিতে সরাসরি এসে দেখা করতে পারেন।\n\nতবে আমাদের সব প্রোডাক্ট সারা দেশে ক্যাশ অন ডেলিভারিতে হোম ডেলিভারি দেওয়া হয়, তাই কষ্ট করে না এলেও চলে। আপনি কি কোনো নির্দিষ্ট সমস্যা বা প্রোডাক্ট নিয়ে জানতে চাচ্ছেন?",
+      "isVoice": false,
+      "time": 1789819021579
+    }
+  ],
+  "firstContact": 1789819020016,
+  "lastContact": 1789819021579,
+  "totalMessages": 1,
+  "prefersVoice": false,
+  "bloodGroup": "",
+  "diabetes": "",
+  "bloodPressure": "",
+  "previousMedication": "",
+  "marriageDuration": "",
+  "diagnosticStage": 0,
+  "timing": "",
+  "erectionQuality": "",
+  "semenQuality": "",
+  "preCum": "",
+  "sleepQuality": "",
+  "gastric": "",
+  "probashi": "",
+  "extraFacts": [],
+  "mentionedLocations": [],
+  "allHealthKeywords": [],
+  "budgetMentioned": []
+}

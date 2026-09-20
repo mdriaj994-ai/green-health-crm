@@ -1,0 +1,53 @@
+{
+  "senderId": "39564625949803618",
+  "name": "মোঃ রফিকুল ইসলাম",
+  "age": "",
+  "maritalStatus": "",
+  "symptoms": [],
+  "duration": "",
+  "productDiscussed": "",
+  "productsDiscussedAll": [],
+  "orderStatus": "inquiry",
+  "ordersPlaced": [],
+  "phone": "",
+  "district": "",
+  "thana": "",
+  "address": "",
+  "lastVoiceTranscript": "",
+  "sessionSummaries": [],
+  "chatLog": [
+    {
+      "role": "user",
+      "text": "এক ফাইলের দাম কতো টাকা আপনাদের ঠিকানা কোন যায় গাই",
+      "isVoice": false,
+      "time": 1789819079071
+    },
+    {
+      "role": "model",
+      "text": "জি ভাইয়া, আমাদের প্রোডাক্টগুলোর অফার মূল্য ২,৯০০ টাকা লাগবে। আমাদের প্রধান চেম্বারগুলো আলীকদম (বান্দরবান), রামু (কক্সবাজার) এবং রাঙ্গামাটি রিজার্ভ বাজারে অবস্থিত। এছাড়া সারা দেশে আমরা ক্যাশ অন ডেলিভারিতে হোম ডেলিভারি দিয়ে থাকি।\n\nআপনি কি বিশেষ কোনো প্রোডাক্ট সম্পর্কে জানতে চাচ্ছেন?",
+      "isVoice": false,
+      "time": 1789819080601
+    }
+  ],
+  "firstContact": 1789819079054,
+  "lastContact": 1789819080601,
+  "totalMessages": 1,
+  "prefersVoice": false,
+  "bloodGroup": "",
+  "diabetes": "",
+  "bloodPressure": "",
+  "previousMedication": "",
+  "marriageDuration": "",
+  "diagnosticStage": 0,
+  "timing": "",
+  "erectionQuality": "",
+  "semenQuality": "",
+  "preCum": "",
+  "sleepQuality": "",
+  "gastric": "",
+  "probashi": "",
+  "extraFacts": [],
+  "mentionedLocations": [],
+  "allHealthKeywords": [],
+  "budgetMentioned": []
+}

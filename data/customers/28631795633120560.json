@@ -1,0 +1,53 @@
+{
+  "senderId": "28631795633120560",
+  "name": "Smfaruk Faruk",
+  "age": "",
+  "maritalStatus": "",
+  "symptoms": [],
+  "duration": "",
+  "productDiscussed": "",
+  "productsDiscussedAll": [],
+  "orderStatus": "inquiry",
+  "ordersPlaced": [],
+  "phone": "",
+  "district": "",
+  "thana": "",
+  "address": "",
+  "lastVoiceTranscript": "",
+  "sessionSummaries": [],
+  "chatLog": [
+    {
+      "role": "user",
+      "text": "দাম কত টাকা\nআমি একটা ওড়ার করবো",
+      "isVoice": false,
+      "time": 1789819201928
+    },
+    {
+      "role": "model",
+      "text": "জি ভাইয়া, আপনি আমাদের কোন প্রোডাক্টটি নিতে চাচ্ছেন তা জানালে আমি আপনাকে সঠিক দাম ও বিস্তারিত তথ্য জানাতে পারতাম। আমাদের প্রতিটি কোর্সের অফার মূল্য ২,৯০০ টাকা (তবে কস্তুরী পাউডার ২,৮০০ টাকা এবং যৌবনের রাজা ৩,০০০ টাকা)।\n\nআপনি কি আমাদের কোনো নির্দিষ্ট প্রোডাক্ট সম্পর্কে জানতে চাচ্ছেন? আপনার পছন্দমতো প্রোডাক্টটি জানালে আমি অর্ডার কনফার্ম করার জন্য প্রয়োজনীয় তথ্যগুলো নিতে পারব।",
+      "isVoice": false,
+      "time": 1789819203647
+    }
+  ],
+  "firstContact": 1789819201903,
+  "lastContact": 1789819203647,
+  "totalMessages": 1,
+  "prefersVoice": false,
+  "bloodGroup": "",
+  "diabetes": "",
+  "bloodPressure": "",
+  "previousMedication": "",
+  "marriageDuration": "",
+  "diagnosticStage": 0,
+  "timing": "",
+  "erectionQuality": "",
+  "semenQuality": "",
+  "preCum": "",
+  "sleepQuality": "",
+  "gastric": "",
+  "probashi": "",
+  "extraFacts": [],
+  "mentionedLocations": [],
+  "allHealthKeywords": [],
+  "budgetMentioned": []
+}

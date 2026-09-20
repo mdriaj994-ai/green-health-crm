@@ -1,0 +1,53 @@
+{
+  "senderId": "29256338997296387",
+  "name": "Ahmed Noman",
+  "age": "",
+  "maritalStatus": "",
+  "symptoms": [],
+  "duration": "",
+  "productDiscussed": "",
+  "productsDiscussedAll": [],
+  "orderStatus": "inquiry",
+  "ordersPlaced": [],
+  "phone": "",
+  "district": "",
+  "thana": "",
+  "address": "",
+  "lastVoiceTranscript": "",
+  "sessionSummaries": [],
+  "chatLog": [
+    {
+      "role": "user",
+      "text": "price of the product \nkototukun thake",
+      "isVoice": false,
+      "time": 1789819028488
+    },
+    {
+      "role": "model",
+      "text": "জি ভাইয়া, আপনি কোন প্রোডাক্টটির কথা জানতে চাচ্ছেন তা জানালে আমি সঠিক দাম ও পরিমাণ জানাতে পারতাম। আমাদের কাছে থাকা প্রতিটি প্রোডাক্টের অফার মূল্য সাধারণত ২,৯০০ টাকা হয়ে থাকে।\n\nআপনি কি নির্দিষ্ট কোনো প্রোডাক্টের নাম মনে করতে পারছেন? অথবা আপনার শারীরিক কোনো সমস্যা থাকলে আমাকে জানাতে পারেন, আমি আপনাকে সঠিক পরামর্শ দিতে পারব।",
+      "isVoice": false,
+      "time": 1789819029988
+    }
+  ],
+  "firstContact": 1789819028477,
+  "lastContact": 1789819029988,
+  "totalMessages": 1,
+  "prefersVoice": false,
+  "bloodGroup": "",
+  "diabetes": "",
+  "bloodPressure": "",
+  "previousMedication": "",
+  "marriageDuration": "",
+  "diagnosticStage": 0,
+  "timing": "",
+  "erectionQuality": "",
+  "semenQuality": "",
+  "preCum": "",
+  "sleepQuality": "",
+  "gastric": "",
+  "probashi": "",
+  "extraFacts": [],
+  "mentionedLocations": [],
+  "allHealthKeywords": [],
+  "budgetMentioned": []
+}

@@ -1,0 +1,53 @@
+{
+  "senderId": "38341863718795507",
+  "name": "Shahidul Islam",
+  "age": "",
+  "maritalStatus": "",
+  "symptoms": [],
+  "duration": "",
+  "productDiscussed": "",
+  "productsDiscussedAll": [],
+  "orderStatus": "inquiry",
+  "ordersPlaced": [],
+  "phone": "",
+  "district": "",
+  "thana": "",
+  "address": "",
+  "lastVoiceTranscript": "",
+  "sessionSummaries": [],
+  "chatLog": [
+    {
+      "role": "user",
+      "text": "???",
+      "isVoice": false,
+      "time": 1789819056647
+    },
+    {
+      "role": "model",
+      "text": "জি ভাইয়া,  আমাদের এখানে পুরুষের শারীরিক ও যৌন স্বাস্থ্য সংক্রান্ত বিভিন্ন ভেষজ কোর্স এবং প্রাকৃতিক সমাধান পাওয়া যায়। আপনার কি কোনো নির্দিষ্ট সমস্যা বা বিষয় সম্পর্কে জানার আছে? নির্দ্বিধায় বলতে পারেন।",
+      "isVoice": false,
+      "time": 1789819058782
+    }
+  ],
+  "firstContact": 1789819056635,
+  "lastContact": 1789819058782,
+  "totalMessages": 1,
+  "prefersVoice": false,
+  "bloodGroup": "",
+  "diabetes": "",
+  "bloodPressure": "",
+  "previousMedication": "",
+  "marriageDuration": "",
+  "diagnosticStage": 0,
+  "timing": "",
+  "erectionQuality": "",
+  "semenQuality": "",
+  "preCum": "",
+  "sleepQuality": "",
+  "gastric": "",
+  "probashi": "",
+  "extraFacts": [],
+  "mentionedLocations": [],
+  "allHealthKeywords": [],
+  "budgetMentioned": []
+}

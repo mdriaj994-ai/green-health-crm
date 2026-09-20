@@ -1,0 +1,53 @@
+{
+  "senderId": "28760845756881182",
+  "name": "Shabuz Mahmud",
+  "age": "",
+  "maritalStatus": "",
+  "symptoms": [],
+  "duration": "",
+  "productDiscussed": "",
+  "productsDiscussedAll": [],
+  "orderStatus": "inquiry",
+  "ordersPlaced": [],
+  "phone": "",
+  "district": "",
+  "thana": "",
+  "address": "",
+  "lastVoiceTranscript": "",
+  "sessionSummaries": [],
+  "chatLog": [
+    {
+      "role": "user",
+      "text": "দাম কতো",
+      "isVoice": false,
+      "time": 1789819074889
+    },
+    {
+      "role": "model",
+      "text": "জি ভাইয়া, আপনি কোন প্রোডাক্টটির দাম জানতে চাচ্ছেন তা জানালে আমি সঠিক দামটি জানাতে পারতাম। আমাদের প্রতিটি প্রোডাক্টের অফার মূল্য ২,৯০০ টাকা, তবে কিছু বিশেষ প্রোডাক্টের ক্ষেত্রে দাম ভিন্ন হতে পারে। \n\nআপনি কি নির্দিষ্ট কোনো প্রোডাক্টের কথা ভাবছেন? জানালে আমি বিস্তারিত বলতে পারব।",
+      "isVoice": false,
+      "time": 1789819076384
+    }
+  ],
+  "firstContact": 1789819074876,
+  "lastContact": 1789819076384,
+  "totalMessages": 1,
+  "prefersVoice": false,
+  "bloodGroup": "",
+  "diabetes": "",
+  "bloodPressure": "",
+  "previousMedication": "",
+  "marriageDuration": "",
+  "diagnosticStage": 0,
+  "timing": "",
+  "erectionQuality": "",
+  "semenQuality": "",
+  "preCum": "",
+  "sleepQuality": "",
+  "gastric": "",
+  "probashi": "",
+  "extraFacts": [],
+  "mentionedLocations": [],
+  "allHealthKeywords": [],
+  "budgetMentioned": []
+}

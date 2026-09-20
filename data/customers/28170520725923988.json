@@ -1,0 +1,53 @@
+{
+  "senderId": "28170520725923988",
+  "name": "Abdul Sabur Raju",
+  "age": "",
+  "maritalStatus": "",
+  "symptoms": [],
+  "duration": "",
+  "productDiscussed": "",
+  "productsDiscussedAll": [],
+  "orderStatus": "inquiry",
+  "ordersPlaced": [],
+  "phone": "",
+  "district": "",
+  "thana": "",
+  "address": "",
+  "lastVoiceTranscript": "",
+  "sessionSummaries": [],
+  "chatLog": [
+    {
+      "role": "user",
+      "text": "অর্ডার কিভাবে করতে হয়?",
+      "isVoice": false,
+      "time": 1789819009515
+    },
+    {
+      "role": "model",
+      "text": "জি ভাইয়া, আমাদের প্রোডাক্ট অর্ডার করার প্রক্রিয়াটি খুবই সহজ। আপনি আমাদের যেকোনো প্রোডাক্ট নিতে চাইলে নিচের তথ্যগুলো পূরণ করে পাঠিয়ে দিন:\n\nআপনার\nনাম=\nজেলা=\nথানা=\nরিসিভ ঠিকানা=\nনাম্বার=\n\nআপনি কোন প্রোডাক্টটি নিতে চাচ্ছেন তা জানালে আমি আপনার জন্য অর্ডারটি কনফার্ম করে দেব। উল্লেখ্য যে, আমাদের প্রোডাক্টগুলো ক্যাশ অন ডেলিভারিতে সারা দেশে পাঠানো হয় এবং পার্সেল হাতে পেয়ে আপনি পেমেন্ট করতে পারবেন।",
+      "isVoice": false,
+      "time": 1789819011519
+    }
+  ],
+  "firstContact": 1789819009495,
+  "lastContact": 1789819011519,
+  "totalMessages": 1,
+  "prefersVoice": false,
+  "bloodGroup": "",
+  "diabetes": "",
+  "bloodPressure": "",
+  "previousMedication": "",
+  "marriageDuration": "",
+  "diagnosticStage": 0,
+  "timing": "",
+  "erectionQuality": "",
+  "semenQuality": "",
+  "preCum": "",
+  "sleepQuality": "",
+  "gastric": "",
+  "probashi": "",
+  "extraFacts": [],
+  "mentionedLocations": [],
+  "allHealthKeywords": [],
+  "budgetMentioned": []
+}

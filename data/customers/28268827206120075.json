@@ -1,0 +1,53 @@
+{
+  "senderId": "28268827206120075",
+  "name": "Kazi Saleem",
+  "age": "",
+  "maritalStatus": "",
+  "symptoms": [],
+  "duration": "",
+  "productDiscussed": "",
+  "productsDiscussedAll": [],
+  "orderStatus": "inquiry",
+  "ordersPlaced": [],
+  "phone": "",
+  "district": "",
+  "thana": "",
+  "address": "",
+  "lastVoiceTranscript": "",
+  "sessionSummaries": [],
+  "chatLog": [
+    {
+      "role": "user",
+      "text": "অর্ডার কিভাবে করতে হয়?",
+      "isVoice": false,
+      "time": 1789819066107
+    },
+    {
+      "role": "model",
+      "text": "জি ভাইয়া, আমাদের প্রোডাক্ট অর্ডার করার জন্য নিচের তথ্যগুলো পূরণ করে পাঠিয়ে দিন:\n\nআপনার\nনাম=\nজেলা=\nথানা=\nরিসিভ ঠিকানা=\nনাম্বার =\n\nআপনি কস্তুরী পাউডার নিতে চাইলে এর অফার মূল্য ২,৮০০ টাকা। বুকিং নিশ্চিত করতে ৫০০ টাকা অগ্রিম বিকাশে (01870-023804) পরিশোধ করতে হবে, বাকি ২,৩০০ টাকা ক্যাশ অন ডেলিভারিতে পার্সেল হাতে পেয়ে পরিশোধ করবেন। আপনি কি কস্তুরী পাউডার নিতে চাচ্ছেন?",
+      "isVoice": false,
+      "time": 1789819067746
+    }
+  ],
+  "firstContact": 1789819066091,
+  "lastContact": 1789819067746,
+  "totalMessages": 1,
+  "prefersVoice": false,
+  "bloodGroup": "",
+  "diabetes": "",
+  "bloodPressure": "",
+  "previousMedication": "",
+  "marriageDuration": "",
+  "diagnosticStage": 0,
+  "timing": "",
+  "erectionQuality": "",
+  "semenQuality": "",
+  "preCum": "",
+  "sleepQuality": "",
+  "gastric": "",
+  "probashi": "",
+  "extraFacts": [],
+  "mentionedLocations": [],
+  "allHealthKeywords": [],
+  "budgetMentioned": []
+}

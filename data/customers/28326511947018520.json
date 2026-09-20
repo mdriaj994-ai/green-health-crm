@@ -1,0 +1,53 @@
+{
+  "senderId": "28326511947018520",
+  "name": "Adom Kaka",
+  "age": "",
+  "maritalStatus": "",
+  "symptoms": [],
+  "duration": "",
+  "productDiscussed": "",
+  "productsDiscussedAll": [],
+  "orderStatus": "inquiry",
+  "ordersPlaced": [],
+  "phone": "",
+  "district": "",
+  "thana": "",
+  "address": "",
+  "lastVoiceTranscript": "",
+  "sessionSummaries": [],
+  "chatLog": [
+    {
+      "role": "user",
+      "text": "দাম কত",
+      "isVoice": false,
+      "time": 1789819126651
+    },
+    {
+      "role": "model",
+      "text": "জি ভাইয়া, আমাদের এখানে বিভিন্ন কোর্সের আলাদা আলাদা দাম রয়েছে। আপনি নির্দিষ্ট কোন প্রোডাক্টটির দাম জানতে চাচ্ছেন?",
+      "isVoice": false,
+      "time": 1789819127939
+    }
+  ],
+  "firstContact": 1789819126625,
+  "lastContact": 1789819127939,
+  "totalMessages": 1,
+  "prefersVoice": false,
+  "bloodGroup": "",
+  "diabetes": "",
+  "bloodPressure": "",
+  "previousMedication": "",
+  "marriageDuration": "",
+  "diagnosticStage": 0,
+  "timing": "",
+  "erectionQuality": "",
+  "semenQuality": "",
+  "preCum": "",
+  "sleepQuality": "",
+  "gastric": "",
+  "probashi": "",
+  "extraFacts": [],
+  "mentionedLocations": [],
+  "allHealthKeywords": [],
+  "budgetMentioned": []
+}

@@ -1,0 +1,53 @@
+{
+  "senderId": "28525881223763841",
+  "name": "",
+  "age": "",
+  "maritalStatus": "",
+  "symptoms": [],
+  "duration": "",
+  "productDiscussed": "",
+  "productsDiscussedAll": [],
+  "orderStatus": "inquiry",
+  "ordersPlaced": [],
+  "phone": "",
+  "district": "",
+  "thana": "",
+  "address": "",
+  "lastVoiceTranscript": "",
+  "sessionSummaries": [],
+  "chatLog": [
+    {
+      "role": "user",
+      "text": "দাম কত?",
+      "isVoice": false,
+      "time": 1789819162054
+    },
+    {
+      "role": "model",
+      "text": "জি ভাইয়া, আমাদের এখানে বিভিন্ন কোর্সের প্রোডাক্ট রয়েছে। আপনি কোন প্রোডাক্টটির দাম জানতে চাচ্ছেন তা কি একটু বলবেন? আমাদের প্রতিটি কোর্সের অফার মূল্য ২,৯০০ টাকা থেকে ৩,০০০ টাকার মধ্যে।",
+      "isVoice": false,
+      "time": 1789819163672
+    }
+  ],
+  "firstContact": 1789819162026,
+  "lastContact": 1789819163672,
+  "totalMessages": 1,
+  "prefersVoice": false,
+  "bloodGroup": "",
+  "diabetes": "",
+  "bloodPressure": "",
+  "previousMedication": "",
+  "marriageDuration": "",
+  "diagnosticStage": 0,
+  "timing": "",
+  "erectionQuality": "",
+  "semenQuality": "",
+  "preCum": "",
+  "sleepQuality": "",
+  "gastric": "",
+  "probashi": "",
+  "extraFacts": [],
+  "mentionedLocations": [],
+  "allHealthKeywords": [],
+  "budgetMentioned": []
+}

@@ -1,0 +1,53 @@
+{
+  "senderId": "27646229718383901",
+  "name": "Rofiqul Hoque",
+  "age": "",
+  "maritalStatus": "",
+  "symptoms": [],
+  "duration": "",
+  "productDiscussed": "",
+  "productsDiscussedAll": [],
+  "orderStatus": "inquiry",
+  "ordersPlaced": [],
+  "phone": "",
+  "district": "",
+  "thana": "",
+  "address": "",
+  "lastVoiceTranscript": "",
+  "sessionSummaries": [],
+  "chatLog": [
+    {
+      "role": "user",
+      "text": "আমাকে একফাইলদিন । মোহাম্মদ রফিকুল হক সুলতান সুপারমার্কেট সোনালী ব্যাংকের নিচে চৌমুহনীর রোড মোবাইল ০১৭১৮১৭৩৭৬",
+      "isVoice": false,
+      "time": 1789819210841
+    },
+    {
+      "role": "model",
+      "text": "জি ভাইয়া, আমাদের অফিসিয়াল হেল্পলাইন ও সরাসরি যোগাযোগের নম্বর:\n📞 01870-023804 (বিকাশ)\n\nআপনি সরাসরি কল দিয়ে কথা বলতে পারেন অথবা যেকোনো পরামর্শের জন্য যোগাযোগ করতে পারেন ভাইয়া।",
+      "isVoice": false,
+      "time": 1789819210851
+    }
+  ],
+  "firstContact": 1789819210814,
+  "lastContact": 1789819210851,
+  "totalMessages": 1,
+  "prefersVoice": false,
+  "bloodGroup": "",
+  "diabetes": "",
+  "bloodPressure": "",
+  "previousMedication": "",
+  "marriageDuration": "",
+  "diagnosticStage": 0,
+  "timing": "",
+  "erectionQuality": "",
+  "semenQuality": "",
+  "preCum": "",
+  "sleepQuality": "",
+  "gastric": "",
+  "probashi": "",
+  "extraFacts": [],
+  "mentionedLocations": [],
+  "allHealthKeywords": [],
+  "budgetMentioned": []
+}

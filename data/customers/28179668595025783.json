@@ -1,0 +1,53 @@
+{
+  "senderId": "28179668595025783",
+  "name": "Jahangir Khan",
+  "age": "",
+  "maritalStatus": "",
+  "symptoms": [],
+  "duration": "",
+  "productDiscussed": "",
+  "productsDiscussedAll": [],
+  "orderStatus": "inquiry",
+  "ordersPlaced": [],
+  "phone": "",
+  "district": "",
+  "thana": "",
+  "address": "",
+  "lastVoiceTranscript": "",
+  "sessionSummaries": [],
+  "chatLog": [
+    {
+      "role": "user",
+      "text": "অর্ডার কিভাবে করতে হয়?",
+      "isVoice": false,
+      "time": 1789819099485
+    },
+    {
+      "role": "model",
+      "text": "জি ভাইয়া, আমাদের যেকোনো প্রোডাক্ট অর্ডার করার নিয়ম খুবই সহজ। আপনি আমাদের কোন প্রোডাক্টটি নিতে চাচ্ছেন তা জানালে আমি আপনাকে সেটির বিস্তারিত নিয়ম ও অর্ডার ফরমটি পাঠিয়ে দেব। \n\nআমাদের প্রতিটি প্রোডাক্টের ক্ষেত্রে ক্যাশ অন ডেলিভারি সুবিধা রয়েছে, অর্থাৎ আপনি পণ্য হাতে পেয়ে টাকা পরিশোধ করবেন। আপনি কি নির্দিষ্ট কোনো প্রোডাক্টের কথা ভাবছেন?",
+      "isVoice": false,
+      "time": 1789819101115
+    }
+  ],
+  "firstContact": 1789819099461,
+  "lastContact": 1789819101115,
+  "totalMessages": 2,
+  "prefersVoice": false,
+  "bloodGroup": "",
+  "diabetes": "",
+  "bloodPressure": "",
+  "previousMedication": "",
+  "marriageDuration": "",
+  "diagnosticStage": 0,
+  "timing": "",
+  "erectionQuality": "",
+  "semenQuality": "",
+  "preCum": "",
+  "sleepQuality": "",
+  "gastric": "",
+  "probashi": "",
+  "extraFacts": [],
+  "mentionedLocations": [],
+  "allHealthKeywords": [],
+  "budgetMentioned": []
+}

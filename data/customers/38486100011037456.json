@@ -1,0 +1,53 @@
+{
+  "senderId": "38486100011037456",
+  "name": "Md Mofijur",
+  "age": "",
+  "maritalStatus": "",
+  "symptoms": [],
+  "duration": "",
+  "productDiscussed": "",
+  "productsDiscussedAll": [],
+  "orderStatus": "inquiry",
+  "ordersPlaced": [],
+  "phone": "",
+  "district": "",
+  "thana": "",
+  "address": "",
+  "lastVoiceTranscript": "",
+  "sessionSummaries": [],
+  "chatLog": [
+    {
+      "role": "user",
+      "text": "দাম কত",
+      "isVoice": false,
+      "time": 1789819024255
+    },
+    {
+      "role": "model",
+      "text": "জি ভাইয়া, আপনি কোন প্রোডাক্টটির দাম জানতে চাচ্ছেন? আমাদের প্রতিটি কোর্সের দাম ও কার্যকারিতা ভিন্ন ভিন্ন হয়ে থাকে। আপনি কি নির্দিষ্ট কোনো সমস্যার জন্য পরামর্শ চাচ্ছেন?",
+      "isVoice": false,
+      "time": 1789819025762
+    }
+  ],
+  "firstContact": 1789819024241,
+  "lastContact": 1789819025762,
+  "totalMessages": 1,
+  "prefersVoice": false,
+  "bloodGroup": "",
+  "diabetes": "",
+  "bloodPressure": "",
+  "previousMedication": "",
+  "marriageDuration": "",
+  "diagnosticStage": 0,
+  "timing": "",
+  "erectionQuality": "",
+  "semenQuality": "",
+  "preCum": "",
+  "sleepQuality": "",
+  "gastric": "",
+  "probashi": "",
+  "extraFacts": [],
+  "mentionedLocations": [],
+  "allHealthKeywords": [],
+  "budgetMentioned": []
+}
