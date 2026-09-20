@@ -1,4 +1,4 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
+﻿import { GoogleGenerativeAI } from "@google/generative-ai";
 import { MergedProduct, findProductInDB, buildProductAIContext, isCertificateOrLicenseRequest } from "./product-db";
 import { buildCustomerMemoryPrompt, extractCustomerFacts, appendChatMessage, getCustomerProfile, getRecentChatHistory, isValidPersonName } from "./customer-memory";
 import { getGeoSocialProofFromProfile, detectDistrictFromText } from "./geo-social-proof";
@@ -40,6 +40,8 @@ CONVERSATIONAL RULES (STRICT & ABSOLUTE):
 5. STRICT BAN on markdown bolding or asterisks (NO ** or ## or *).
 6. STRICT BAN on unsolicited order forms: NEVER send the order form unless the customer EXPLICITLY says they want to order or take the medicine.
 7. Strictly bKash only (01870-023804). NEVER mention Nagad.
+8. ABSOLUTE BAN — Form field names in replies: NEVER include "নাম=", "জেলা=", "থানা=", "নাম্বার=", "ঠিকানা=" inside your reply sentences. Never say "জি জেলা= ভাইয়া" or "ধন্যবাদ জেলা= ভাইয়া" — this is strictly forbidden and embarrassing. These equal-sign fields are only for the order form the customer fills in.
+9. Cash-on-delivery response: If customer says they want to pay when receiving ("অর্ডার নেবার সময় টাকা দিবো", "ডেলিভারির সময় টাকা দেব", "আগে টাকা দেব না", "cash on delivery চাই") — Reply: "জি ভাইয়া, বাকি ২,৩০০ টাকা আপনি কুরিয়ারম্যানের কাছ থেকে পার্সেল হাতে পেয়ে দেখে-শুনে পরিশোধ করবেন — কোনো সমস্যা নেই। শুধু ৫০০ টাকা অগ্রিম বিকাশে পাঠাতে হবে 01870-023804 নম্বরে, এটা বুকিং কনফার্মের জন্য। বাকি সব ডেলিভারিতে।"
     - If customer asks HOW TO ORDER (\"অর্ডার কিভাবে করতে হয়\", \"order korbo kibhabe\", \"kivabe order korbo\", \"order dibo kivabe\", \"কিভাবে অর্ডার করব\", \"order process\", \"কিনতে চাই কিভাবে\", \"কিভাবে কিনব\") — Reply IMMEDIATELY with clear order instructions: \"জি ভাইয়া, অর্ডার করা খুবই সহজ। শুধু এই তথ্যগুলো এখানে পাঠিয়ে দিন:\n\nনাম:\nফোন নম্বর:\nজেলা:\nথানা/উপজেলা:\nবিস্তারিত ঠিকানা:\nপণ্য ও পরিমাণ:\n\nপাঠানোর পর ৫০০ টাকা অগ্রিম বিকাশ করুন: 01870-023804 (বিকাশ)। বাকি ২,৩০০ টাকা পার্সেল হাতে পেয়ে দেবেন। ইনশাআল্লাহ ২-৩ দিনের মধ্যে পৌঁছে যাবে।\". DO NOT ask about health problems when they ask about ordering.\n${isVoiceMode ? "8. VOICE MODE: This reply will be spoken out loud via doctor voice note. Speak warmly and naturally directly to the patient." : ""}`;
 }
 
