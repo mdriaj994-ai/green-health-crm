@@ -448,7 +448,7 @@ CRITICAL OPERATIONAL RULES FOR GEMINI FLASH BACKEND:
 
 18. ৫০০ টাকা ADVANCE কেন নেওয়া হয় — বিশ্বাসযোগ্য ও আন্তরিক ব্যাখ্যা (MANDATORY WHEN ASKED):
     - কাস্টমার যদি জিজ্ঞেস করে "কেন আগে টাকা দেব?", "আগে টাকা কেন?", "অগ্রিম কেন?", "advance কেন?" — তখন এই ব্যাখ্যাটি দিন:
-      * "ভাইয়া, আমরা প্রতিটি কাস্টমারের সমস্যা আলাদাভাবে বিশ্লেষণ করে তার রোগ অনুযায়ী ল্যাব থেকে সম্পূর্ণ ফ্রেশ ব্যাচ কাস্টমাইজ করে তৈরি করি। আপনার জন্য আলাদা করে কাঁচামাল বরাদ্দ রাখতে হয়, এই কারণেই ৫০০ টাকা বুকিং চার্জ।"
+      * "ভাইয়া, আমরা প্রতিটি কাস্টমারের সমস্যা আলাদাভাবে বিশ্লেষণ করে তার রোগ অনুযায়ী ল্যাব থেকে সম্পূর্ণ ফ্রেশ ব্যাচ কাস্টমাইজ করে তৈরি করি, যাতে আপনি সর্বোচ্চ ফলাফল পান।"
       * "এটা কোনো লাভের জন্য না — আমরা আপনার শারীরিক অবস্থা অনুযায়ী কাস্টমাইজ করে তৈরি করি, যাতে আপনি সর্বোচ্চ ফলাফল পান।"
       * "বাকি ২,৩০০ টাকা আপনি কুরিয়ার ম্যানের সামনে পার্সেল খুলে দেখে তারপর পরিশোধ করবেন — কোনো ঝুঁকি নেই।"
       * "বছরের পর বছর ধরে আমাদের হাজারো কাস্টমার এইভাবেই নিয়েছেন এবং সারাদেশে এখন পর্যন্ত একটিও প্রতারণার অভিযোগ নেই।"
@@ -818,6 +818,24 @@ export async function generateAutoReply(
     return noNameReply;
   }
 
+  // GUARD: Past-tense / unfulfilled order intent — do NOT show order form
+  // e.g. "ami kalke order korte chaisilam" = customer WANTED to but didn't
+  const isPastUnfulfilledIntent =
+    /(?:chaisilam|chaisilem|cheyesilam|cheyechilam|চাইছিলাম|চেয়েছিলাম|চাইসিলাম|চাইছিলেন|চেয়েছিলেন)/i.test(effectiveMessage) ||
+    /(?:parisilam|parini|parchi\s*na|পারিনি|পারছি\s*না|পারছিলাম|হয়নি|hoyni)/i.test(effectiveMessage) ||
+    /(?:kalke|kal|goto\s*kal|গতকাল|আগে|age|আগেই|আগের).*(?:order|অর্ডার|নিতে|kinbo|কিনতে).*(?:chaisilam|chaisilem|চাইছিলাম|চেয়েছিলাম|parisilam|পারিনি)/i.test(effectiveMessage);
+
+  if (isPastUnfulfilledIntent) {
+    const pastIntentReplies = [
+      `আরে ভাইয়া, কোনো সমস্যা নেই! কালকে কী হয়েছিল বলুন — কোনো অসুবিধা হয়েছিল? আমি এখন আপনার জন্য সব ঠিক করে দিতে পারব। আপনি কি এখন নিতে চান?`,
+      `আচ্ছা ভাইয়া, কালকে কোনো সমস্যা হয়েছিল? কোনো চিন্তা নেই, এখনো সুযোগ আছে। বলুন কী হয়েছিল — আমি সাহায্য করব।`,
+      `ভাইয়া, কালকে হয়নি কোনো ব্যাপার না। আপনি কি এখন অর্ডার দিতে চান? একটু বলুন — কোথায় আটকে গিয়েছিলেন?`
+    ];
+    const pastReply = pastIntentReplies[Math.floor(Math.random() * pastIntentReplies.length)];
+    if (senderId) appendChatMessage(senderId, "model", pastReply, false);
+    return pastReply;
+  }
+
   // Instant interceptor for Order How-To Questions
   const textForOrderCheck = (effectiveMessage || "").toLowerCase().replace(/\s+/g, "");
   const isOrderProcessQuestion =
