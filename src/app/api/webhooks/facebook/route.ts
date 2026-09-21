@@ -224,21 +224,111 @@ ${text}
   }
   // ── END TELEGRAM ALERT ────────────────────────────────────────────────────
 
+  // ── GUARD: Past-tense / unfulfilled order intent ───────────────────────────
+  const isPastUnfulfilledIntent =
+    /(?:chaisilam|chaisilem|cheyesilam|cheyechilam|চাইছিলাম|চেয়েছিলাম|চাইসিলাম|চাইছিলেন|চেয়েছিলেন)/i.test(text) ||
+    /(?:parisilam|parini|parchi\s*na|পারিনি|পারছি\s*না|পারছিলাম|হয়নি|hoyni)/i.test(text) ||
+    /(?:kalke|kal|goto\s*kal|গতকাল|আগে|age|আগেই|আগের).*(?:order|অর্ডার|নিতে|kinbo|কিনতে).*(?:chaisilam|chaisilem|চাইছিলাম|চেয়েছিলাম|parisilam|পারিনি)/i.test(text);
+
+  if (isPastUnfulfilledIntent) {
+    const pastIntentReplies = [
+      `আরে ভাইয়া, কোনো সমস্যা নেই! কালকে কী হয়েছিল বলুন — কোনো অসুবিধা হয়েছিল? আমি এখন আপনার জন্য সব ঠিক করে দিতে পারব। আপনি কি এখন নিতে চান?`,
+      `আচ্ছা ভাইয়া, কালকে কোনো সমস্যা হয়েছিল? কোনো চিন্তা নেই, এখনো সুযোগ আছে। বলুন কী হয়েছিল — আমি সাহায্য করব।`,
+      `ভাইয়া, কালকে হয়নি কোনো ব্যাপার না। আপনি কি এখন অর্ডার দিতে চান? একটু বলুন — কোথায় আটকে গিয়েছিলেন?`
+    ];
+    const pastReply = pastIntentReplies[Math.floor(Math.random() * pastIntentReplies.length)];
+    const PERM_TOK = "EAAjkLPT8UegBSsQVgxm1fBW6D7N7oon9ZAudS1UKVLVbBEar1BGEvZCLJ3ibSLO6FmILQDf6mq4rcsL98cpxuuRwAHSwUprKUBLv6ZBBCSjYAGUPTU1SQIRDvR74D5aIivRiDoUG3zobZB83AIwZA8mZAhoqcBDpjii2KsvQshwZCCIdUSJk5NaDb5JZCFGt4YWKBfEZC";
+    const envT = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+    const quickToken = (envT && envT.length > 150) ? envT : PERM_TOK;
+    await sendMessengerReply(pageId, senderId, pastReply, quickToken);
+    try { const { appendChatMessage } = await import("@/lib/customer-memory"); appendChatMessage(senderId, "model", pastReply, false); } catch {}
+    return;
+  }
+
+  // ── Instant interceptor for Full COD / Advance Payment Objections / Advance Inquiries ──
+  const isAdvanceOrCodInquiry =
+    /(?:full\s*cod|ফুল\s*ক্যাশ|ফুল\s*সিওডি|full\s*cash|cash\s*on\s*delivery)/i.test(text) ||
+    /(?:advance|অগ্রিম|এডভান্স|adbhance|advanse|agrim).*(?:dibo\s*na|debo\s*na|দিব\s*না|দেবো\s*না|dite\s*parbo\s*na|দিতে\s*পারব\s*না|charai?|ছাড়া|হবে\s*না|hobe\s*na|keno|কেন|kiser|কিসের|neya\s*hoy|নেওয়া\s*হয়|deya\s*jabe\s*na|দেওয়া\s*যাবে\s*না|dite\s*chai\s*na|চাই\s*না)/i.test(text) ||
+    /(?:charai?|ছাড়া|ছাড়াই).*(?:advance|অগ্রিম|এডভান্স|টাকা)/i.test(text) ||
+    /(?:keno|কেন|kiser|কিসের).*(?:advance|অগ্রিম|এডভান্স|500|৫০০|আগে)/i.test(text) ||
+    /(?:500|৫০০).*(?:advance|অগ্রিম|এডভান্স|taka\s*age|টাকা\s*আগে|keno|কেন|কিসের)/i.test(text) ||
+    /(?:age|আগে).*(?:taka|টাকা).*(?:dibo\s*na|debo\s*na|দিব\s*না|দেবো\s*না|keno|কেন|dite\s*parbo\s*na|নেবেন)/i.test(text) ||
+    /(?:hate\s*peye|হাতে\s*পেয়ে|product\s*dekhe|পণ্য\s*দেখে|maal\s*dekhe).*(?:sob\s*taka|shob\s*taka|সব\s*টাকা|pura\s*taka|পুরো\s*টাকা|dibo|দিব|debo|দেবো)/i.test(text) ||
+    /(?:na\s*ami|না\s*আমি).*(?:aivabe|এইভাবে|advance|অগ্রিম|cod|নিয়মে)/i.test(text) ||
+    /(?:advance|অগ্রিম|এডভান্স)\s*(?:charai?|ছাড়া|ছাড়াই|হবে\s*না|hobe\s*na|dibo\s*na|দিব\s*না|nai|নাই)/i.test(text);
+
+  if (isAdvanceOrCodInquiry) {
+    const advanceExplanationReplies = [
+      `ভাইয়া, আপনার সংশয় আমি সম্পূর্ণ বুঝতে পারছি—অনলাইনে না দেখে অগ্রিম টাকা দিতে যে কারোই দ্বিধা লাগা স্বাভাবিক। তবে আসল কারণটা বলি ভাইয়া:
+
+আমাদের এই ওষুধ বাজারের সাধারণ কোনো রেডিমেড বা কোম্পানির প্যাকেটজাত ওষুধ নয়। আপনার শারীরিক সমস্যা ও রোগের লক্ষণ পুঙ্খানুপুঙ্খ জেনে, আপনার শরীরের প্রয়োজন অনুযায়ী ল্যাব থেকে সম্পূর্ণ ফ্রেশ ব্যাচে খাঁটি ভেষজ উপাদান সঠিক অনুপাতে কাস্টমাইজড করে প্রস্তুত করা হয়।
+
+প্রতিটি রোগীর জন্য আলাদাভাবে ফ্রেশ ওষুধ তৈরিতে আমাদের খাঁটি উপাদান ও প্রচুর শ্রম খরচ হয়। অতীতে ফুল ক্যাশ অন ডেলিভারিতে পাঠিয়ে দেখা গেছে অনেকেই পার্সেল রিসিভ করেন না, যার ফলে এই স্পেশাল ওষুধটি সম্পূর্ণ নষ্ট হয়ে যায়—যা অন্য কাউকে আর দেওয়া যায় না। তাই শুধুমাত্র আপনার আন্তরিকতা নিশ্চিত করতে এবং আপনার জন্য ওষুধটি প্রস্তুত করতে মাত্র ৫০০ টাকা বুকিং নেওয়া হয়।
+
+বাকি পুরো ২,৩০০ টাকা কিন্তু পার্সেল হাতে পেয়ে, খুলে দেখে তারপর কুরিয়ার ম্যানকে দেবেন। আপনার কোনো ঝুঁকি নেই ভাইয়া।
+
+আর বাজারের সস্তা ওষুধে ক্ষতিকর কেমিক্যাল ও স্টেরয়েড থাকে যা হার্ট ও কিডনির চরম ক্ষতি করে। আমরা দিচ্ছি শতভাগ খাঁটি ও নিরাপদ ফর্মুলা। ভাইয়া, আপনার সুস্থতার জন্য কি আপনার ফাইলটি প্রস্তুত করতে বলব?`,
+
+      `জি ভাইয়া, অনলাইনে অগ্রিম টাকা দেওয়া নিয়ে আপনার দ্বিধা হওয়া খুবই স্বাভাবিক। কিন্তু সত্যি কথাটা আপনাকে খুলে বলি:
+
+আমরা কোনো সাধারণ বা স্টক করা ওষুধ বিক্রি করি না। আপনার শারীরিক অবস্থা বিবেচনা করে আপনার জন্য স্পেশাল ভেষজ উপাদান সঠিক মাত্রায় মিশিয়ে সম্পূর্ণ ফ্রেশ ব্যাচে ওষুধটি প্রস্তুত করতে হয়।
+
+পার্সেল পাঠানোর পর কেউ রিসিভ না করলে এই কাস্টমাইজড ওষুধটি সম্পূর্ণ নষ্ট হয়ে যায় এবং আমাদের উপাদানগুলো অপচয় হয়। তাই শুধুমাত্র আপনার ওষুধটি নিখুঁতভাবে তৈরি ও পার্সেল কনফার্ম করতেই এই ৫০০ টাকা অগ্রিম বুকিং নেওয়া হয়।
+
+বাকি ২,৩০০ টাকা আপনি পার্সেল হাতে পেয়ে, চেক করে ডেলিভারিম্যানকে পরিশোধ করবেন। এখানে আপনার ১ টাকারও কোনো ঝুঁকি নেই ভাইয়া। আপনার সুস্থতার জন্য এই ফ্রেশ ফাইলটি কি রেডি করব?`,
+
+      `ভাইয়া, আপনার কথা আমি একদম বুঝতে পেরেছি। তবে একটু ভেবে দেখুন—বাজারে যেসব সস্তা ওষুধ ফুল ক্যাশ অন ডেলিভারিতে বিক্রি হয়, সেগুলোতে থাকে ক্ষতিকর সিলডেনাফিল বা কেমিক্যাল, যা খেলে হার্ট, কিডনি ও লিভারের মারাত্মক ক্ষতি হয়।
+
+আমাদের এটি হাকীম মো: আব্দুল করিম সাহেবের নিজস্ব ফর্মুলায় ল্যাব থেকে তৈরি সম্পূর্ণ প্রাকৃতিক ও পরীক্ষিত ফর্মুলা। আপনার রোগ ও বয়সের উপর ভিত্তি করে ফ্রেশভাবে তৈরি করা হয় বলেই আমরা শুধু ৫০০ টাকা বুকিং নিই, যাতে ওষুধটি অপচয় না হয়। বাকি ২,৩০০ টাকা আপনি পার্সেল হাতে পেয়ে দেখে দেবেন।
+
+আপনার সুস্থতা ও নিরাপত্তার চেয়ে বড় কিছু হতে পারে না ভাইয়া। আপনি কি আপনার ফ্রেশ ফাইলটি প্রস্তুত করতে চান?`
+    ];
+    const advanceReply = advanceExplanationReplies[Math.floor(Math.random() * advanceExplanationReplies.length)];
+    const PERM_TOK = "EAAjkLPT8UegBSsQVgxm1fBW6D7N7oon9ZAudS1UKVLVbBEar1BGEvZCLJ3ibSLO6FmILQDf6mq4rcsL98cpxuuRwAHSwUprKUBLv6ZBBCSjYAGUPTU1SQIRDvR74D5aIivRiDoUG3zobZB83AIwZA8mZAhoqcBDpjii2KsvQshwZCCIdUSJk5NaDb5JZCFGt4YWKBfEZC";
+    const envT = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+    const quickToken = (envT && envT.length > 150) ? envT : PERM_TOK;
+    await sendMessengerReply(pageId, senderId, advanceReply, quickToken);
+    try { const { appendChatMessage } = await import("@/lib/customer-memory"); appendChatMessage(senderId, "model", advanceReply, false); } catch {}
+    return;
+  }
+
+  // ── GUARD: Negative order intent / refusal / cancellation ──────────────────
+  const isNegativeOrderIntent =
+    /(?:order|অর্ডার|nite|নিতে|kinbo|কিনবো|ঔষধ|ওষুধ).*(?:korbo\s*na|করব\s*না|করবো\s*না|debo\s*na|দেবো\s*না|dibo\s*na|দিব\s*না|kori\s*na|lagbe\s*na|লাগবে\s*না|chai\s*na|চাই\s*না)/i.test(text) ||
+    /(?:na\s*ami|না\s*আমি).*(?:order|অর্ডার|nibo|নিবো|kinbo|কিনবো).*(?:na|না)/i.test(text) ||
+    /(?:ami\s*)?(?:nibo\s*na|নিব\s*না|নিবো\s*না|kinbo\s*na|কিনব\s*না|কিনবো\s*না|lagbe\s*na|লাগবে\s*না)/i.test(text) ||
+    /^(?:na|না|thak|থাক|lagbe\s*na|লাগবে\s*না|cancel|ক্যান্সেল|বাদ\s*দেন|bad\s*den)$/i.test(text.trim());
+
+  if (isNegativeOrderIntent) {
+    const negativeReplies = [
+      `জি ভাইয়া, কোনো সমস্যা নেই। ওষুধ নেওয়া বা না নেওয়া সম্পূর্ণ আপনার ব্যক্তিগত সিদ্ধান্ত। তবে ভাইয়া, একজন শুভাকাঙ্ক্ষী হিসেবে শুধু এতটুকু বলব—গোপন শারীরিক সমস্যা যত দিন পুষে রাখবেন, ভেতরের নার্ভ ও টেস্টোস্টেরন হরমোন তত দুর্বল হয়ে পড়ে, যা পরবর্তীতে চিকিৎসা করা আরও কঠিন করে তোলে। আপনি যখনই সঠিক ও খাঁটি চিকিৎসায় সুস্থ হতে চাইবেন, আমরা আপনার পাশে আছি। ভালো থাকবেন ভাইয়া।`,
+      `ঠিক আছে ভাইয়া, কোনো অসুবিধা নেই। আপনার সিদ্ধান্তই চূড়ান্ত। তবে এই ধরনের সমস্যা ফেলে রাখলে দিনে দিনে জটিলতা আরও বাড়ে। ভবিষ্যতে যেকোনো পরামর্শের জন্য নির্দ্বিধায় নক দিতে পারেন। আল্লাহ আপনাকে সুস্থ রাখুন।`,
+      `জি ভাইয়া, কোনো চাপ নেই। তবে সময়মতো সঠিক প্রাকৃতিক চিকিৎসা নিলে এই সমস্যাগুলো থেকে পুরোপুরি মুক্তি পাওয়া সম্ভব। আপনি সুস্থ থাকুন, এই কামনাই করি। পরবর্তীতে প্রয়োজন হলে জানাবেন ভাইয়া।`
+    ];
+    const negReply = negativeReplies[Math.floor(Math.random() * negativeReplies.length)];
+    const PERM_TOK = "EAAjkLPT8UegBSsQVgxm1fBW6D7N7oon9ZAudS1UKVLVbBEar1BGEvZCLJ3ibSLO6FmILQDf6mq4rcsL98cpxuuRwAHSwUprKUBLv6ZBBCSjYAGUPTU1SQIRDvR74D5aIivRiDoUG3zobZB83AIwZA8mZAhoqcBDpjii2KsvQshwZCCIdUSJk5NaDb5JZCFGt4YWKBfEZC";
+    const envT = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+    const quickToken = (envT && envT.length > 150) ? envT : PERM_TOK;
+    await sendMessengerReply(pageId, senderId, negReply, quickToken);
+    try { const { appendChatMessage } = await import("@/lib/customer-memory"); appendChatMessage(senderId, "model", negReply, false); } catch {}
+    return;
+  }
+
   // ── INSTANT HARDCODED REPLY: Order process questions (bypass AI) ──────────
   const textForOrderCheck = (text || "").toLowerCase().replace(/\s+/g, "");
-  const isOrderProcessQuestion =
-    // How to order questions
-    /(order|অর্ডার).*(kivabe|কিভাবে|kibhabe|kiভাবে|কীভাবে|process|prosess)/i.test(text) ||
-    /(kivabe|কিভাবে|কীভাবে|kibhabe).*(order|অর্ডার|kinbo|কিনব|nibo|নিবো|pabo|পাব)/i.test(text) ||
+  const hasNegativeWords = /(?:na\b|না|korbo\s*na|করব\s*না|করবো\s*না|nibo\s*na|নিব\s*না|kinbo\s*na|কিনব\s*না|dibo\s*na|দিব\s*না|debo\s*na|দেবো\s*না|parbo\s*na|পারব\s*না|lagbe\s*na|লাগবে\s*না|chara|ছাড়া|ছাড়াই|cod|ক্যাশ\s*অন|ক্যান্সেল|cancel|bad\s*den|বাদ\s*দেন|chai\s*na|চাই\s*না)/i.test(text);
+
+  const isOrderProcessQuestion = !hasNegativeWords && (
+    /(?:order|অর্ডার).*(?:kivabe|কিভাবে|kibhabe|kiভাবে|কীভাবে|process|prosess|নিয়ম|পদ্ধতি)/i.test(text) ||
+    /(?:kivabe|কিভাবে|কীভাবে|kibhabe).*(?:order|অর্ডার|kinbo|কিনব|nibo|নিবো|pabo|পাব)/i.test(text) ||
     /অর্ডারকিভাবে|orderকিভাবে/.test(textForOrderCheck) ||
     /order\s*form|অর্ডার\s*ফর্ম/i.test(text) ||
-    // "I want to order / buy / take" — clear purchase intent
-    /(order|অর্ডার|nite|নিতে|kinbo|কিনব|কিনতে|কিনবো).*(chai|চাই|chassi|চাছি|চাচ্ছি|chacchi|korte|করতে|debo|দেব|dibo|দিব)/i.test(text) ||
-    /(ami|আমি|amar|আমার).*(order|অর্ডার|nibo|নিবো|nite chai|নিতে চাই|kinbo|কিনব|নিতে চাচ্ছি)/i.test(text) ||
-    /order\s*korte\s*(chai|chacchi|chassi)|অর্ডার\s*করতে\s*চাই/i.test(text) ||
+    /(?:order|অর্ডার)\s*(?:korte\s*chai|করতে\s*চাই|korte\s*chassi|করতে\s*চাচ্ছি|dite\s*chai|দিতে\s*চাই|debo|দিব|korbo|করব)/i.test(text) ||
+    /(?:ami|আমি|amar|আমার)\s+(?:order|অর্ডার)\s*(?:korte\s*chai|করতে\s*চাই|dite\s*chai|দিতে\s*চাই|korbo|করব|confirm|কনফার্ম)/i.test(text) ||
+    /order\s*korte\s*(?:chai|chacchi|chassi)|অর্ডার\s*করতে\s*চাই/i.test(text) ||
     /ar\s*akta\s*order|আরেকটা?\s*অর্ডার|আর\s*একটা?\s*অর্ডার/i.test(text) ||
-    /(nite|নিতে|kinbo|কিনবো|nibo|নিবো)\s*(chai|চাই|chacchi|চাচ্ছি)/i.test(text);
-
+    /(?:nite|নিতে|kinbo|কিনবো|nibo|নিবো)\s*(?:chai|চাই|chacchi|চাচ্ছি)/i.test(text)
+  );
 
   if (isOrderProcessQuestion) {
     const orderReply = `জি ভাইয়া, অর্ডার করা খুবই সহজ! শুধু নিচের তথ্যগুলো এখানে পাঠিয়ে দিন:
