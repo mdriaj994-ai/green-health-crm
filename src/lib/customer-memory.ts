@@ -709,7 +709,7 @@ export function getRecentChatHistory(senderId: string, limit: number = 15): stri
   });
 }
 
-export function getEligibleFollowUpCandidates(minHours: number = 72): FollowUpCandidate[] {
+export function getEligibleFollowUpCandidates(minHours: number = 48): FollowUpCandidate[] {
   loadMemory();
   const now = Date.now();
   const candidates: FollowUpCandidate[] = [];
@@ -718,7 +718,8 @@ export function getEligibleFollowUpCandidates(minHours: number = 72): FollowUpCa
     if (profile.orderStatus === "order_placed" || profile.orderStatus === "delivered") continue;
     const hasSymptoms = profile.symptoms && profile.symptoms.length > 0;
     const hasProduct = !!profile.productDiscussed;
-    if (!hasSymptoms && !hasProduct) continue;
+    const hasOrderInterest = profile.orderStatus === "interested" || profile.followUpStatus === "pending" || (profile.chatLog && profile.chatLog.length >= 2);
+    if (!hasSymptoms && !hasProduct && !hasOrderInterest) continue;
 
     const count = profile.followUpCount || 0;
     if (count >= 3) continue;
@@ -731,7 +732,12 @@ export function getEligibleFollowUpCandidates(minHours: number = 72): FollowUpCa
 
     if (profile.lastFollowUpTime) {
       const hoursSinceLastFollowUp = (now - profile.lastFollowUpTime) / (1000 * 60 * 60);
-      if (hoursSinceLastFollowUp < 72) continue;
+      if (hoursSinceLastFollowUp < 48) continue;
+    }
+
+    const lastMsg = profile.chatLog && profile.chatLog.length > 0 ? profile.chatLog[profile.chatLog.length - 1] : null;
+    if (lastMsg && lastMsg.role === "user" && (now - lastMsg.time) < 30 * 60 * 1000) {
+      continue;
     }
 
     candidates.push({
@@ -742,6 +748,27 @@ export function getEligibleFollowUpCandidates(minHours: number = 72): FollowUpCa
   }
 
   return candidates;
+}
+
+export function generateFallbackCaringFollowUp(profile: CustomerProfile): string {
+  const name = (profile.name && !["Customer", "কাস্টমার", "ভাইয়া"].includes(profile.name))
+    ? profile.name.split(" ")[0]
+    : "ভাইয়া";
+
+  let symptom = "শারীরিক সমস্যা ও দুর্বলতা";
+  if (profile.symptoms && profile.symptoms.length > 0) {
+    symptom = profile.symptoms.slice(0, 2).map(s => s.split(" (")[0]).join(" ও ");
+  } else if (profile.productDiscussed) {
+    symptom = `${profile.productDiscussed}-এর কোর্স ও স্বাস্থ্য পরামর্শ`;
+  }
+
+  const templates = [
+    `আসসালামু আলাইকুম ${name} ভাইয়া, কেমন আছেন? গত পরশু আপনার সাথে ${symptom}-এর বিষয়টি নিয়ে কথা হয়েছিল। আপনার কথাটি মনে পড়ায় একজন শুভাকাঙ্ক্ষী হিসেবে খোঁজ নিতে নক দিলাম—এখন আপনার শরীর কেমন আছে? এই ধরণের সমস্যা পুষে রাখলে নার্ভ দিনে দিনে আরও দুর্বল হয়ে পড়ে। আপনার সুস্থতায় কোনো সঠিক পরামর্শ বা সহযোগিতা লাগলে নির্দ্বিধায় জানাবেন ভাইয়া, পাশে আছি।`,
+    `${name} ভাইয়া, আশা করি ভালো আছেন। আপনার ${symptom}-এর কথা মনে পড়ায় ভাবলাম একটু খোঁজ নিই। এখন কি আগের চেয়ে একটু ভালো অনুভব করছেন? শরীরটা সবার আগে ভাইয়া। আপনার কোনো পরামর্শ বা সহযোগিতার প্রয়োজন হলে আমাকে জানাবেন, ইনশাআল্লাহ পাশে পাবেন।`,
+    `আসসালামু আলাইকুম ${name} ভাইয়া। পরশু আপনার শারীরিক সমস্যার কথা শুনেছিলাম, তাই শুভাকাঙ্ক্ষী হিসেবে আপনার শারীরিক অবস্থার খোঁজ নিতে মেসেজ দিলাম। এখন কেমন বোধ করছেন ভাইয়া? আপনার এই বিষয়ে কোনো সঠিক পরামর্শ বা সহযোগিতার প্রয়োজন হলে জানাবেন। সুস্থ থাকুন ভাইয়া, আল্লাহ আপনাকে সুস্থ রাখুন।`
+  ];
+
+  return templates[Math.floor(Math.random() * templates.length)];
 }
 
 export function recordFollowUpSent(senderId: string, followUpMessage: string, stage: number): void {
@@ -760,33 +787,61 @@ export function recordFollowUpSent(senderId: string, followUpMessage: string, st
 
 export function buildPersonalizedFollowUpPrompt(
   candidate: FollowUpCandidate,
-  doctorName: string = "à¦¹à¦¾à¦•à¦¿à¦® à¦°à¦¿à¦¯à¦¼à¦¾à¦œà§à¦² à¦•à¦°à¦¿à¦®",
-  pharmacyName: string = "à¦—à§à¦°à§€à¦¨ à¦¹à§‡à¦²à¦¥ à¦‡à¦‰à¦¨à¦¾à¦¨à§€ à¦«à¦¾à¦°à§à¦®à§‡à¦¸à§€"
+  doctorName: string = "হাকীম মো: আব্দুল করিম",
+  pharmacyName: string = "গ্রীন হেলথ ইউনানী ফার্মেসী"
 ): string {
   const { profile, stage, daysSinceLastContact } = candidate;
 
-  const symptomStr =
-    profile.symptoms && profile.symptoms.length > 0
-      ? profile.symptoms.join(", ")
-      : profile.productDiscussed
-      ? `${profile.productDiscussed}-à¦à¦° à¦•à§‹à¦°à§à¦¸ à¦¸à¦®à§à¦ªà¦°à§à¦•à¦¿à¦¤ à¦ªà¦°à¦¾à¦®à¦°à§à¦¶`
-      : "à¦¶à¦¾à¦°à§€à¦°à¦¿à¦• à¦¸à§à¦¸à§à¦¥à¦¤à¦¾à¦° à¦ªà¦°à¦¾à¦®à¦°à§à¦¶";
+  let symptomStr = "";
+  if (profile.symptoms && profile.symptoms.length > 0) {
+    symptomStr = profile.symptoms.map(s => s.split(" (")[0]).join(" ও ");
+  } else if (profile.productDiscussed) {
+    symptomStr = `${profile.productDiscussed}-এর বিষয়ে ও শারীরিক সুস্থতার পরামর্শ`;
+  } else {
+    const recentMsgs = (profile.chatLog || []).filter(m => m.role === "user").slice(-3).map(m => m.text).join(" ");
+    if (/durbol|দুর্বল|naram|নরম|daray\s*na/i.test(recentMsgs)) symptomStr = "গোপনাঙ্গের দুর্বলতা ও শিথিলতা";
+    else if (/druto|দ্রুত|time\s*kom|টাইমিং/i.test(recentMsgs)) symptomStr = "দ্রুত বীর্যপাত ও টাইমিং সমস্যা";
+    else if (/patla|পাতলা|birjo/i.test(recentMsgs)) symptomStr = "বীর্য পাতলা ও শুক্রাণুর সমস্যা";
+    else symptomStr = "শারীরিক সুস্থতা ও পরামর্শ";
+  }
 
-  const patientFirstName = (profile.name || "à¦­à¦¾à¦‡à¦¯à¦¼à¦¾").split(" ")[0];
+  const patientFirstName = (profile.name && !["Customer", "কাস্টমার", "ভাইয়া"].includes(profile.name))
+    ? profile.name.split(" ")[0]
+    : "ভাইয়া";
+
+  const lastUserMsg = (profile.chatLog || []).filter(m => m.role === "user").slice(-1)[0]?.text || "";
 
   return `
-You are ${doctorName} (à¦¹à¦¾à¦•à¦¿à¦® à¦°à¦¿à¦¯à¦¼à¦¾à¦œà§à¦² à¦•à¦°à¦¿à¦®), Senior Ayurvedic Hakim at ${pharmacyName}, Bangladesh.
-You are personally reaching out to a patient who consulted you ${daysSinceLastContact} days ago.
-PATIENT FILE:
-- Name: ${profile.name || "à¦­à¦¾à¦‡à¦¯à¦¼à¦¾"}
-- Age: ${profile.age ? profile.age + " à¦¬à¦›à¦°" : "unknown"}
-- Problem: ${symptomStr}
-- Product: ${profile.productDiscussed || "Unani herbal formula"}
+You are ${doctorName}, Category-A Registered Unani Physician at ${pharmacyName}, Alikadam, Bandarban.
+You are personally following up with a patient who consulted you 2 days ago (${daysSinceLastContact} days ago) regarding their health concerns, but didn't conclude the discussion. You remembered them naturally because you genuinely care about their healing.
 
-RULES:
-1. Zero marketing / NO templates.
-2. Natural Bangladeshi caring brotherly doctor tone.
-3. Max 2-3 sentences.
+PATIENT'S MEDICAL DOSSIER:
+- Patient Name: ${profile.name || "ভাইয়া"} (call them: ${patientFirstName})
+- Health Issues Discussed: ${symptomStr}
+- Age: ${profile.age ? profile.age + " বছর" : "জানা যায়নি"}
+- Marital Status: ${profile.maritalStatus || "জানা যায়নি"}
+- Medicine Inquired: ${profile.productDiscussed || "কস্তুরী পাউডার"}
+- Patient's last remark: "${lastUserMsg || "পরামর্শ নিয়েছিলেন"}"
+- Follow-up Interval: 2 days after last contact
+
+CORE OBJECTIVE (SINCERE EMPATHY & DESIRE TO HELP — STRICTLY ZERO SALES PRESSURE):
+The patient MUST feel 100% that you reached out as their caring doctor and well-wishing elder brother to check on their well-being, NOT to sell any product.
+
+MANDATORY RULES:
+1. STRICT BAN ON SALES TALK:
+   - ABSOLUTELY NEVER say: "অর্ডার করুন", "অফার চলছে", "দাম মাত্র", "বিকাশ করুন", "এখনই নিন", "পার্সেল পাঠাব", "কুরিয়ার চার্জ", "স্টক সীমিত", or any promotional phrases.
+2. PERSONALIZED HEALTH CHECK-IN:
+   - Start with a warm Bangladeshi brotherly greeting: "আসসালামু আলাইকুম ${patientFirstName} ভাইয়া, কেমন আছেন?"
+   - Naturally recall the specific disease/symptoms they discussed (${symptomStr}): e.g. "গত পরশু আপনার সাথে ${symptomStr}-এর বিষয়টি নিয়ে কথা হয়েছিল। আপনার কথাটি মনে পড়ায় একজন শুভাকাঙ্ক্ষী হিসেবে খোঁজ নিতে নক দিলাম..."
+   - Inquire about their health condition: "এখন আপনার শারীরিক অবস্থা কেমন ভাইয়া? কোনো উন্নতি হয়েছে কি?"
+   - Offer gentle doctorly support: "এই ধরণের সমস্যা ফেলে রাখলে নার্ভগুলো ধীরে ধীরে আরও দুর্বল হয়ে পড়ে। আপনার সুস্থতায় কোনো সঠিক পরামর্শ বা সহযোগিতার প্রয়োজন হলে আমাকে নির্দ্বিধায় জানাবেন ভাইয়া। আমরা সবসময় পাশে আছি।"
+3. FORMAT & TONE:
+   - Maximum 2 to 3 short sentences.
+   - Clean, natural Bangladeshi spoken Bengali.
+   - Plain text only (NO markdown bolding, no emojis, no asterisks).
+   - DO NOT say meta phrases like "আমি ফলোআপ করছি".
+
+Write ONLY the Bengali message now:
 `.trim();
 }
 

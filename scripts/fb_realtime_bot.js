@@ -3546,7 +3546,7 @@ async function startBot() {
   // Start smart follow-up scheduler (checks every hour)
   setTimeout(async () => {
     await runFollowUpScheduler();
-    setInterval(runFollowUpScheduler, 60 * 60 * 1000); // every hour
+    setInterval(runFollowUpScheduler, 30 * 60 * 1000); // every 30 mins
   }, 30 * 1000); // first run after 30 seconds (let bot fully boot first)
 }
 
@@ -3561,14 +3561,15 @@ async function runFollowUpScheduler() {
   isFollowingUp = true;
 
   try {
-    const candidates = customerMemory.getEligibleFollowUpCandidates(72); // min 72 hours inactive
+    // Check candidates who haven't ordered and were last in touch 48 hours (2 days) ago
+    const candidates = customerMemory.getEligibleFollowUpCandidates(48);
     if (candidates.length === 0) {
-      console.log("[FOLLOWUP] No eligible follow-up candidates at this time.");
+      console.log("[FOLLOWUP] No eligible 2-day follow-up candidates at this time.");
       isFollowingUp = false;
       return;
     }
 
-    console.log(`[FOLLOWUP] 📬 Found ${candidates.length} customer(s) eligible for follow-up.`);
+    console.log(`[FOLLOWUP] 📬 Found ${candidates.length} customer(s) eligible for 2-day caring check-in.`);
 
     const activePages = getActivePages();
     if (!activePages || activePages.length === 0) {
@@ -3576,7 +3577,6 @@ async function runFollowUpScheduler() {
       return;
     }
 
-    // Use the first active page for sending follow-ups (primary page)
     const primaryPage = activePages[0];
 
     for (const candidate of candidates) {
@@ -3584,30 +3584,26 @@ async function runFollowUpScheduler() {
       const senderId = profile.senderId;
 
       try {
-        // 1. Build a unique LLM prompt based on this specific patient's clinical dossier
         const followUpPrompt = customerMemory.buildPersonalizedFollowUpPrompt(
           candidate,
           "হাকীম মো: আব্দুল করিম",
           primaryPage.pageName || "গ্রীন হেলথ ইউনানী ফার্মেসী"
         );
 
-        // 2. Ask Gemini to generate a personalised, human-like follow-up message
         let followUpMessage = null;
-        const models = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-flash-latest", "gemini-3.1-flash-lite", "gemini-flash-lite-latest"];
 
+        // 1. Try Gemini
+        const models = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"];
         for (const m of models) {
           try {
             const model = genAI.getGenerativeModel({
               model: m,
-              generationConfig: { maxOutputTokens: 120, temperature: 0.75 }
+              generationConfig: { maxOutputTokens: 150, temperature: 0.7 }
             });
             const res = await model.generateContent(followUpPrompt);
             const raw = res.response.text().trim();
-            if (raw && raw.length > 10) {
-              // Clean markdown artifacts
-              followUpMessage = raw.replace(/[*#]+/g, "").trim();
-              // Fix name corrections
-              followUpMessage = followUpMessage
+            if (raw && raw.length > 15) {
+              followUpMessage = raw.replace(/[*#]+/g, "").trim()
                 .replace(/রেজাউল\s*করিম/gi, "মো: আব্দুল করিম")
                 .replace(/রেজাউল/gi, "রিয়াজুল");
               break;
@@ -3617,25 +3613,35 @@ async function runFollowUpScheduler() {
           }
         }
 
-        if (!followUpMessage) {
-          console.warn(`[FOLLOWUP] Could not generate AI message for ${senderId}. Skipping.`);
-          continue;
+        // 2. Fallback to Groq if Gemini fails
+        if (!followUpMessage && typeof callGroqLLM === "function") {
+          try {
+            const groqRes = await callGroqLLM(followUpPrompt, "You are Hakim Md. Abdul Karim, caring Bangladeshi physician.");
+            if (groqRes && groqRes.length > 15) {
+              followUpMessage = groqRes.replace(/[*#]+/g, "").trim();
+            }
+          } catch (gErr) {
+            console.warn("[FOLLOWUP_GROQ_WARN]:", gErr.message);
+          }
         }
 
-        // 3. Send the follow-up to the customer via Facebook Messenger
-        console.log(`[FOLLOWUP] 📤 Sending Stage-${stage} follow-up to ${profile.name || senderId} (${daysSinceLastContact} days inactive): "${followUpMessage.slice(0, 80)}..."`);
+        // 3. Fallback to intelligent rule-based caring check-in if AI is offline
+        if (!followUpMessage && typeof customerMemory.generateFallbackCaringFollowUp === "function") {
+          followUpMessage = customerMemory.generateFallbackCaringFollowUp(profile);
+        }
+
+        if (!followUpMessage) continue;
+
+        console.log(`[FOLLOWUP] 📤 Sending 2-day check-in to ${profile.name || senderId} (${daysSinceLastContact} days inactive): "${followUpMessage.slice(0, 80)}..."`);
         const result = await sendFacebookMessage(senderId, followUpMessage, primaryPage.accessToken);
 
         if (result && result.status === 200) {
-          // 4. Record in memory so chatbot continues naturally from this follow-up
           customerMemory.recordFollowUpSent(senderId, followUpMessage, stage);
-          console.log(`[FOLLOWUP] ✅ Follow-up Stage-${stage} delivered to ${profile.name || senderId}.`);
+          console.log(`[FOLLOWUP] ✅ Delivered 2-day caring check-in to ${profile.name || senderId}.`);
         } else {
-          console.warn(`[FOLLOWUP] ⚠️ Failed to deliver to ${senderId}. Status: ${result?.status}. The customer may have blocked the page.`);
-          // Mark as undeliverable after 2 failures
+          console.warn(`[FOLLOWUP] ⚠️ Failed to deliver to ${senderId}. Status: ${result?.status}`);
         }
 
-        // Polite delay between follow-ups (3 seconds) to avoid rate limits
         await sleep(3000);
       } catch (err) {
         console.warn(`[FOLLOWUP_ERR] Error processing follow-up for ${senderId}:`, err.message);
