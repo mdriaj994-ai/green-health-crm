@@ -56,15 +56,29 @@ async function getLiveEligibleCandidates() {
         const lastUserMsg = userMsgs.length > 0 ? userMsgs[0].message : "";
         const allUserText = userMsgs.map(m => m.message).join(" ");
 
-        // Check customer profile from memory
+        // Check customer profile from memory (reload fresh from disk each time)
         const profile = customerMemory.getCustomerProfile(senderId, participant.name);
 
         // Skip if order placed
         if (profile.orderStatus === "order_placed" || profile.orderStatus === "delivered") continue;
         if (/nam\s*=|ঠিকানা|কুরিয়ার|অর্ডার\s*কনফার্ম/i.test(allUserText)) continue;
 
-        // Skip if already followed up in last 24h
-        if (profile.lastFollowUpTime && (now - profile.lastFollowUpTime) < 24 * 3600 * 1000) continue;
+        // ── STRICT DUPLICATE GUARD ──────────────────────────────────────────
+        // Skip if already followed up in the last 12 hours (covers multiple script runs in same day)
+        if (profile.lastFollowUpTime && (now - profile.lastFollowUpTime) < 12 * 3600 * 1000) {
+          console.log(`    ⏭️ SKIP (already followed up ${((now - profile.lastFollowUpTime) / 3600000).toFixed(1)}h ago): ${participant.name || senderId}`);
+          continue;
+        }
+
+        // Also check if bot already sent a model message very recently (last 3 hours) from the chatLog
+        if (profile.chatLog && profile.chatLog.length > 0) {
+          const lastModelMsg = [...profile.chatLog].reverse().find(m => m.role === "model");
+          if (lastModelMsg && lastModelMsg.time && (now - lastModelMsg.time) < 3 * 3600 * 1000) {
+            console.log(`    ⏭️ SKIP (bot already replied ${((now - lastModelMsg.time) / 60000).toFixed(0)} min ago): ${participant.name || senderId}`);
+            continue;
+          }
+        }
+        // ────────────────────────────────────────────────────────────────────
 
         // Sync messages into profile chatLog if missing
         if (!profile.chatLog || profile.chatLog.length === 0) {
@@ -93,6 +107,9 @@ async function getLiveEligibleCandidates() {
   const localCandidates = customerMemory.getEligibleFollowUpCandidates(2, 23.8);
   for (const lc of localCandidates) {
     if (!seenIds.has(lc.profile.senderId)) {
+      // Apply same duplicate guard for local candidates
+      const p = lc.profile;
+      if (p.lastFollowUpTime && (now - p.lastFollowUpTime) < 12 * 3600 * 1000) continue;
       candidates.push(lc);
       seenIds.add(lc.profile.senderId);
     }
