@@ -133,8 +133,14 @@ async function main() {
       failCount++;
     }
 
-    // Polite delay of 3 seconds between sends to comply with Facebook rate limits
-    await sleep(3000);
+    // 2-minute delay between sends (120 seconds) as instructed by user
+    const intervalArg = process.argv.find(arg => arg.startsWith("--interval="));
+    const delaySec = intervalArg ? parseInt(intervalArg.split("=")[1], 10) : 120;
+    
+    if (i < candidates.length - 1 && !isDryRun) {
+      console.log(`    ⏳ Waiting ${delaySec} seconds (2 minutes) before sending next follow-up...`);
+      await sleep(delaySec * 1000);
+    }
   }
 
   console.log("==================================================================");
