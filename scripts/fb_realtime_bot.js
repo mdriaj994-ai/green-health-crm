@@ -1897,14 +1897,17 @@ function calculateHumanTypingDelay(replyText) {
 const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // ── Send Message via Facebook Graph API ──────────────────────────────────────
-async function sendFacebookMessage(recipientId, text, pageAccessToken = PAGE_TOKEN, replyToMid = null) {
+async function sendFacebookMessage(recipientId, text, pageAccessToken = PAGE_TOKEN, replyToMid = null, messageTag = null) {
   const url = `https://graph.facebook.com/v19.0/me/messages?access_token=${pageAccessToken}`;
   const payload = {
     recipient: { id: recipientId },
-    messaging_type: "RESPONSE",
+    messaging_type: messageTag ? "MESSAGE_TAG" : "RESPONSE",
     message: { text }
   };
-  if (replyToMid) {
+  if (messageTag) {
+    payload.tag = messageTag;
+  }
+  if (replyToMid && !messageTag) {
     payload.reply_to = { mid: replyToMid };
   }
 
@@ -1914,6 +1917,20 @@ async function sendFacebookMessage(recipientId, text, pageAccessToken = PAGE_TOK
     body: JSON.stringify(payload)
   });
   let data = await res.json().catch(() => null);
+
+  // If outside 24-hour messaging window (FB error code 10), retry with MESSAGE_TAG
+  if (!res.ok && data?.error?.code === 10 && !messageTag) {
+    console.log(`[FB_SEND_TAG_RETRY] Customer ${recipientId} is outside 24h window. Retrying with MESSAGE_TAG CONFIRMED_EVENT_UPDATE...`);
+    payload.messaging_type = "MESSAGE_TAG";
+    payload.tag = "CONFIRMED_EVENT_UPDATE";
+    delete payload.reply_to;
+    res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    data = await res.json().catch(() => null);
+  }
 
   // If Facebook rejects reply_to parameter, fall back automatically to standard send
   if (!res.ok && replyToMid && data?.error) {
@@ -3561,15 +3578,15 @@ async function runFollowUpScheduler() {
   isFollowingUp = true;
 
   try {
-    // Check candidates who haven't ordered and were last in touch 48 hours (2 days) ago
-    const candidates = customerMemory.getEligibleFollowUpCandidates(48);
+    // Check candidates who were last in touch 1-2 days ago (20 to 65 hours)
+    const candidates = customerMemory.getEligibleFollowUpCandidates(20, 65);
     if (candidates.length === 0) {
-      console.log("[FOLLOWUP] No eligible 2-day follow-up candidates at this time.");
+      console.log("[FOLLOWUP] No eligible 1-2 day follow-up candidates at this time.");
       isFollowingUp = false;
       return;
     }
 
-    console.log(`[FOLLOWUP] 📬 Found ${candidates.length} customer(s) eligible for 2-day caring check-in.`);
+    console.log(`[FOLLOWUP] 📬 Found ${candidates.length} customer(s) eligible for 1-2 day caring check-in.`);
 
     const activePages = getActivePages();
     if (!activePages || activePages.length === 0) {
@@ -3593,17 +3610,22 @@ async function runFollowUpScheduler() {
         let followUpMessage = null;
 
         // 1. Try Gemini
-        const models = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"];
+        const models = ["gemini-3.5-flash-lite", "gemini-flash-lite-latest", "gemini-3.6-flash", "gemini-flash-latest"];
         for (const m of models) {
           try {
             const model = genAI.getGenerativeModel({
               model: m,
-              generationConfig: { maxOutputTokens: 150, temperature: 0.7 }
+              systemInstruction: "You are হাকীম মো: আব্দুল করিম, Category-A Registered Unani Physician. Output ONLY the clean Bengali message. Absolutely no explanations, no checklists, no internal thoughts, no markdown, no quotes.",
+              generationConfig: { maxOutputTokens: 600, temperature: 0.6 }
             });
             const res = await model.generateContent(followUpPrompt);
-            const raw = res.response.text().trim();
+            let raw = res.response.text().trim();
+            if (raw.includes("ভাই, আসসালামু") || raw.includes("আসসালামু আলাইকুম")) {
+              const match = raw.match(/(?:[A-Za-z\u0980-\u09FF\s]+ভাই[,\s]+)?আসসালামু\s*আলাইকুম[\s\S]+/i) || raw.match(/আসসালামু\s*আলাইকুম[\s\S]+/i);
+              if (match) raw = match[0];
+            }
             if (raw && raw.length > 15) {
-              followUpMessage = raw.replace(/[*#]+/g, "").trim()
+              followUpMessage = raw.replace(/[*#"`]+/g, "").trim()
                 .replace(/রেজাউল\s*করিম/gi, "মো: আব্দুল করিম")
                 .replace(/রেজাউল/gi, "রিয়াজুল");
               break;

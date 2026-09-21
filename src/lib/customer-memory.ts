@@ -69,6 +69,7 @@ export interface FollowUpCandidate {
   profile: CustomerProfile;
   stage: number;
   daysSinceLastContact: number;
+  hoursSinceContact?: number;
 }
 
 function getDataDir(): string {
@@ -709,7 +710,7 @@ export function getRecentChatHistory(senderId: string, limit: number = 15): stri
   });
 }
 
-export function getEligibleFollowUpCandidates(minHours: number = 48): FollowUpCandidate[] {
+export function getEligibleFollowUpCandidates(minHours: number = 20, maxHours: number = 65): FollowUpCandidate[] {
   loadMemory();
   const now = Date.now();
   const candidates: FollowUpCandidate[] = [];
@@ -728,7 +729,9 @@ export function getEligibleFollowUpCandidates(minHours: number = 48): FollowUpCa
     const hoursSinceContact = msSinceContact / (1000 * 60 * 60);
     const daysSinceLastContact = Math.max(1, Math.floor(hoursSinceContact / 24));
 
+    if (!profile.senderId || !/^\d{10,}$/.test(String(profile.senderId))) continue;
     if (hoursSinceContact < minHours) continue;
+    if (maxHours && hoursSinceContact > maxHours) continue;
 
     if (profile.lastFollowUpTime) {
       const hoursSinceLastFollowUp = (now - profile.lastFollowUpTime) / (1000 * 60 * 60);
@@ -744,6 +747,7 @@ export function getEligibleFollowUpCandidates(minHours: number = 48): FollowUpCa
       profile,
       stage: count + 1,
       daysSinceLastContact,
+      hoursSinceContact,
     });
   }
 

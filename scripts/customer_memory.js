@@ -751,37 +751,42 @@ function getAllCustomerHistory(senderId) {
 
 // ── Smart Follow-up Engine ────────────────────────────────────────────────────
 
-// Identify customers who were close to ordering or discussed symptoms/products but haven't ordered yet
-function getEligibleFollowUpCandidates(minHours = 48) {
+// Identify customers who were in touch 1-2 days ago (20 to 65 hours)
+function getEligibleFollowUpCandidates(minHours = 20, maxHours = 65) {
   if (!isLoaded) loadMemory();
   const now = Date.now();
   const candidates = [];
 
   for (const profile of memoryCache.values()) {
+    // Only target real Facebook PSIDs (minimum 10 digits)
+    if (!profile.senderId || !/^\d{10,}$/.test(String(profile.senderId))) continue;
+
     // Skip if order already placed or delivered
     if (profile.orderStatus === "order_placed" || profile.orderStatus === "delivered") continue;
 
-    // Check if customer was close to ordering or discussed health/product
+    // Check if customer discussed health/product or has interaction history
     const hasSymptoms = profile.symptoms && profile.symptoms.length > 0;
     const hasProduct = !!profile.productDiscussed;
-    const hasOrderInterest = profile.orderStatus === "interested" || profile.followUpStatus === "pending" || (profile.chatLog && profile.chatLog.length >= 2);
+    const hasChatLog = profile.chatLog && profile.chatLog.length >= 1;
+    const hasOrderInterest = profile.orderStatus === "interested" || profile.followUpStatus === "pending" || hasChatLog;
     if (!hasSymptoms && !hasProduct && !hasOrderInterest) continue;
 
-    // Max 3 follow-ups per customer
+    // Safety limit: max 2 follow-ups per customer
     const count = profile.followUpCount || 0;
-    if (count >= 3) continue;
+    if (count >= 2) continue;
 
     const msSinceContact = now - (profile.lastContact || profile.firstContact || now);
     const hoursSinceContact = msSinceContact / (1000 * 60 * 60);
     const daysSinceLastContact = Math.max(1, Math.floor(hoursSinceContact / 24));
 
-    // Must be inactive for at least 48 hours (2 days)
+    // Must be in the 1-2 day window (minHours to maxHours)
     if (hoursSinceContact < minHours) continue;
+    if (maxHours && hoursSinceContact > maxHours) continue;
 
-    // Must wait at least 48 hours between follow-ups
+    // Must wait at least 24 hours between follow-ups
     if (profile.lastFollowUpTime) {
       const hoursSinceLastFollowUp = (now - profile.lastFollowUpTime) / (1000 * 60 * 60);
-      if (hoursSinceLastFollowUp < 48) continue;
+      if (hoursSinceLastFollowUp < 24) continue;
     }
 
     // Safety: ensure customer has not messaged in the last 30 minutes
@@ -790,7 +795,7 @@ function getEligibleFollowUpCandidates(minHours = 48) {
       continue;
     }
 
-    candidates.push({ profile, stage: count + 1, daysSinceLastContact });
+    candidates.push({ profile, stage: count + 1, daysSinceLastContact, hoursSinceContact });
   }
 
   return candidates;
@@ -802,17 +807,17 @@ function generateFallbackCaringFollowUp(profile) {
     ? profile.name.split(" ")[0]
     : "ভাইয়া";
 
-  let symptom = "শারীরিক সমস্যা ও দুর্বলতা";
+  let symptom = "শারীরিক সুস্থতা ও স্বাস্থ্য পরামর্শ";
   if (profile.symptoms && profile.symptoms.length > 0) {
     symptom = profile.symptoms.slice(0, 2).map(s => s.split(" (")[0]).join(" ও ");
   } else if (profile.productDiscussed) {
-    symptom = `${profile.productDiscussed}-এর কোর্স ও স্বাস্থ্য পরামর্শ`;
+    symptom = `${profile.productDiscussed}-এর বিষয়ে ও স্বাস্থ্য পরামর্শ`;
   }
 
   const templates = [
-    `আসসালামু আলাইকুম ${name} ভাইয়া, কেমন আছেন? গত পরশু আপনার সাথে ${symptom}-এর বিষয়টি নিয়ে কথা হয়েছিল। আপনার কথাটি মনে পড়ায় একজন শুভাকাঙ্ক্ষী হিসেবে খোঁজ নিতে নক দিলাম—এখন আপনার শরীর কেমন আছে? এই ধরণের সমস্যা পুষে রাখলে নার্ভ দিনে দিনে আরও দুর্বল হয়ে পড়ে। আপনার সুস্থতায় কোনো সঠিক পরামর্শ বা সহযোগিতা লাগলে নির্দ্বিধায় জানাবেন ভাইয়া, পাশে আছি।`,
-    `${name} ভাইয়া, আশা করি ভালো আছেন। আপনার ${symptom}-এর কথা মনে পড়ায় ভাবলাম একটু খোঁজ নিই। এখন কি আগের চেয়ে একটু ভালো অনুভব করছেন? শরীরটা সবার আগে ভাইয়া। আপনার কোনো পরামর্শ বা সহযোগিতার প্রয়োজন হলে আমাকে জানাবেন, ইনশাআল্লাহ পাশে পাবেন।`,
-    `আসসালামু আলাইকুম ${name} ভাইয়া। পরশু আপনার শারীরিক সমস্যার কথা শুনেছিলাম, তাই শুভাকাঙ্ক্ষী হিসেবে আপনার শারীরিক অবস্থার খোঁজ নিতে মেসেজ দিলাম। এখন কেমন বোধ করছেন ভাইয়া? আপনার এই বিষয়ে কোনো সঠিক পরামর্শ বা সহযোগিতার প্রয়োজন হলে জানাবেন। সুস্থ থাকুন ভাইয়া, আল্লাহ আপনাকে সুস্থ রাখুন।`
+    `আসসালামু আলাইকুম ${name} ভাইয়া, কেমন আছেন? গত পরশু আপনার সাথে ${symptom} নিয়ে কথা হয়েছিল। আপনার কথাটি মনে পড়ায় একজন শুভাকাঙ্ক্ষী হিসেবে খোঁজ নিতে নক দিলাম—এখন আপনার শরীর কেমন আছে? আপনার সুস্থতায় কোনো সঠিক পরামর্শ বা সহযোগিতার প্রয়োজন হলে নির্দ্বিধায় জানাবেন ভাইয়া, সবসময় পাশে আছি।`,
+    `${name} ভাইয়া, আশা করি ভালো আছেন। গত পরশু কথা হয়েছিল, তাই ভাবলাম একটু খোঁজ নিই—এখন শরীরটা কেমন বোধ করছেন? শরীর সুস্থ রাখা সবার আগে ভাইয়া। আপনার যেকোনো পরামর্শ বা সহযোগিতার প্রয়োজন হলে আমাকে জানাবেন, ইনশাআল্লাহ পাশে পাবেন।`,
+    `আসসালামু আলাইকুম ${name} ভাইয়া। পরশু আপনার সাথে স্বাস্থ্য বিষয়ে কথা হয়েছিল, তাই শুভাকাঙ্ক্ষী হিসেবে শারীরিক অবস্থার খোঁজ নিতে মেসেজ দিলাম। এখন কেমন আছেন ভাইয়া? কোনো বিষয়ে সঠিক পরামর্শের দরকার হলে জানাবেন। আল্লাহ আপনাকে সুস্থ রাখুন।`
   ];
 
   return templates[Math.floor(Math.random() * templates.length)];
@@ -837,56 +842,67 @@ function recordFollowUpSent(senderId, message, stage) {
 
 // Build LLM prompt to generate a unique, personal, doctor-style follow-up message
 function buildPersonalizedFollowUpPrompt(candidate, doctorName = "হাকীম মো: আব্দুল করিম", pharmacyName = "গ্রীন হেলথ ইউনানী ফার্মেসী") {
-  const { profile, stage, daysSinceLastContact } = candidate;
+  const { profile, stage, daysSinceLastContact, hoursSinceContact } = candidate;
+
+  // Gather past customer messages to know EXACTLY what they discussed
+  const userMessages = (profile.chatLog || [])
+    .filter(m => m.role === "user")
+    .map(m => m.text.trim())
+    .filter(Boolean);
+
+  const lastUserMsg = userMessages.length > 0 ? userMessages[userMessages.length - 1] : "";
+  const recentInquiries = userMessages.slice(-3).join(" | ");
 
   let symptomStr = "";
   if (profile.symptoms && profile.symptoms.length > 0) {
     symptomStr = profile.symptoms.map(s => s.split(" (")[0]).join(" ও ");
   } else if (profile.productDiscussed) {
-    symptomStr = `${profile.productDiscussed}-এর বিষয়ে ও শারীরিক সুস্থতার পরামর্শ`;
+    symptomStr = `${profile.productDiscussed}-এর বিষয়ে`;
+  } else if (lastUserMsg) {
+    symptomStr = `"${lastUserMsg.substring(0, 50)}" বিষয়ে`;
   } else {
-    const recentMsgs = (profile.chatLog || []).filter(m => m.role === "user").slice(-3).map(m => m.text).join(" ");
-    if (/durbol|দুর্বল|naram|নরম|daray\s*na/i.test(recentMsgs)) symptomStr = "গোপনাঙ্গের দুর্বলতা ও শিথিলতা";
-    else if (/druto|দ্রুত|time\s*kom|টাইমিং/i.test(recentMsgs)) symptomStr = "দ্রুত বীর্যপাত ও টাইমিং সমস্যা";
-    else if (/patla|পাতলা|birjo/i.test(recentMsgs)) symptomStr = "বীর্য পাতলা ও শুক্রাণুর সমস্যা";
-    else symptomStr = "শারীরিক সুস্থতা ও পরামর্শ";
+    symptomStr = "শারীরিক সুস্থতা ও স্বাস্থ্য পরামর্শ";
   }
 
-  const patientFirstName = (profile.name && !["Customer", "কাস্টমার", "ভাইয়া"].includes(profile.name))
-    ? profile.name.split(" ")[0]
-    : "ভাইয়া";
+  let patientFirstName = "ভাইয়া";
+  if (profile.name && !["Customer", "কাস্টমার", "ভাইয়া"].includes(profile.name)) {
+    const parts = profile.name.trim().split(/\s+/);
+    if (/^(?:md\.?|mohammad|muhammad|মোঃ|মো:)$/i.test(parts[0]) && parts.length > 1) {
+      patientFirstName = parts[1];
+    } else {
+      patientFirstName = parts[0];
+    }
+  }
 
-  const lastUserMsg = (profile.chatLog || []).filter(m => m.role === "user").slice(-1)[0]?.text || "";
+  const timeText = (hoursSinceContact && hoursSinceContact < 36) ? "গতকাল" : "গত পরশু";
 
   return `
 You are ${doctorName}, Category-A Registered Unani Physician at ${pharmacyName}, Alikadam, Bandarban.
-You are personally following up with a patient who consulted you 2 days ago (${daysSinceLastContact} days ago) regarding their health concerns, but didn't conclude the discussion. You remembered them naturally because you genuinely care about their healing.
+You are personally following up with a patient/brother named "${patientFirstName}" who contacted your page 1-2 days ago (${timeText}) discussing health or inquiring about medicines.
+You remembered them naturally because you genuinely care about patient health and proper guidance.
 
 PATIENT'S MEDICAL DOSSIER:
 - Patient Name: ${profile.name || "ভাইয়া"} (call them: ${patientFirstName})
-- Health Issues Discussed: ${symptomStr}
+- Topic / Inquiry Discussed: ${symptomStr}
+- Patient's exact words in past chat: "${recentInquiries || lastUserMsg || "স্বাস্থ্য পরামর্শ নিয়েছিলেন"}"
 - Age: ${profile.age ? profile.age + " বছর" : "জানা যায়নি"}
 - Marital Status: ${profile.maritalStatus || "জানা যায়নি"}
-- Medicine Inquired: ${profile.productDiscussed || "কস্তুরী পাউডার"}
-- Patient's last remark: "${lastUserMsg || "পরামর্শ নিয়েছিলেন"}"
-- Follow-up Interval: 2 days after last contact
+- Medicine Inquired: ${profile.productDiscussed || "কস্তুরী / ভেষজ কোর্স"}
 
 CORE OBJECTIVE (SINCERE EMPATHY & DESIRE TO HELP — STRICTLY ZERO SALES PRESSURE):
-The patient MUST feel 100% that you reached out as their caring doctor and well-wishing elder brother to check on their well-being, NOT to sell any product.
+The customer MUST feel 100% that you reached out as a caring doctor and well-wishing elder brother to check on their well-being and health guidance, NOT to push a sale.
 
 MANDATORY RULES:
 1. STRICT BAN ON SALES TALK:
    - ABSOLUTELY NEVER say: "অর্ডার করুন", "অফার চলছে", "দাম মাত্র", "বিকাশ করুন", "এখনই নিন", "পার্সেল পাঠাব", "কুরিয়ার চার্জ", "স্টক সীমিত", or any promotional phrases.
 2. PERSONALIZED HEALTH CHECK-IN:
-   - Start with a warm Bangladeshi brotherly greeting: "আসসালামু আলাইকুম ${patientFirstName} ভাইয়া, কেমন আছেন?"
-   - Naturally recall the specific disease/symptoms they discussed (${symptomStr}): e.g. "গত পরশু আপনার সাথে ${symptomStr}-এর বিষয়ে কথা হয়েছিল। আপনার কথাটি মনে পড়ায় একজন শুভাকাঙ্ক্ষী হিসেবে খোঁজ নিতে নক দিলাম..."
-   - Inquire about their health condition: "এখন আপনার শারীরিক অবস্থা কেমন ভাইয়া? কোনো উন্নতি হয়েছে কি?"
-   - Offer gentle doctorly support: "এই ধরণের সমস্যা ফেলে রাখলে নার্ভগুলো ধীরে ধীরে আরও দুর্বল হয়ে পড়ে। আপনার সুস্থতায় কোনো সঠিক পরামর্শ বা সহযোগিতার প্রয়োজন হলে আমাকে নির্দ্বিধায় জানাবেন ভাইয়া। আমরা সবসময় পাশে আছি।"
+   - Start with a warm brotherly greeting: "${patientFirstName} ভাই, আসসালামু আলাইকুম, কেমন আছেন?"
+   - Naturally recall what they inquired/discussed ${timeText} (reference their symptom, inquiry, or question naturally).
+   - Inquire about their health condition and offer gentle doctorly guidance: "আপনার শারীরিক বিষয়ে কোনো সঠিক পরামর্শ বা সহযোগিতার প্রয়োজন আছে কি ভাইয়া? যেকোনো প্রয়োজনে এই হাকীম ভাইকে পাশে পাবেন।"
 3. FORMAT & TONE:
    - Maximum 2 to 3 short sentences.
    - Clean, natural Bangladeshi spoken Bengali.
    - Plain text only (NO markdown bolding, no emojis, no asterisks).
-   - DO NOT say meta phrases like "আমি ফলোআপ করছি".
 
 Write ONLY the Bengali message now:
 `.trim();
