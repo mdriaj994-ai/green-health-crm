@@ -17,6 +17,7 @@ COPY . .
 # Generate Prisma Client and compile Next.js application in production mode
 RUN npx prisma generate
 ENV NODE_ENV=production
+ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=2048"
 RUN npm run build
 
