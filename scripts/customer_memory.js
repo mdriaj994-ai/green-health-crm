@@ -875,6 +875,9 @@ function buildPersonalizedFollowUpPrompt(candidate, doctorName = "হাকী�
   }
 
   const timeText = (hoursSinceContact && hoursSinceContact < 36) ? "গতকাল" : "গত পরশু";
+  const greeting = (patientFirstName && patientFirstName !== "ভাইয়া")
+    ? `${patientFirstName} ভাই, আসসালামু আলাইকুম, কেমন আছেন?`
+    : `আসসালামু আলাইকুম ভাইয়া, কেমন আছেন?`;
 
   return `
 You are ${doctorName}, Category-A Registered Unani Physician at ${pharmacyName}, Alikadam, Bandarban.
@@ -896,7 +899,7 @@ MANDATORY RULES:
 1. STRICT BAN ON SALES TALK:
    - ABSOLUTELY NEVER say: "অর্ডার করুন", "অফার চলছে", "দাম মাত্র", "বিকাশ করুন", "এখনই নিন", "পার্সেল পাঠাব", "কুরিয়ার চার্জ", "স্টক সীমিত", or any promotional phrases.
 2. PERSONALIZED HEALTH CHECK-IN:
-   - Start with a warm brotherly greeting: "${patientFirstName} ভাই, আসসালামু আলাইকুম, কেমন আছেন?"
+   - Start with this exact brotherly greeting: "${greeting}"
    - Naturally recall what they inquired/discussed ${timeText} (reference their symptom, inquiry, or question naturally).
    - Inquire about their health condition and offer gentle doctorly guidance: "আপনার শারীরিক বিষয়ে কোনো সঠিক পরামর্শ বা সহযোগিতার প্রয়োজন আছে কি ভাইয়া? যেকোনো প্রয়োজনে এই হাকীম ভাইকে পাশে পাবেন।"
 3. FORMAT & TONE:
