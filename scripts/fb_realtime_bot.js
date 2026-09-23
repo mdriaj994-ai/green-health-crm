@@ -3446,9 +3446,21 @@ ${paymentLine}
 
             // ── 2. ALSO SEND VOICE NOTE IF IN VOICE MODE OR REQUESTED ────────────
             const userPrefersText = isTextModeRequested(messageText);
-            const wantsVoice = !userPrefersText && (isVoiceMode(senderId) || isVoiceReq || Boolean(audioAttach) || isOnlyVoiceRequest(messageText) || isVoiceRequested(messageText));
+            // Auto-voice: if reply is long (200+ chars), automatically send voice alongside text
+            const isLongReply = replyText && replyText.length >= 200;
+            const wantsVoice = !userPrefersText && (
+              isVoiceMode(senderId) ||
+              isVoiceReq ||
+              Boolean(audioAttach) ||
+              isOnlyVoiceRequest(messageText) ||
+              isVoiceRequested(messageText) ||
+              isLongReply   // ← AUTO-VOICE for long messages
+            );
             if (wantsVoice) {
-              console.log(`[FB_BOT] 🎙️ [VOICE_MODE] Also sending voice note to ${senderId}...`);
+              const voiceReason = isLongReply && !isVoiceMode(senderId) && !isVoiceReq
+                ? "AUTO (long reply " + replyText.length + " chars)"
+                : "VOICE_MODE/REQUESTED";
+              console.log(`[FB_BOT] 🎙️ [${voiceReason}] Also sending voice note to ${senderId}...`);
               try {
                 await sendSenderAction(senderId, "typing_on", page.accessToken);
                 const sentVoice = await sendFacebookVoiceNote(senderId, replyText, page.accessToken);
