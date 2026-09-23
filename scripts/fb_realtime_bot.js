@@ -2974,7 +2974,7 @@ async function sendFacebookVoiceNote(recipientId, text, pageAccessToken = PAGE_T
 
 // ── Fetch Recent Conversations from Facebook ─────────────────────────────────
 async function fetchConversations(pageId = PAGE_ID, pageAccessToken = PAGE_TOKEN) {
-  const url = `https://graph.facebook.com/v19.0/${pageId}/conversations?fields=messages.limit(15){message,from,created_time,id,attachments}&access_token=${pageAccessToken}`;
+  const url = `https://graph.facebook.com/v19.0/${pageId}/conversations?fields=messages.limit(15){message,from,created_time,id,attachments{id,type,mime_type,name,file_url,image_data,payload}}&access_token=${pageAccessToken}`;
   const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
   if (!res.ok) return [];
   const data = await res.json();
@@ -3100,8 +3100,17 @@ async function pollOnce() {
               itemText = transcribed || "[Customer sent a voice message]";
               setVoiceMode(senderId, true);
             }
-            const imageAttach = item.attachments?.data?.find(a => a.type === "image" || a.mime_type?.includes("image"));
-            const imageUrl = imageAttach?.payload?.url || imageAttach?.file_url || imageAttach?.image_data?.url || "";
+            const imageAttach = item.attachments?.data?.find(a => a.image_data || a.type === "image" || a.mime_type?.includes("image"));
+            let imageUrl = imageAttach?.image_data?.url || imageAttach?.file_url || imageAttach?.payload?.url || imageAttach?.image_data?.preview_url || "";
+            if (!imageUrl && imageAttach?.id) {
+              try {
+                const attRes = await fetch(`https://graph.facebook.com/v19.0/${imageAttach.id}?fields=image_data,file_url,payload&access_token=${page.accessToken}`, { signal: AbortSignal.timeout(4000) });
+                if (attRes.ok) {
+                  const attData = await attRes.json();
+                  imageUrl = attData?.image_data?.url || attData?.file_url || attData?.payload?.url || "";
+                }
+              } catch (e) {}
+            }
             if (itemText || item.attachments?.data?.length > 0) {
               resolvedItems.push({
                 id: item.id,
