@@ -331,23 +331,48 @@ ${text}
   );
 
   if (isOrderProcessQuestion) {
-    const orderReply = `জি ভাইয়া, অর্ডার করা খুবই সহজ! শুধু নিচের তথ্যগুলো এখানে পাঠিয়ে দিন:
+    let hasHealthData = false;
+    let userMsgCount = 0;
+    let sName = "ভাইয়া";
+    try {
+      const { getCustomerProfile } = await import("@/lib/customer-memory");
+      const custProf = getCustomerProfile(senderId);
+      if (custProf) {
+        if (custProf.name && custProf.name !== "Customer" && custProf.name !== "কাস্টমার") {
+          sName = custProf.name + " ভাইয়া";
+        }
+        const chatLog = custProf.chatLog || [];
+        userMsgCount = chatLog.filter((m: any) => m.role === "user").length;
+        hasHealthData = Boolean(
+          custProf.age ||
+          (custProf.symptoms && custProf.symptoms.length > 0) ||
+          custProf.duration ||
+          custProf.maritalStatus ||
+          custProf.timing ||
+          custProf.erectionQuality ||
+          custProf.semenQuality
+        );
+      }
+    } catch {}
 
-নাম:
-ফোন নম্বর:
-জেলা:
-থানা/উপজেলা:
-বিস্তারিত ঠিকানা:
-পণ্য ও পরিমাণ:
-
-তারপর ৫০০ টাকা অগ্রিম বিকাশ করুন: 01870-023804। বাকি ২,৩০০ টাকা পার্সেল হাতে পেয়ে দেবেন। ইনশাআল্লাহ ২-৩ দিনের মধ্যে পৌঁছে যাবে।`;
+    let chosenReply = "";
+    if (!hasHealthData && userMsgCount <= 4) {
+      const earlyConsultReplies = [
+        `জি ${sName}, আলহামদুলিল্লাহ — আপনার আগ্রহ দেখে সত্যিই ভালো লাগছে! তবে ভাইয়া, আমাদের ওষুধ কোনো সাধারণ বাজারের রেডিমেড ওষুধ নয় — এটি প্রতিটি রোগীর শারীরিক অবস্থা ও সমস্যার ধরন অনুযায়ী বিশেষভাবে প্রস্তুত করা হয়। তাই আগে আপনার সমস্যা কি কি সবকিছু বিস্তারিত জানা জরুরি, তারপর আপনি নিশ্চিত হয়ে অর্ডার করতে পারবেন।\n\nভাইয়া, আপনার মূল সমস্যাটা ঠিক কী হচ্ছে একটু খুলে বলবেন কি? যেমন: দ্রুত বীর্যপাত বা টাইমিং কম, ইরেকশন বা শক্ত না হওয়া, নাকি শারীরিক দুর্বলতা? এবং আপনার বয়স কত?`,
+        `আলহামদুলিল্লাহ ${sName}, আপনি অর্ডার করতে চাচ্ছেন জেনে খুশি হলাম! তবে ভাইয়া, আমাদের মূল লক্ষ্য আপনার স্থায়ী সুস্থতা। বাজার চলতি ওষুধের মতো না দিয়ে আমরা রোগীর শারীরিক ঘাটতি বিশ্লেষণ করে খাঁটি পাহাড়ি ভেষজ উপাদান দিয়ে ওষুধ তৈরি করি। তাই অর্ডার করার পূর্বে আপনার সম্পর্কে কিছুটা জানা দরকার।\n\nভাইয়া, আপনার বয়স কত এবং মূল সমস্যাটা ঠিক কী হচ্ছে একটু খুলে বলবেন? (যেমন: দ্রুত বীর্যপাত, লিঙ্গের শিথিলতা, নাকি শারীরিক দুর্বলতা?) সমস্যাটি কতদিন ধরে?`,
+        `জি ${sName}, অর্ডার করতে অবশ্যই পারবেন ইনশাআল্লাহ। তবে সরাসরি অর্ডার নেওয়ার আগে আপনার শারীরিক সমস্যাগুলো জেনে সঠিক ওষুধ নির্ধারণ করা আমাদের দায়িত্ব। কারণ সঠিক রোগ নির্ণয় ছাড়া ওষুধ দিলে কাঙ্ক্ষিত ফল পাওয়া যায় না।\n\nভাইয়া, একটু বলবেন কি—আপনার মূল সমস্যাটা ঠিক কী এবং বয়স কত? সবকিছু জেনে-শুনে আপনার জন্য সেরা ওষুধটি নির্ধারণ করে দেব ইনশাআল্লাহ।`
+      ];
+      chosenReply = earlyConsultReplies[Math.floor(Math.random() * earlyConsultReplies.length)];
+    } else {
+      chosenReply = `জি ভাইয়া, আপনার অর্ডারটি কনফার্ম করতে নিচের তথ্যগুলো পূরণ করে পাঠিয়ে দিন:\n\nনাম:\nফোন নম্বর:\nজেলা:\nথানা/উপজেলা:\nবিস্তারিত ঠিকানা:\n\nকস্তুরী পাউডার (১ মাসের ফুল কোর্স, ২৫০ গ্রাম) অফার মূল্য ২,৮০০ টাকা। পার্সেল বুকিং নিশ্চিত করতে ৫০০ টাকা অগ্রিম আমাদের অফিসিয়াল বিকাশ হেল্পলাইন 01870-023804 নম্বরে পাঠিয়ে লাস্ট ২/৩ ডিজিট জানাবেন। বাকি ২,৩০০ টাকা পার্সেল হাতে পেয়ে দেখে ডেলিভারি ম্যানকে পরিশোধ করবেন।`;
+    }
 
     const PERM_TOK = "EAAjkLPT8UegBSsQVgxm1fBW6D7N7oon9ZAudS1UKVLVbBEar1BGEvZCLJ3ibSLO6FmILQDf6mq4rcsL98cpxuuRwAHSwUprKUBLv6ZBBCSjYAGUPTU1SQIRDvR74D5aIivRiDoUG3zobZB83AIwZA8mZAhoqcBDpjii2KsvQshwZCCIdUSJk5NaDb5JZCFGt4YWKBfEZC";
     const envT = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
     const quickToken = (envT && envT.length > 150) ? envT : PERM_TOK;
-    await sendMessengerReply(pageId, senderId, orderReply, quickToken);
-    console.log(`[ORDER_PROCESS_INSTANT] ✅ Sent hardcoded order instructions to ${senderId}`);
-    try { const { appendChatMessage } = await import("@/lib/customer-memory"); appendChatMessage(senderId, "model", orderReply, false); } catch {}
+    await sendMessengerReply(pageId, senderId, chosenReply, quickToken);
+    console.log(`[ORDER_PROCESS_INSTANT] ✅ Sent reply to ${senderId} (consultation: ${!hasHealthData})`);
+    try { const { appendChatMessage } = await import("@/lib/customer-memory"); appendChatMessage(senderId, "model", chosenReply, false); } catch {}
     return;
   }
 

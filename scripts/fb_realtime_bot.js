@@ -81,11 +81,11 @@ CONVERSATIONAL RULES (STRICT & ABSOLUTE):
    - If customer gives Salam — reply with "ওয়ালাইকুম আসসালাম ভাইয়া। বলুন, কীভাবে সাহায্য করতে পারি?".
    - If customer asks "কেমন আছেন" — reply "আলহামদুলিল্লাহ ভাইয়া, ভালো আছি। আপনি কেমন আছেন?".
    - If customer asks about shop/chamber address — give the exact Alikadam, Bandarban address.
-   - If customer asks about price — tell 2,800 BDT offer price, 500 advance via bKash only (01870-023804), remainder 2,300 cash on delivery.
+   - If customer asks about price — tell 2,800 BDT offer price clearly, but DO NOT push 500 advance or booking immediately! Instead, politely assess their problem: ask about their main issues (timing, erection, or weakness) and age to see if this medicine is right for them.
    - If customer asks about delay ("পরে নেব", "টাকা নেই", "বিকেলে জানাবো") — "আচ্ছা ঠিক আছে ভাই, বিকেলে বা রাতে যখনই ফ্রি হন আমাকে জানাবেন। আমি আপনার জন্য একটি বয়াম স্টক হোল্ড করে রাখছি। আমাদের বিকাশ হেল্পলাইন: 01870-023804।"
 4. NO CANNED OR REPETITIVE TEMPLATES: Never send pre-saved rigid text blocks. Adapt every sentence dynamically to the customer's exact message and conversation context.
 5. STRICT BAN on markdown bolding or asterisks (NO ** or ## or *).
-6. STRICT BAN on unsolicited order forms: NEVER send the order form unless the customer EXPLICITLY says they want to order or take the medicine.
+6. STRICT BAN on unsolicited or premature order forms: NEVER send the order form unless the customer has COMPLETED consultation (health problem, age) AND explicitly confirmed they want to order. If they ask to order early without describing their health issues, ALWAYS consult and assess their problem first.
 7. Strictly bKash only (01870-023804). NEVER mention Nagad.
 ${isVoiceMode ? "8. VOICE MODE: This reply will be spoken out loud via doctor voice note. Speak warmly and naturally directly to the patient." : ""}`;
 }
@@ -996,29 +996,17 @@ function getNaturalPriceReply(senderName = "", isVoiceMode = false) {
 
   if (isVoiceMode) {
     const voiceVariations = [
-      `জি ${nameSalute}, আমাদের ২৫০ গ্রামের এক মাসের ফুল কোর্স খাঁটি কস্তুরী পাউডারের অফার মূল্য দুই হাজার আটশত টাকা। অর্ডার কনফার্ম করতে পাঁচশত টাকা অগ্রিম আমাদের বিকাশ হেল্পলাইন নম্বর শূন্য এক আট সাত শূন্য, শূন্য দুই তিন আট শূন্য চার-এ পাঠিয়ে বুকিং করতে হয়। আর বাকি দুই হাজার তিনশত টাকা কুরিয়ারে পার্সেল হাতে পেয়ে দেখে পরিশোধ করবেন। আপনি কি একটি কোর্স নিতে চাচ্ছেন ভাইয়া?`,
-
-      `জি ${nameSalute}, এক মাসের সম্পূর্ণ কোর্সের জন্য ২৫০ গ্রাম কস্তুরী পাউডারের বর্তমান অফার প্রাইস মাত্র দুই হাজার আটশত টাকা। সারা দেশে কুরিয়ারে ক্যাশ অন ডেলিভারিতে পাঠানো হয়। পার্সেলটি বুকিং নিশ্চিত করার জন্য পাঁচশত টাকা অগ্রিম আমাদের বিকাশ হেল্পলাইন নম্বর শূন্য এক আট সাত শূন্য, শূন্য দুই তিন আট শূন্য চার-এ দিতে হয়, আর বাকি দুই হাজার তিনশত টাকা ডেলিভারি ম্যানের কাছ থেকে পার্সেল বুঝে পেয়ে দিবেন। আপনি কি অর্ডার কনফার্ম করতে চান ভাইয়া?`,
-
-      `জি ${nameSalute}, আমাদের ২৫০ গ্রামের ফুল কোর্সের খাঁটি কস্তুরী পাউডার এখন বিশেষ ছাড়ে দুই হাজার আটশত টাকায় পাচ্ছেন। অর্ডার কনফার্ম করতে পাঁচশত টাকা অগ্রিম আমাদের বিকাশ হেল্পলাইন নম্বর শূন্য এক আট সাত শূন্য, শূন্য দুই তিন আট শূন্য চার-এ পাঠিয়ে বুকিং করতে হবে। অবশিষ্ট দুই হাজার তিনশত টাকা আপনি কুরিয়ার থেকে পার্সেল গ্রহণের সময় ক্যাশ অন ডেলিভারিতে পরিশোধ করবেন। আপনার নাম ও ঠিকানা দিলে কি আজকেই বুকিং করে দেব ভাইয়া?`,
-
-      `জি ${nameSalute}, ২৫০ গ্রামের এক মাসের পুরো কোর্সের কস্তুরী পাউডারের মূল্য মাত্র দুই হাজার আটশত টাকা। শুধু পার্সেল বুকিং নিশ্চিত করতে পাঁচশত টাকা অগ্রিম আমাদের হেল্পলাইন নম্বর শূন্য এক আট সাত শূন্য, শূন্য দুই তিন আট শূন্য চার-এ বিকাশ করতে হয়, আর বাকি দুই হাজার তিনশত টাকা পার্সেল হাতে পেয়ে দেখে পরিশোধ করবেন। আপনি কি নিতে আগ্রহী ভাইয়া?`,
-
-      `জি ${nameSalute}, আমাদের ২৫০ গ্রামের কস্তুরী পাউডার কোর্সটির রেগুলার মূল্য বেশি হলেও বর্তমানে স্পেশাল অফারে মাত্র দুই হাজার আটশত টাকায় দেওয়া হচ্ছে। অর্ডারটি কনফার্ম করতে পাঁচশত টাকা অগ্রিম আমাদের অফিসিয়াল বিকাশ হেল্পলাইন নম্বর শূন্য এক আট সাত শূন্য, শূন্য দুই তিন আট শূন্য চার-এ দিতে হয়, বাকি দুই হাজার তিনশত টাকা পার্সেল রিসিভ করার সময় ক্যাশ অন ডেলিভারিতে দিবেন। আপনি কি এখনই অর্ডারটি করতে চাচ্ছেন ভাইয়া?`
+      `জি ${nameSalute}, আমাদের ২৫০ গ্রামের এক মাসের ফুল কোর্স খাঁটি কস্তুরী পাউডারের অফার মূল্য মাত্র দুই হাজার আটশত টাকা। সারা দেশে কুরিয়ার সার্ভিসে ক্যাশ অন ডেলিভারিতে পাঠানো হয়। তবে ভাইয়া, ওষুধ গ্রহণের পূর্বে আপনার শারীরিক অবস্থা জেনে নেওয়া প্রয়োজন। আপনার মূল সমস্যাটা ঠিক কী হচ্ছে একটু খুলে বলবেন কি? যেমন: দ্রুত বীর্যপাত, লিঙ্গের শিথিলতা, নাকি শারীরিক দুর্বলতা? এবং আপনার বয়স কত?`,
+      `জি ${nameSalute}, এক মাসের সম্পূর্ণ কোর্সের জন্য ২৫০ গ্রাম কস্তুরী পাউডারের বর্তমান অফার প্রাইস মাত্র দুই হাজার আটশত টাকা। কুরিয়ারে ক্যাশ অন ডেলিভারিতে সারা দেশে পৌঁছে দেওয়া হয়। ভাইয়া, আপনি কোন শারীরিক সমস্যার জন্য ওষুধটি নিতে চাচ্ছেন এবং সমস্যাটি কতদিন ধরে? আপনার বয়স কত ভাইয়া?`,
+      `জি ${nameSalute}, আমাদের ২৫০ গ্রামের ফুল কোর্সের খাঁটি কস্তুরী পাউডার এখন বিশেষ ছাড়ে দুই হাজার আটশত টাকায় পাচ্ছেন। তবে সঠিক রোগ নির্ণয় ছাড়া ওষুধ দিলে কাঙ্ক্ষিত ফল পাওয়া যায় না। আপনার মূল সমস্যা ও বয়স জানালে আপনার জন্য সঠিক ও কার্যকরী পরামর্শ দিতে পারব ইনশাআল্লাহ।`
     ];
     return voiceVariations[Math.floor(Math.random() * voiceVariations.length)];
   }
 
   const textVariations = [
-    `জি ${nameSalute}, আমাদের ২৫০ গ্রামের ১ মাসের ফুল কোর্সের 'কস্তুরী পাউডার'-এর অফার মূল্য মাত্র ২,৮০০ টাকা লাগবে। অর্ডার কনফার্ম করতে ৫০০ টাকা অগ্রিম বিকাশে আমাদের হেল্পলাইন: 01870-023804 নম্বরে পরিশোধ করতে হয়, বাকি ২,৩০০ টাকা কুরিয়ারে পার্সেল হাতে পেয়ে ক্যাশ অন ডেলিভারিতে দেখে পরিশোধ করবেন। আপনি কি নিতে চাচ্ছেন ভাইয়া?`,
-
-    `জি ${nameSalute}, ১ মাসের ফুল কোর্সের জন্য ২৫০ গ্রাম প্রিমিয়াম কস্তুরী পাউডারের বর্তমান অফার প্রাইস মাত্র ২,৮০০ টাকা। সারা দেশে ক্যাশ অন ডেলিভারিতে হোম ডেলিভারি দেওয়া হয়। পার্সেল বুকিং নিশ্চিত করার জন্য ৫০০ টাকা অগ্রিম বিকাশ হেল্পলাইন 01870-023804 নম্বরে দিতে হয়, বাকি ২,৩০০ টাকা পার্সেল বুঝে পেয়ে ডেলিভারি ম্যানকে পরিশোধ করবেন। আপনি কি অর্ডার কনফার্ম করতে চান ভাইয়া?`,
-
-    `জি ${nameSalute}, আমাদের ২৫০ গ্রামের ফুল কোর্সের খাঁটি কস্তুরী পাউডার এখন বিশেষ ছাড়ে ২,৮০০ টাকায় পাচ্ছেন। অর্ডার বুকিং করতে ৫০০ টাকা অগ্রিম আমাদের বিকাশ হেল্পলাইন 01870-023804 নম্বরে পাঠাতে হবে। অবশিষ্ট ২,৩০০ টাকা কুরিয়ার থেকে পার্সেল গ্রহণের সময় ক্যাশ অন ডেলিভারিতে দেখে পরিশোধ করবেন। আপনার নাম ও ঠিকানা দিলে কি আজকেই বুকিং করে দেব ভাইয়া?`,
-
-    `জি ${nameSalute}, ২৫০ গ্রামের ১ মাসের পুরো কোর্সের কস্তুরী পাউডার অফারে পাচ্ছেন মাত্র ২,৮০০ টাকায়। এটি সম্পূর্ণ ক্যাশ অন ডেলিভারিতে পাবেন, শুধু বুকিং কনফার্ম করতে ৫০০ টাকা অগ্রিম আমাদের হেল্পলাইন নম্বর 01870-023804-এ বিকাশ করতে হয়। বাকি ২,৩০০ টাকা পার্সেল হাতে পেয়ে চেক করে দেবেন। আপনি কি পার্সেলটি পাঠাতে বলব ভাইয়া?`,
-
-    `জি ${nameSalute}, আমাদের ২৫০ গ্রামের কস্তুরী পাউডার কোর্সটির রেগুলার প্রাইস বেশি হলেও বর্তমানে স্পেশাল ছাড়ে মাত্র ২,৮০০ টাকায় দেওয়া হচ্ছে। অর্ডারটি কনফার্ম করতে ৫০০ টাকা অগ্রিম আমাদের অফিসিয়াল বিকাশ হেল্পলাইন 01870-023804 নম্বরে দিতে হয়, বাকি ২,৩০০ টাকা পার্সেল রিসিভ করার সময় ক্যাশ অন ডেলিভারিতে পরিশোধ করবেন। আপনি কি এখন অর্ডারটি করতে চাচ্ছেন ভাইয়া?`
+    `জি ${nameSalute}, আমাদের ২৫০ গ্রামের ১ মাসের ফুল কোর্সের 'কস্তুরী পাউডার'-এর অফার মূল্য মাত্র ২,৮০০ টাকা। সারা দেশে কুরিয়ারে ক্যাশ অন ডেলিভারিতে হোম ডেলিভারি দেওয়া হয়।\n\nতবে ভাইয়া, ওষুধ নেওয়ার আগে আপনার শারীরিক অবস্থা অনুযায়ী এটি সঠিক কিনা তা জানা অত্যন্ত জরুরি। ভাইয়া, আপনার মূল সমস্যাটা ঠিক কী হচ্ছে একটু খুলে বলবেন কি? যেমন: দ্রুত বীর্যপাত বা টাইমিং কম, ইরেকশন বা শক্ত না হওয়া, নাকি শারীরিক দুর্বলতা? এবং আপনার বয়স কত?`,
+    `জি ${nameSalute}, ১ মাসের ফুল কোর্সের জন্য ২৫০ গ্রাম প্রিমিয়াম কস্তুরী পাউডারের বর্তমান অফার প্রাইস মাত্র ২,৮০০ টাকা।\n\nভাইয়া, আপনি ঠিক কোন শারীরিক সমস্যার জন্য ওষুধটি খুঁজছেন একটু জানাবেন কি? (যেমন: দ্রুত বীর্যপাত, পাতলা বীর্য, নাকি লিঙ্গের শিথিলতা?) আপনার সমস্যা ও বয়স জানালে আপনাকে সবচেয়ে সঠিক সমাধান দিতে পারব ইনশাআল্লাহ।`,
+    `জি ${nameSalute}, আমাদের ২৫০ গ্রামের ফুল কোর্সের খাঁটি কস্তুরী পাউডার এখন বিশেষ ছাড়ে ২,৮০০ টাকায় পাচ্ছেন। সারাদেশে ক্যাশ অন ডেলিভারি সুবিধা রয়েছে।\n\nতবে ভাইয়া, ওষুধ নেওয়ার পূর্বে আপনার স্বাস্থ্য লক্ষণগুলো জেনে নেওয়া আমাদের দায়িত্ব। আপনার মূল সমস্যাটা ঠিক কী এবং কতদিন ধরে ফেস করছেন? আপনার বয়স কত ভাইয়া?`
   ];
   return textVariations[Math.floor(Math.random() * textVariations.length)];
 }
@@ -1039,6 +1027,57 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     }
     customerMemory.appendChatMessage(senderId, "user", customerMessage, false);
   }
+
+  // ── DIRECT CONTACT CTA INTERCEPTOR ────────────────────────────────────────
+  // For customers who replied 3-4 messages: check in on them, explain that keeping
+  // this secret problem untreated is harmful and increases day by day, incorporate
+  // previously discussed health context, and provide direct Call / WhatsApp to main Hakim sahib.
+  // Fires only ONCE per customer (tracked via directCtaSent flag).
+  if (senderId) {
+    const _ctaProf = customerMemory.getCustomerProfile(senderId);
+    const _alreadyOrdered = _ctaProf.orderStatus === 'order_placed' || _ctaProf.orderStatus === 'delivered';
+    const _ctaAlreadySent = !!_ctaProf.directCtaSent;
+    if (!_alreadyOrdered && !_ctaAlreadySent) {
+      const _chatLog = _ctaProf.chatLog || [];
+      const _userMsgCount = _chatLog.filter(m => m.role === 'user').length;
+      const _isAskingForContact = /(?:number|namber|নম্বর|নাম্বার|call|কল|phone|ফোন|whatsapp|হোয়াটসঅ্যাপ|যোগাযোগ|contact|সরাসরি)/i.test(customerMessage);
+      
+      if (_userMsgCount >= 3 && !_isAskingForContact) {
+        const sName = (_ctaProf && _ctaProf.name && _ctaProf.name !== 'Customer' && _ctaProf.name !== 'কাস্টমার') ? _ctaProf.name + ' ভাইয়া' : 'ভাইয়া';
+        const symptomStr = (_ctaProf.symptoms && _ctaProf.symptoms.length > 0) ? _ctaProf.symptoms.slice(0, 2).join(' ও ') : '';
+        const contextMention = symptomStr ? `আপনার এই ${symptomStr}-এর বিষয়টি` : 'আপনার শারীরিক সমস্যাটির বিষয়ে';
+
+        const _ctaReplies = [
+          `জি ${sName}, আপনার সাথে কথা বলে ${contextMention} ভালোভাবে জানতে পারলাম। একটা কথা ভাই হিসেবে আন্তরিকভাবে বলি—এই ধরণের গোপন শারীরিক রোগ বেশিদিন পুষে রাখা একদমই ঠিক না। সময়মতো সঠিক চিকিৎসা না নিলে ভেতরের নার্ভগুলো দিন দিন আরও দুর্বল হয়ে পড়ে এবং সমস্যাটি আরও জটিল আকার ধারণ করে।
+
+ভাই, এই বিষয়ে আরও যা যা জানার আছে বা আপনার মনের সব দ্বিধা দূর করতে আপনি সরাসরি আমাদের প্রধান হাকীম সাহেবের সাথে কথা বলতে পারেন:
+📞 সরাসরি কল বা WhatsApp: 01870-023804
+
+হাকীম সাহেব নিজে ল্যাবে থেকে প্রতিটি রোগীর শারীরিক অবস্থা ও রোগের লক্ষণ পুঙ্খানুপুঙ্খ শুনে নিজ হাতে ফ্রেশ পাহাড়ি ভেষজ দিয়ে স্পেশালভাবে ওষুধ তৈরি করে দেন, যা ইনশাআল্লাহ ১০০% কার্যকরী হয়। আমাদের প্রধান হাকীম সাহেবের ব্যক্তিগত নম্বর সাধারণত সবাইকে দেওয়া হয় না, আপনাকে আপন ভাই মনে করেই দিলাম—যাতে আপনি সঠিক সময়ে সঠিক পরামর্শ পেয়ে স্থায়ীভাবে সুস্থ হতে পারেন। আপনি কি হাকীম সাহেবের সাথে সরাসরি কথা বলে একবার পরামর্শ নিতে চান ভাইয়া?`,
+
+          `ভাইয়া, আপনার সাথে কথা বলে আমার মনে হলো আপনি সত্যিই এই সমস্যার একটি স্থায়ী সমাধান চান। তবে ${contextMention} নিয়ে অবহেলা করলে রোগটি দিনে দিনে আরও বাড়ে বই কমে না, যা পরবর্তীতে দাম্পত্য জীবনেও অশান্তি তৈরি করে।
+
+মেসেজে সব কথা বিস্তারিত খুলে বলা বা বোঝানো অনেক সময় কঠিন হয়ে পড়ে। তাই আপনার সুবিধার জন্য বলছি—আপনি সরাসরি আমাদের প্রধান হাকীম সাহেবের সাথে কথা বলতে পারেন:
+📞 সরাসরি কল অথবা WhatsApp করুন: 01870-023804
+
+হাকীম সাহেব নিজে ল্যাবে গবেষণা করে রোগীর শরীরের ঘাটতি অনুযায়ী কাস্টমাইজড করে স্পেশাল ওষুধ তৈরি করে দেন, যা ১০০% ফলদায়ক। প্রধান হাকীমের নম্বর সবাইকে সহজে দেওয়া হয় না, তবে আপনার সমস্যার গুরুত্ব বুঝতে পেরে আপনাকে দিলাম ভাই মনে করে। আপনি চাইলে এখনই একটি সরাসরি কল দিতে পারেন বা হোয়াটসঅ্যাপে মেসেজ করতে পারেন ভাইয়া।`,
+
+          `${sName}, আপনার সার্বিক শারীরিক অবস্থা নিয়ে আমি সত্যিই ভাবছি। পুরুষের এই ধরণের অভ্যন্তরীণ দুর্বলতা যত দিন ফেলে রাখবেন, ভেতরের টেস্টোস্টেরন হরমোন ও নার্ভ তত নিস্তেজ হয়ে পড়ে। তাই কালক্ষেপণ না করে দ্রুত সঠিক পদক্ষেপ নেওয়া দরকার।
+
+আপনার আরও যা যা পরামর্শের প্রয়োজন, সব সমস্যা মন খুলে জানাতে সরাসরি আমাদের প্রধান হাকীম সাহেবের সাথে ফোনে কথা বলুন:
+📞 সরাসরি যোগাযোগ (ফোন ও WhatsApp): 01870-023804
+
+হাকীম সাহেব নিজে ল্যাবে বসে দুর্লভ প্রাকৃতিক উপাদান দিয়ে আপনার শরীরের ধরন অনুযায়ী বিশেষ ওষুধ প্রস্তুত করে দেবেন, যা ১০০% কার্যকারিতা নিশ্চিত করে। আমাদের প্রধান হাকীমের নম্বর সাধারণ রোগীদের সচরাচর দেওয়া হয় না, আপনাকে ভাই ভেবেই দিলাম যাতে সঠিক সময়ে সঠিক চিকিৎসা পান। ভাইয়া, হাকীম সাহেবের সাথে কি একটু কথা বলবেন?`
+        ];
+        const _ctaReply = _ctaReplies[Math.floor(Math.random() * _ctaReplies.length)];
+        customerMemory.updateCustomerProfile(senderId, { directCtaSent: true });
+        customerMemory.appendChatMessage(senderId, 'model', _ctaReply, isVoiceMode);
+        console.log('[DIRECT_CTA] Triggered personalized CTA for sender: ' + senderId);
+        return _ctaReply;
+      }
+    }
+  }
+  // ── END DIRECT CONTACT CTA ─────────────────────────────────────────────────
 
   // Instant interceptor for pure greetings (Salam, How are you, Hi/Hello)
   // Ensures 100% adherence to "ONLY answer what was asked — never add extra sales pitches"
@@ -1071,7 +1110,7 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
                              /(?:ke|কে)s*(?:toiri|তৈরি|ketos*eri|কেটোs*এরি|banay|বানায়|banise|বানিয়েছে)/i.test(trimmedClean) ||
                              /(?:apnars*porichoy|আপনারs*পরিচয়|পরিচয়s*কি|apnis*ke|আপনিs*কে)/i.test(trimmedClean);
   if (isAskingDoctorName) {
-    const reply = "জি ভাইয়া, আমি হাকীম মো: আব্দুল করিম বলছি। আমি স্বাস্থ্য মন্ত্রণালয় ও বাংলাদেশ ইউনানী বোর্ডের ক্যাটাগরি-এ নিবন্ধিত চিকিৎসক (রেজি নং: ৫৮৪২/২০১৮), জনতা ইউনানী চিকিৎসালয়, আলীকদম, বান্দরবান। আমাদের কস্তুরী পাউডার ১০০% প্রাকৃতিক ভেষজ উপাদানে আমার নিজস্ব ফর্মুলায় প্রস্তুত করা। বলুন ভাইয়া, আপনাকে কীভাবে সাহায্য করতে পারি?";
+    const reply = "\u099c\u09bf \u09ad\u09be\u0987\u09af\u09bc\u09be, \u0986\u09ae\u09bf \u09b9\u09be\u0995\u09c0\u09ae \u09ae\u09cb: \u0986\u09ac\u09cd\u09a6\u09c1\u09b2 \u0995\u09b0\u09bf\u09ae \u09ac\u09b2\u099b\u09bf\u0964 \u0986\u09ae\u09bf \u09b8\u09cd\u09ac\u09be\u09b8\u09cd\u09a5\u09cd\u09af \u09ae\u09a8\u09cd\u09a4\u09cd\u09b0\u09a3\u09be\u09b2\u09af\u09bc \u09ac\u09be\u0982\u09b2\u09be\u09a6\u09c7\u09b6 \u0987\u0989\u09a8\u09be\u09a8\u09c0 \u09ac\u09cb\u09b0\u09cd\u09a1\u09c7\u09b0 \u0995\u09cd\u09af\u09be\u099f\u09be\u0997\u09b0\u09bf-\u098f \u09a8\u09bf\u09ac\u09a8\u09cd\u09a7\u09bf\u09a4 \u099a\u09bf\u0995\u09bf\u09ce\u09b8\u0995 (\u09b0\u09c7\u099c\u09bf \u09a8\u0982: \u09eb\u09ee\u09ea\u09e8/\u09e8\u09e6\u09e7\u09ee), \u099c\u09a8\u09a4\u09be \u0987\u0989\u09a8\u09be\u09a8\u09c0 \u099a\u09bf\u0995\u09bf\u09ce\u09b8\u09be\u09b2\u09af\u09bc, \u0986\u09b2\u09c0\u0995\u09a6\u09ae, \u09ac\u09be\u09a8\u09cd\u09a6\u09b0\u09ac\u09be\u09a8\u0964 \u0986\u09ae\u09be\u09a6\u09c7\u09b0 \u0995\u09b8\u09cd\u09a4\u09c1\u09b0\u09c0 \u09aa\u09be\u0989\u09a1\u09be\u09b0 \u09e7\u09e6\u09e6% \u09aa\u09cd\u09b0\u09be\u0995\u09c3\u09a4\u09bf\u0995 \u09ad\u09c7\u09b7\u099c \u0989\u09aa\u09be\u09a6\u09be\u09a8\u09c7 \u0986\u09ae\u09be\u09b0 \u09a8\u09bf\u099c\u09b8\u09cd\u09ac \u09ab\u09b0\u09cd\u09ae\u09c1\u09b2\u09be\u09af\u09bc \u09aa\u09cd\u09b0\u09b8\u09cd\u09a4\u09c1\u09a4 \u0995\u09b0\u09be\u0964 \u09ac\u09b2\u09c1\u09a8 \u09ad\u09be\u0987\u09af\u09bc\u09be, \u0986\u09aa\u09a8\u09be\u0995\u09c7 \u0995\u09c0\u09ad\u09be\u09ac\u09c7 \u09b8\u09be\u09b9\u09be\u09af\u09cd\u09af \u0995\u09b0\u09a4\u09c7 \u09aa\u09be\u09b0\u09bf?";
     if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", reply, false);
     return reply;
   }
@@ -1153,6 +1192,49 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     if (senderId) customerMemory.appendChatMessage(senderId, "model", pastReply, isVoiceMode);
     return pastReply;
   }
+
+  // ── EARLY-STAGE ORDER INTENT GUARD ─────────────────────────────────────────
+  // If customer says they want to order in their 1st/2nd/3rd message BUT we
+  // haven't collected any health facts yet → redirect to consultation FIRST.
+  // Only bypassed if customer already has age + problem info on record.
+  const _earlyProf = senderId ? customerMemory.getCustomerProfile(senderId) : null;
+  const _earlyUserMsgCount = _earlyProf ? (_earlyProf.chatLog || []).filter(m => m.role === 'user').length : 99;
+  const _hasHealthData = Boolean(_earlyProf && (
+    _earlyProf.age ||
+    (_earlyProf.symptoms && _earlyProf.symptoms.length > 0) ||
+    _earlyProf.duration ||
+    _earlyProf.maritalStatus ||
+    _earlyProf.timing ||
+    _earlyProf.erectionQuality ||
+    _earlyProf.semenQuality
+  ));
+
+  const _isEarlyOrderIntent =
+    /(?:order|অর্ডার|nite\s*chai|নিতে\s*চাই|nibo|নিব|kinbo|কিনব|নেব|nebo|নিতে\s*চাচ্ছি|order\s*korte|অর্ডার\s*করতে|pathiye|পাঠিয়ে|pathao|পাঠাও|book\s*korte|বুকিং\s*করতে|newar|নেওয়ার|kivabe\s*order|কিভাবে\s*অর্ডার|order\s*kivabe|অর্ডার\s*কিভাবে|kivabe\s*nibo|কিভাবে\s*নিব|order\s*form|অর্ডার\s*ফর্ম|kinte\s*chai|কিনতে\s*চাই|kivabe\s*kinbo|কিভাবে\s*কিনব|order\s*process|অর্ডার\s*প্রসেস|kivabe\s*pabo|কিভাবে\s*পাব)/i.test(customerMessage) &&
+    !_hasHealthData &&
+    _earlyUserMsgCount <= 4;
+
+  if (_isEarlyOrderIntent) {
+    const sName = (_earlyProf && _earlyProf.name && _earlyProf.name !== 'Customer' && _earlyProf.name !== 'কাস্টমার') ? _earlyProf.name + ' ভাইয়া' : 'ভাইয়া';
+    const earlyOrderReplies = [
+      `জি ${sName}, আলহামদুলিল্লাহ — আপনার আগ্রহ দেখে সত্যিই ভালো লাগছে! তবে ভাইয়া, আমাদের ওষুধ কোনো সাধারণ বাজারের রেডিমেড ওষুধ নয় — এটি প্রতিটি রোগীর শারীরিক অবস্থা ও সমস্যার ধরন অনুযায়ী বিশেষভাবে প্রস্তুত করা হয়। তাই আগে আপনার সমস্যা কি কি সবকিছু বিস্তারিত জানা জরুরি, তারপর আপনি নিশ্চিত হয়ে অর্ডার করতে পারবেন।
+
+ভাইয়া, আপনার মূল সমস্যাটা ঠিক কী হচ্ছে একটু খুলে বলবেন কি? যেমন: দ্রুত বীর্যপাত বা টাইমিং কম, ইরেকশন বা শক্ত না হওয়া, নাকি শারীরিক দুর্বলতা? এবং আপনার বয়স কত?`,
+
+      `আলহামদুলিল্লাহ ${sName}, আপনি অর্ডার করতে চাচ্ছেন জেনে খুশি হলাম! তবে ভাইয়া, আমাদের মূল লক্ষ্য আপনার স্থায়ী সুস্থতা। বাজার চলতি রেডিমেড ওষুধের মতো না দিয়ে আমরা রোগীর শারীরিক ঘাটতি বিশ্লেষণ করে খাঁটি পাহাড়ি ভেষজ দিয়ে ওষুধ তৈরি করি। তাই অর্ডার করার পূর্বে আপনার সম্পর্কে কিছুটা জানা দরকার।
+
+ভাইয়া, আপনার বয়স কত এবং মূল সমস্যাটা ঠিক কী হচ্ছে একটু খুলে বলবেন? (যেমন: দ্রুত বীর্যপাত, লিঙ্গের শিথিলতা, নাকি শারীরিক দুর্বলতা?) সমস্যাটি কতদিন ধরে?`,
+
+      `জি ${sName}, অর্ডার করতে অবশ্যই পারবেন ইনশাআল্লাহ। তবে সরাসরি অর্ডার নেওয়ার আগে আপনার শারীরিক সমস্যাগুলো জেনে সঠিক ওষুধ নির্ধারণ করা আমাদের দায়িত্ব। কারণ সঠিক রোগ নির্ণয় ছাড়া ওষুধ দিলে কাঙ্ক্ষিত ফল পাওয়া যায় না।
+
+ভাইয়া, একটু বলবেন কি—আপনার মূল সমস্যাটা ঠিক কী এবং বয়স কত? সবকিছু জেনে-শুনে আপনার জন্য সেরা ওষুধটি নির্ধারণ করে দেব ইনশাআল্লাহ।`
+    ];
+    const earlyOrderReply = earlyOrderReplies[Math.floor(Math.random() * earlyOrderReplies.length)];
+    if (senderId) customerMemory.appendChatMessage(senderId, 'model', earlyOrderReply, isVoiceMode);
+    console.log('[EARLY_ORDER_GUARD] Redirected to consultation — user msg count: ' + _earlyUserMsgCount + ', hasHealthData: ' + _hasHealthData);
+    return earlyOrderReply;
+  }
+  // ── END EARLY-STAGE ORDER INTENT GUARD ─────────────────────────────────────
 
   // ── Instant interceptor for Full COD / Advance Payment Objections / Advance Inquiries ──
   // e.g. "na ami aivabe order korbo na full cod hobe", "advance chara hobe na?", "advance dibo na", "500 taka keno"
@@ -1279,16 +1361,35 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
   );
 
   if (isOrderProcessQuestion) {
-    const orderReply = `জি ভাইয়া, অর্ডার করা খুবই সহজ! শুধু নিচের তথ্যগুলো এখানে পাঠিয়ে দিন:
+    const _prof = senderId ? customerMemory.getCustomerProfile(senderId) : null;
+    const _chatLog = _prof ? (_prof.chatLog || []) : [];
+    const _userMsgCount = _chatLog.filter(m => m.role === 'user').length;
+    const _hasHealthData = Boolean(_prof && (
+      _prof.age ||
+      (_prof.symptoms && _prof.symptoms.length > 0) ||
+      _prof.duration ||
+      _prof.maritalStatus ||
+      _prof.timing ||
+      _prof.erectionQuality ||
+      _prof.semenQuality
+    ));
 
-নাম:
-ফোন নম্বর:
-জেলা:
-থানা/উপজেলা:
-বিস্তারিত ঠিকানা:
-পণ্য ও পরিমাণ:
+    // GUARD: If early message and health data not yet collected, ALWAYS do consultation first!
+    if (!_hasHealthData && _userMsgCount <= 4) {
+      const sName = (_prof && _prof.name && _prof.name !== 'Customer' && _prof.name !== 'কাস্টমার') ? _prof.name + ' ভাইয়া' : 'ভাইয়া';
+      const earlyConsultReplies = [
+        `জি ${sName}, আলহামদুলিল্লাহ — আপনার আগ্রহ দেখে সত্যিই ভালো লাগছে! তবে ভাইয়া, আমাদের ওষুধ কোনো সাধারণ বাজারের রেডিমেড ওষুধ নয় — এটি প্রতিটি রোগীর শারীরিক অবস্থা ও সমস্যার ধরন অনুযায়ী বিশেষভাবে প্রস্তুত করা হয়। তাই আগে আপনার সমস্যা কি কি সবকিছু বিস্তারিত জানা জরুরি, তারপর আপনি নিশ্চিত হয়ে অর্ডার করতে পারবেন।\n\nভাইয়া, আপনার মূল সমস্যাটা ঠিক কী হচ্ছে একটু খুলে বলবেন কি? যেমন: দ্রুত বীর্যপাত বা টাইমিং কম, ইরেকশন বা শক্ত না হওয়া, নাকি শারীরিক দুর্বলতা? এবং আপনার বয়স কত?`,
+        `আলহামদুলিল্লাহ ${sName}, আপনি অর্ডার করতে চাচ্ছেন জেনে খুশি হলাম! তবে ভাইয়া, আমাদের মূল লক্ষ্য আপনার স্থায়ী সুস্থতা। বাজার চলতি ওষুধের মতো না দিয়ে আমরা রোগীর শারীরিক ঘাটতি বিশ্লেষণ করে খাঁটি পাহাড়ি ভেষজ উপাদান দিয়ে ওষুধ তৈরি করি। তাই অর্ডার করার পূর্বে আপনার সম্পর্কে কিছুটা জানা দরকার।\n\nভাইয়া, আপনার বয়স কত এবং মূল সমস্যাটা ঠিক কী হচ্ছে একটু খুলে বলবেন? (যেমন: দ্রুত বীর্যপাত, লিঙ্গের শিথিলতা, নাকি শারীরিক দুর্বলতা?) সমস্যাটি কতদিন ধরে?`,
+        `জি ${sName}, অর্ডার করতে অবশ্যই পারবেন ইনশাআল্লাহ। তবে সরাসরি অর্ডার নেওয়ার আগে আপনার শারীরিক সমস্যাগুলো জেনে সঠিক ওষুধ নির্ধারণ করা আমাদের দায়িত্ব। কারণ সঠিক রোগ নির্ণয় ছাড়া ওষুধ দিলে কাঙ্ক্ষিত ফল পাওয়া যায় না।\n\nভাইয়া, একটু বলবেন কি—আপনার মূল সমস্যাটা ঠিক কী এবং বয়স কত? সবকিছু জেনে-শুনে আপনার জন্য সেরা ওষুধটি নির্ধারণ করে দেব ইনশাআল্লাহ।`
+      ];
+      const earlyReply = earlyConsultReplies[Math.floor(Math.random() * earlyConsultReplies.length)];
+      if (senderId) customerMemory.appendChatMessage(senderId, "model", earlyReply, isVoiceMode);
+      console.log('[ORDER_INTERCEPTOR] Early order redirected to consultation for sender:', senderId);
+      return earlyReply;
+    }
 
-তারপর ৫০০ টাকা অগ্রিম বিকাশ করুন: 01870-023804। বাকি ২,৩০০ টাকা পার্সেল হাতে পেয়ে দেখে দেবেন। ইনশাআল্লাহ ২-৩ দিনের মধ্যে পৌঁছে যাবে।`;
+    // Consultation completed -> Send official order form:
+    const orderReply = `জি ভাইয়া, আপনার অর্ডারটি কনফার্ম করতে নিচের তথ্যগুলো পূরণ করে পাঠিয়ে দিন:\n\nনাম:\nফোন নম্বর:\nজেলা:\nথানা/উপজেলা:\nবিস্তারিত ঠিকানা:\n\nকস্তুরী পাউডার (১ মাসের ফুল কোর্স, ২৫০ গ্রাম) অফার মূল্য ২,৮০০ টাকা। পার্সেল বুকিং নিশ্চিত করতে ৫০০ টাকা অগ্রিম আমাদের অফিসিয়াল বিকাশ হেল্পলাইন 01870-023804 নম্বরে পাঠিয়ে লাস্ট ২/৩ ডিজিট জানাবেন। বাকি ২,৩০০ টাকা পার্সেল হাতে পেয়ে দেখে ডেলিভারি ম্যানকে পরিশোধ করবেন।`;
     if (senderId) customerMemory.appendChatMessage(senderId, "model", orderReply, isVoiceMode);
     return orderReply;
   }
@@ -1320,18 +1421,38 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
 
   if (isPriceQuery && !/(?:samprotik|somosya|সমস্যা|durbol|দুর্বল)/i.test(trimmedClean)) {
     if (/(?:joubon|যৌবন|raja|রাজা)/i.test(trimmedClean)) {
-      const pReply = "জি ভাইয়া, 'যৌবনের রাজা' (২০০ গ্রাম) এর রেগুলার মূল্য ৩,০০০ টাকা। কুরিয়ারে ক্যাশ অন ডেলিভারিতে সারাদেশে পাঠানো হয়।";
+      const pReply = "জি ভাইয়া, 'যৌবনের রাজা' (২০০ গ্রাম) এর রেগুলার মূল্য ৩,০০০ টাকা। কুরিয়ারে ক্যাশ অন ডেলিভারিতে সারাদেশে পাঠানো হয়। ভাইয়া, আপনার শারীরিক কোন সমস্যার জন্য জানতে চাচ্ছেন? বললে আরও ভালো গাইড করতে পারব।";
       if (senderId) customerMemory.appendChatMessage(senderId, "model", pReply, isVoiceMode);
       return pReply;
     }
     if (/(?:baji|বাজী|halua|হালুয়া)/i.test(trimmedClean)) {
-      const pReply = "জি ভাইয়া, 'বাজীকরণ হালুয়া' (৩৫০ গ্রাম) এর মূল্য ২,৫০০ টাকা।";
+      const pReply = "জি ভাইয়া, 'বাজীকরণ হালুয়া' (৩৫০ গ্রাম) এর মূল্য ২,৫০০ টাকা। এটি খেতে সুস্বাদু এবং পেনাইল নার্ভ মজবুত করে। ভাইয়া, আপনার কি নার্ভ দুর্বলতার সমস্যা আছে?";
       if (senderId) customerMemory.appendChatMessage(senderId, "model", pReply, isVoiceMode);
       return pReply;
     }
-    const pReply = `জি ভাইয়া, আমাদের ১ মাসের ফুল কোর্স (২৫০ গ্রাম) খাঁটি 'কস্তুরী পাউডার'-এর বর্তমান অফার মূল্য মাত্র ২,৮০০ টাকা।
 
-বুকিং নিশ্চিত করতে ৫০০ টাকা অগ্রিম বিকাশে দিতে হয় (হেল্পলাইন: 01870-023804), বাকি ২,৩০০ টাকা পার্সেল হাতে পেয়ে ডেলিভারি ম্যানকে দেবেন। আপনি কি অর্ডার করতে চান ভাইয়া?`;
+    const _prof = senderId ? customerMemory.getCustomerProfile(senderId) : null;
+    const _hasHealthData = Boolean(_prof && (
+      _prof.age ||
+      (_prof.symptoms && _prof.symptoms.length > 0) ||
+      _prof.duration ||
+      _prof.timing ||
+      _prof.erectionQuality
+    ));
+
+    if (_hasHealthData) {
+      const pReply = `জি ভাইয়া, আমাদের ২৫০ গ্রামের ১ মাসের ফুল কোর্স খাঁটি 'কস্তুরী পাউডার'-এর বর্তমান অফার মূল্য মাত্র ২,৮০০ টাকা। সারা দেশে কুরিয়ারে ক্যাশ অন ডেলিভারিতে হোম ডেলিভারি দেওয়া হয়। আপনার সমস্যা অনুযায়ী এটি নিয়মিত ১ মাস সেবনে স্থায়ী ফলাফল পাবেন ইনশাআল্লাহ। আপনি কি অর্ডারটি কনফার্ম করতে চাচ্ছেন ভাইয়া?`;
+      if (senderId) customerMemory.appendChatMessage(senderId, "model", pReply, isVoiceMode);
+      return pReply;
+    }
+
+    // Health data NOT yet collected: State price and ask problem assessment questions WITHOUT 500 advance!
+    const priceConsultReplies = [
+      `জি ভাইয়া, আমাদের ১ মাসের ফুল কোর্স (২৫০ গ্রাম) খাঁটি 'কস্তুরী পাউডার'-এর বর্তমান অফার মূল্য মাত্র ২,৮০০ টাকা। সারা দেশে কুরিয়ার সার্ভিসে ক্যাশ অন ডেলিভারিতে পাঠানো হয়।\n\nতবে ভাইয়া, ওষুধ নেওয়ার আগে আপনার শারীরিক অবস্থা অনুযায়ী এটি আপনার জন্য সঠিক কিনা তা জানা অত্যন্ত জরুরি। ভাইয়া, আপনার মূল সমস্যাটা ঠিক কী হচ্ছে একটু খুলে বলবেন কি? যেমন: দ্রুত বীর্যপাত বা টাইমিং কম, ইরেকশন বা শক্ত না হওয়া, নাকি শারীরিক দুর্বলতা? এবং আপনার বয়স কত?`,
+      `জি ভাইয়া, ২৫০ গ্রামের ফুল কোর্সের কস্তুরী পাউডারের অফার মূল্য মাত্র ২,৮০০ টাকা।\n\nভাইয়া, আপনি ঠিক কোন শারীরিক সমস্যার জন্য ওষুধটি নিতে চাচ্ছেন একটু জানাবেন কি? (যেমন: দ্রুত বীর্যপাত, পাতলা বীর্য, নাকি লিঙ্গের শিথিলতা?) আপনার সমস্যা ও বয়স জানালে আপনাকে সবচেয়ে সঠিক ও কার্যকর সমাধান দিতে পারব ইনশাআল্লাহ।`,
+      `জি ভাইয়া, আমাদের ১ মাসের ফুল কোর্সের দাম মাত্র ২,৮০০ টাকা। সারাদেশে ক্যাশ অন ডেলিভারি সুবিধা রয়েছে।\n\nতবে ভাইয়া, সঠিক রোগ নির্ণয় ছাড়া ওষুধ দিলে কাঙ্ক্ষিত ফল পাওয়া যায় না। আপনার মূল সমস্যাটা ঠিক কী এবং কতদিন ধরে ফেস করছেন? আপনার বয়স কত ভাইয়া?`
+    ];
+    const pReply = priceConsultReplies[Math.floor(Math.random() * priceConsultReplies.length)];
     if (senderId) customerMemory.appendChatMessage(senderId, "model", pReply, isVoiceMode);
     return pReply;
   }
@@ -1621,9 +1742,17 @@ ${geoSocialProof ? `\\n--- GEO SOCIAL PROOF (হাইপার-লোকাল 
 3. STRICT ORDER FORM RULES (অর্ডার ফরম দেওয়ার সুনির্দিষ্ট নিয়ম):
    - ABSOLUTE BAN ON UNSOLICITED ORDER FORMS: NEVER provide the order form when the customer is asking questions, asking what a medicine does ("কি কাজ করে", "উপকার কি", "কাজ কি"), asking about ingredients, dosage ("কীভাবে খাবো"), price ("দাম কত"), or having a general consultation!
    - ONLY provide the order form when the customer EXPLICITLY expresses buying/ordering intent (e.g., "নিতে চাই", "অর্ডার করবো", "অর্ডার দিন", "পাঠিয়ে দিন", "কুরিয়ার করে দেন", "বুক করুন", "ঠিকানা দিচ্ছি", "অর্ডার কনফার্ম").
-   - কাস্টমার যদি জিজ্ঞেস করে ওষুধে কী কী কাজ করে বা কোন ওষুধ খেতে হবে:
-      হাকিম রিয়াজুল করিম হিসেবে আন্তরিক ও আত্মবিশ্বাসী কণ্ঠে বুঝিয়ে বলুন যে আমাদের "কস্তুরী পাউডার (Kasturi Powder)" খাঁটি মৃগনাভি কস্তুরী ও হিমালয়ান শিলাজিতের ১০০% ভেষজ ফর্মুলা। এটি দ্রুত বীর্যপাত স্থায়ীভাবে রোধ করে, গোপনাঙ্গ লোহার মতো দৃঢ় ও শক্ত করে এবং পাতলা বীর্য আঠার মতো ঘন করে। মাত্র ৩ থেকে ৫ দিনেই পরিবর্তন বোঝা যায়। (কখনই আগে থেকে অযাচিত অর্ডার ফরম পাঠাবেন না)।
-   - When the customer DOES explicitly confirm they want to order, then and ONLY then provide this EXACT format:
+
+   CONSULTATION-FIRST RULE - HIGHEST PRIORITY (কনসালটেশন আগে, অর্ডার পরে):
+   - যদি কাস্টমার প্রথম দিকে (১ম, ২য়, ৩য় বা ৪র্থ মেসেজে) অর্ডার করতে চায় কিন্তু তার বয়স, মূল সমস্যা বা শারীরিক তথ্য এখনো জানা নেই - তাহলে কোনোভাবেই অর্ডার ফর্ম বা ৫০০ টাকা অগ্রিমের কথা বলবেন না।
+   - পরিবর্তে উষ্ণভাবে বলুন: আমাদের ওষুধ প্রতিটি রোগীর জন্য বিশেষভাবে তৈরি হয়, তাই আগে সমস্যা জানা দরকার।
+   - তারপর এই ধাপে ধাপে তথ্য সংগ্রহ করুন (প্রতিবার শুধুমাত্র একটি প্রশ্ন):
+     ধাপ ১ - মূল সমস্যা কী? (দ্রুত বীর্যপাত? ইরেকশন সমস্যা? সার্বিক শারীরিক দুর্বলতা?)
+     ধাপ ২ - কতদিন ধরে সমস্যা? বিবাহিত নাকি অবিবাহিত? বয়স কত?
+     ধাপ ৩ - ডায়াবেটিস বা উচ্চ রক্তচাপ আছে কি? আগে কোনো ওষুধ খেয়েছিলেন?
+   - সব তথ্য পেলে বলুন: "ভাইয়া, আপনার সব সমস্যা ভালোভাবে জেনে-শুনে আপনার জন্য বিশেষভাবে ওষুধ তৈরি করে দেব ইনশাআল্লাহ।" - তারপর ওষুধ সাজেস্ট করুন ও অর্ডার ফর্ম দিন।
+   - When the customer DOES explicitly confirm they want to order AND consultation is complete, then and ONLY then provide this EXACT format:
+
 ভাইয়া, আপনি কি আমাদের প্রোডাক্ট নিতে চাচ্ছেন? নিতে চাইলে নিচের তথ্যগুলো পূরণ করে পাঠিয়ে দিন:
 আপনার
 নাম=
