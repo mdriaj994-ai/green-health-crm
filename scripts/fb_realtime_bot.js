@@ -175,6 +175,70 @@ const inFlightMsgIds = new Set();
 const threadMemory = new Map();
 const voiceUsers = new Set();
 
+// ── BOT SENT MESSAGES TRACKER ────────────────────────────────────────────────
+// Used to distinguish between bot-generated replies and human admin replies in inbox
+const BOT_SENT_FILE = path.join(process.cwd(), "data", "bot_sent_msg_ids.json");
+const botSentMsgIds = new Set();
+const botSentTexts = new Set();
+
+try {
+  if (fs.existsSync(BOT_SENT_FILE)) {
+    const data = JSON.parse(fs.readFileSync(BOT_SENT_FILE, "utf-8"));
+    if (Array.isArray(data)) {
+      for (const id of data) botSentMsgIds.add(String(id));
+    }
+  }
+} catch {}
+
+// Preload recent bot messages from SQLite so server restarts remember recent bot replies
+try {
+  const dbPath = path.join(process.cwd(), "prisma", "social_inbox.db");
+  if (fs.existsSync(dbPath)) {
+    const db = new Database(dbPath);
+    const botRows = db.prepare(`SELECT content FROM "Message" WHERE "senderType" = 'BOT' ORDER BY "createdAt" DESC LIMIT 300`).all();
+    for (const r of botRows) {
+      if (r.content) {
+        const clean = r.content.replace(/^\[ভয়েস মেসেজ\]\s*/, '').trim();
+        if (clean) botSentTexts.add(clean);
+      }
+    }
+    db.close();
+  }
+} catch {}
+
+function recordBotSentMessage(messageId, text = null) {
+  if (messageId) {
+    botSentMsgIds.add(String(messageId));
+    try {
+      const dir = path.join(process.cwd(), "data");
+      if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+      let list = [];
+      if (fs.existsSync(BOT_SENT_FILE)) {
+        try { list = JSON.parse(fs.readFileSync(BOT_SENT_FILE, "utf-8")); } catch {}
+      }
+      if (!list.includes(String(messageId))) {
+        list.push(String(messageId));
+        if (list.length > 2000) list = list.slice(-2000);
+        fs.writeFileSync(BOT_SENT_FILE, JSON.stringify(list), "utf-8");
+      }
+    } catch {}
+  }
+  if (text && typeof text === "string") {
+    botSentTexts.add(text.trim());
+    if (botSentTexts.size > 500) {
+      const it = botSentTexts.values();
+      for (let i = 0; i < 100; i++) botSentTexts.delete(it.next().value);
+    }
+  }
+}
+
+function isBotSentMessage(msg) {
+  if (!msg) return false;
+  if (msg.id && botSentMsgIds.has(String(msg.id))) return true;
+  if (msg.message && botSentTexts.has(String(msg.message).trim())) return true;
+  return false;
+}
+
 function reloadVoiceUsersFromDisk() {
   try {
     if (fs.existsSync(VOICE_USERS_FILE)) {
@@ -2176,6 +2240,12 @@ async function sendFacebookMessage(recipientId, text, pageAccessToken = PAGE_TOK
     data = await res.json().catch(() => null);
   }
 
+  if (data?.message_id) {
+    recordBotSentMessage(data.message_id, text);
+  } else if (text) {
+    recordBotSentMessage(null, text);
+  }
+
   return { status: res.status, data };
 }
 
@@ -2372,6 +2442,7 @@ async function sendFacebookImage(recipientId, imageFileOrPath, pageAccessToken =
       });
       const data = await res.json().catch(() => null);
       if (res.ok) {
+        if (data?.message_id) recordBotSentMessage(data.message_id);
         console.log(`[FB_BOT_IMG_FILE_OK] Sent ${filename} to ${recipientId}`);
         return true;
       } else {
@@ -2770,6 +2841,8 @@ async function sendSingleFacebookVoiceNote(recipientId, text, pageAccessToken = 
         })
       });
       if (sendRes.ok) {
+        const sendData = await sendRes.json().catch(() => null);
+        if (sendData?.message_id) recordBotSentMessage(sendData.message_id);
         console.log(`[FB_BOT_VOICE_OK] Sent ElevenLabs voice note to ${recipientId}`);
         return upData.attachment_id;
       }
@@ -2849,26 +2922,46 @@ async function pollOnce() {
           const msgs = conv.messages?.data || [];
           if (msgs.length === 0) continue;
 
-          // 1. Collect ALL consecutive unprocessed messages from this customer (newest down to bot/agent reply or processed id)
+          // 1. Collect ALL unprocessed customer messages from this thread.
+          // msgs is sorted newest-first.
+          // If customer sent another message while bot was replying or right before,
+          // we must NOT drop it just because a bot reply was posted!
           const unrepliedCustomerMsgs = [];
           for (const m of msgs) {
             const isFromCustomer = m.from?.id && String(m.from.id) !== String(page.pageId);
-            if (!isFromCustomer) break; // reached bot/agent reply!
-            if (isProcessedId(m.id)) break; // already processed!
-            unrepliedCustomerMsgs.push(m);
+            if (isFromCustomer) {
+              if (isProcessedId(m.id)) {
+                // Reached a customer message that was already processed & replied to!
+                break;
+              }
+              unrepliedCustomerMsgs.push(m);
+            } else {
+              // This message is from the Page.
+              // If it's from a HUMAN AGENT (not sent by our bot), stop checking — human took over!
+              if (!isBotSentMessage(m)) {
+                break;
+              }
+              // If it WAS sent by our bot, do NOT break!
+              // The bot may have replied to an older message while this customer sent a new message,
+              // so keep inspecting older messages in the list to collect any unreplied customer message!
+            }
           }
 
           if (unrepliedCustomerMsgs.length === 0) continue;
 
-          // 2. Rapid typing buffer (merge consecutive messages sent within 2.5 seconds)
+          // 2. Rapid typing buffer (merge consecutive messages sent within 4 seconds)
           const newestMsg = unrepliedCustomerMsgs[0];
           const newestAge = Date.now() - new Date(newestMsg.created_time).getTime();
-          if (newestAge < 2500) {
-            continue;
-          }
-
           const senderId = newestMsg.from?.id ? String(newestMsg.from.id) : null;
           if (!senderId) continue;
+
+          // If the customer just sent this message less than 4 seconds ago,
+          // mark as seen & start typing dots immediately, but wait 4s to let them finish sending follow-up messages!
+          if (newestAge < 4000) {
+            await sendSenderAction(senderId, "mark_seen", page.accessToken);
+            await sendSenderAction(senderId, "typing_on", page.accessToken);
+            continue;
+          }
 
           // Track in-flight message IDs so parallel poll ticks don't duplicate
           for (const m of unrepliedCustomerMsgs) {
@@ -2919,8 +3012,9 @@ async function pollOnce() {
 
           if (resolvedItems.length === 0) continue;
 
-          // Format recent messages for multi-turn dialogue context (excluding current batch)
-          const previousMsgs = msgs.slice(unrepliedCustomerMsgs.length, unrepliedCustomerMsgs.length + 10).reverse();
+          // Format recent messages for multi-turn dialogue context (excluding current unreplied messages)
+          const unrepliedIds = new Set(unrepliedCustomerMsgs.map(m => m.id));
+          const previousMsgs = msgs.filter(m => !unrepliedIds.has(m.id)).slice(0, 10).reverse();
           const recentHistory = previousMsgs.map(m => {
             const isBot = String(m.from?.id) === String(page.pageId);
             const author = isBot ? page.pageName : (m.from?.name || "কাস্টমার");
@@ -2930,9 +3024,9 @@ async function pollOnce() {
           // ── MULTI-MESSAGE BATCH HANDLING (Customer sent 2 or more messages together) ──
           if (resolvedItems.length > 1) {
             console.log(`[FB_BOT] 🔔 Multi-message batch detected from ${customerName} (${senderId}) with ${resolvedItems.length} messages.`);
-            const fullBatchText = resolvedItems.map(i => i.text).filter(Boolean).join(" ");
+            const fullBatchText = resolvedItems.map(i => i.text).filter(Boolean).join(" \n ");
 
-            // Check if all messages together form an order submission (e.g. name + phone + address sent across multiple msgs)
+            // Check if all messages together form an order submission
             const parsedBatchOrder = parseOrderFromMessage(fullBatchText);
             const isBatchOrderPlaced = isOrderPlaced(fullBatchText);
 
@@ -2942,17 +3036,19 @@ async function pollOnce() {
               await sendFacebookMessage(senderId, replyText, page.accessToken, newestMsg.id);
               recordOutgoingBotMessageInDb(senderId, replyText, false);
               customerMemory.appendChatMessage(senderId, "model", replyText, false);
+              for (const m of unrepliedCustomerMsgs) {
+                saveProcessedId(m.id);
+              }
               continue;
             }
 
-            // Customer asked multiple separate questions: ANSWER EVERY SINGLE QUESTION INDIVIDUALLY!
-            console.log(`[FB_BOT] Answering ${resolvedItems.length} messages individually with quoted mention...`);
-            for (let bIdx = 0; bIdx < resolvedItems.length; bIdx++) {
-              const bItem = resolvedItems[bIdx];
+            // Customer asked multiple questions/messages: Give ONE unified, friendly, comprehensive answer!
+            console.log(`[FB_BOT] Generating unified answer for all ${resolvedItems.length} messages...`);
+
+            // 1. Deliver requested media if ANY message in the batch asks for it
+            for (const bItem of resolvedItems) {
               const bText = bItem.text;
               if (!bText) continue;
-
-              // 1. Deliver requested media if this specific message asks for it
               if (isPictureRequest(bText)) {
                 try {
                   const isMultiple = isMultiplePicturesRequest(bText);
@@ -2986,32 +3082,43 @@ async function pollOnce() {
                   await sendFacebookImage(senderId, "jonota_unani_dokan.jpg", page.accessToken);
                 } catch (e) {}
               }
-
-              // 2. Generate focused answer for this exact message
-              const itemReply = await generateReply(bText, customerName, senderId, recentHistory, page.pageName, false);
-
-              // 3. Send using native Facebook Messenger reply_to (links directly to that exact message, without repeating the question)
-              const sendRes = await sendFacebookMessage(senderId, itemReply, page.accessToken, bItem.id);
-              console.log(`[FB_BOT] Replied natively to message ${bItem.id} (Status: ${sendRes.status}): "${itemReply.slice(0, 60)}..."`);
-              recordOutgoingBotMessageInDb(senderId, itemReply, false);
-              customerMemory.appendChatMessage(senderId, "model", itemReply, false);
-
-              if (bIdx < resolvedItems.length - 1) {
-                await sleep(1000); // 1s pause between answers
-              }
             }
 
-            // If customer is in voice mode, also send a unified doctor voice note explaining all answers
-            if (isVoiceMode(senderId)) {
+            // 2. Generate unified answer addressing ALL questions in the batch
+            const itemReply = await generateReply(fullBatchText, customerName, senderId, recentHistory, page.pageName, isVoiceMode(senderId));
+
+            // 3. Send text reply immediately
+            const delay = calculateHumanTypingDelay(itemReply);
+            await sendSenderAction(senderId, "typing_on", page.accessToken);
+            await sleep(Math.min(delay, 1500));
+            const sendRes = await sendFacebookMessage(senderId, itemReply, page.accessToken, newestMsg.id);
+            console.log(`[FB_BOT] Replied to batch of ${resolvedItems.length} msgs (Status: ${sendRes.status}): "${itemReply.slice(0, 60)}..."`);
+            recordOutgoingBotMessageInDb(senderId, itemReply, false);
+            customerMemory.appendChatMessage(senderId, "model", itemReply, false);
+
+            // 4. Voice note: If voice mode, or if reply is long (200+ chars), also send voice
+            const userPrefersText = isTextModeRequested(fullBatchText);
+            const isLongReply = itemReply && itemReply.length >= 200;
+            const anyAudio = resolvedItems.some(i => i.hasAudio);
+            const wantsVoice = !userPrefersText && (
+              isVoiceMode(senderId) ||
+              anyAudio ||
+              isVoiceRequested(fullBatchText) ||
+              isLongReply
+            );
+            if (wantsVoice) {
               try {
-                const combinedVoiceText = await generateReply(fullBatchText, customerName, senderId, recentHistory, page.pageName, true);
-                await sendFacebookVoiceNote(senderId, combinedVoiceText, page.accessToken);
-                recordOutgoingBotMessageInDb(senderId, combinedVoiceText, true);
+                await sendSenderAction(senderId, "typing_on", page.accessToken);
+                const sentVoice = await sendFacebookVoiceNote(senderId, itemReply, page.accessToken);
+                if (sentVoice) {
+                  recordOutgoingBotMessageInDb(senderId, itemReply, true);
+                }
               } catch (vErr) {
                 console.warn("[FB_BOT_MULTI_VOICE_ERR]", vErr.message);
               }
             }
 
+            // 5. Mark ALL messages in the batch as processed
             for (const m of unrepliedCustomerMsgs) {
               saveProcessedId(m.id);
             }
