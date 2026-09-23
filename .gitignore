@@ -65,3 +65,4 @@ scratch/
 *.mp3
 prisma/*.db-shm
 prisma/*.db-wal
+data/customers/

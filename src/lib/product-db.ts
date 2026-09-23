@@ -156,21 +156,23 @@ function normalizeStr(s: string): string {
 }
 
 // Find best matching product by customer query
-export function findProductInDB(query: string): MergedProduct | null {
+export function findProductInDB(query: string, pageName?: string): MergedProduct | null {
   const normQ = normalizeStr(query);
   const compactQ = normQ.replace(/\s+/g, "");
-  if (!normQ) return null;
+  if (!normQ && !pageName) return null;
 
   const db = loadMergedDB();
   const kasturiProd = db.find(p => String(p.sl) === "60") || null;
   const joubonProd = db.find(p => String(p.sl) === "59") || null;
   const bajikaranProd = db.find(p => String(p.sl) === "61") || null;
 
+  const isNaturalHerbalPage = /ন্যাচারাল|হারবাল|natural/i.test(pageName || "");
+
   const qLower = (query || "").toLowerCase();
 
   // Ignore personal questions or greetings that have no medicine/product inquiry
   const isGeneralOrGreeting = /\b(name|naam|nam|নাম|jano|jaano|জানো|আমার নাম|amar naam|amar name|kemon acho|kemon achen|কেমন আছ|কেমন আছেন|hello|hi\b|হ্যালো|হাই|salam|সালাম|assalam|ভালো আছ|valo acho)\b/i.test(qLower);
-  const mentionsMedicine = /\b(osudh|medicine|tablet|capsule|file|oil|cream|gel|ঔষধ|ওষুধ|ট্যাবলেট|ক্যাপসুল|ফাইল|তেল|ক্রিম|জেল|ডোজ|দাম|price|কস্তুরী|kasturi|হালুয়া|হালুয়া|যৌবনের রাজা)\b/i.test(qLower);
+  const mentionsMedicine = /\b(osudh|medicine|tablet|capsule|file|oil|cream|gel|ঔষধ|ওষুধ|ট্যাবলেট|ক্যাপসুল|ফাইল|তেল|ক্রিম|জেল|ডোজ|দাম|price|কস্তুরী|kasturi|হালুয়া|হালুয়া|যৌবনের রাজা|বাজীকরণ|bajikaran)\b/i.test(qLower);
   if (isGeneralOrGreeting && !mentionsMedicine) {
     return null;
   }
@@ -180,8 +182,8 @@ export function findProductInDB(query: string): MergedProduct | null {
     return joubonProd;
   }
 
-  // 2. Explicit check for Bajikaran Halua
-  if (/বাজীকরণ|bajikaran|bajikoron|আরিফ/i.test(qLower)) {
+  // 2. Explicit check for Bajikaran Halua or if running on Natural Herbal page
+  if (/বাজীকরণ|bajikaran|bajikoron|আরিফ|হালুয়া|halua|৩৫০|350|ন্যাচারাল|natural/i.test(qLower) || isNaturalHerbalPage) {
     return bajikaranProd;
   }
 
@@ -283,6 +285,37 @@ export function getNextKasturiImages(
   return { imagesToSend, updatedHistory };
 }
 
+// Authentic Bajikaran Halua images (350g, 2000 Tk)
+export const BAJIKARAN_HALUA_IMAGES = [
+  "bajikaran_halua_delivery.jpg",
+  "bajikaran_halua_table.jpg",
+  "bajikaran_halua_chamber.jpg",
+];
+
+// Get next Bajikaran Halua image(s) for a customer with smart rotation & variety
+export function getNextBajikaranImages(
+  previouslySent: string[] = [],
+  isMultiple: boolean = false
+): { imagesToSend: string[]; updatedHistory: string[] } {
+  let available = BAJIKARAN_HALUA_IMAGES.filter(img => !previouslySent.includes(img));
+  if (available.length === 0) {
+    available = [...BAJIKARAN_HALUA_IMAGES];
+  }
+
+  let imagesToSend: string[] = [];
+  if (isMultiple) {
+    const count = Math.min(available.length, 3);
+    imagesToSend = available.slice(0, count);
+  } else {
+    imagesToSend = [available[0]];
+  }
+
+  const combined = [...new Set([...previouslySent, ...imagesToSend])];
+  const updatedHistory = combined.length >= BAJIKARAN_HALUA_IMAGES.length ? imagesToSend : combined;
+
+  return { imagesToSend, updatedHistory };
+}
+
 // Check if a customer query is asking for a photo/picture/appearance of the medicine
 export function isPictureRequest(text: string): boolean {
   if (!text) return false;
@@ -294,13 +327,16 @@ export function isPictureRequest(text: string): boolean {
   );
 }
 
-// Locate matching product with image for a query, falling back to chat history or Kasturi Powder
+// Locate matching product with image for a query, falling back to chat history or default product
 export function findProductForImage(
   text: string,
-  chatHistory?: { sender: "CUSTOMER" | "AGENT"; text: string }[]
+  chatHistory?: { sender: "CUSTOMER" | "AGENT"; text: string }[],
+  pageName?: string
 ): MergedProduct | null {
+  const isNaturalHerbal = /ন্যাচারাল|হারবাল|natural/i.test(pageName || "");
+
   // 1. Direct match on current message
-  const directMatch = findProductInDB(text);
+  const directMatch = findProductInDB(text, pageName);
   if (directMatch && directMatch.imageFile) {
     return directMatch;
   }
@@ -310,15 +346,26 @@ export function findProductForImage(
     for (let i = chatHistory.length - 1; i >= 0; i--) {
       const msg = chatHistory[i];
       if (!msg.text) continue;
-      const histMatch = findProductInDB(msg.text);
+      const histMatch = findProductInDB(msg.text, pageName);
       if (histMatch && histMatch.imageFile) {
         return histMatch;
       }
     }
   }
 
-  // 3. Fallback to Kasturi Powder flagship
+  // 3. Fallback: If Natural Herbal page, return Bajikaran Halua
   const db = loadMergedDB();
+  if (isNaturalHerbal) {
+    const bajikaran = db.find(p => String(p.sl) === "61" || p.name.includes("বাজীকরণ"));
+    if (bajikaran) {
+      return {
+        ...bajikaran,
+        imageFile: bajikaran.imageFile || "bajikaran_halua_table.jpg"
+      };
+    }
+  }
+
+  // 4. Default fallback to Kasturi Powder flagship
   const kasturi = db.find(p => String(p.sl) === "60" || p.name.includes("কস্তুরী"));
   if (kasturi) {
     return {

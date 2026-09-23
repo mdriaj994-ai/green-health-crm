@@ -564,7 +564,7 @@ function findMatchedProduct(query, master) {
   const aliases = {
     "যৌবনের রাজা": ["যৌবনের রাজা", "যৌবন রাজা", "jouboner raja", "yowboner raja", "yauboner raja", "শামসুর ইসলাম", "কালাম ভাইয়ের মার্কেট", "আলীকদম"],
     "কস্তুরী পাউডার": ["কস্তুরী পাউডার", "কস্তুরি পাউডার", "kosturi powder", "kasturi powder", "কস্তুরী", "কস্তুরি", "আব্দুল করিম", "হাকিম আব্দুল করিম", "হাকিম মোহাম্মদ আব্দুল করিম", "abdul karim", "জনতা ইউনানী", "আলীকদম, বান্দরবান পার্বত্য জেলা", "দোকান ৩৩"],
-    "বাজীকরণ হালুয়া": ["বাজীকরণ হালুয়া", "বাজীকরণ", "bajikaran halua", "bajikoron halua", "আরিফ", "কবিরাজ আরিফ", "রাঙ্গামাটি", "রিজার্ভ বাজার", "ব্যাংক এশিয়া"],
+    "বাজীকরণ হালুয়া": ["বাজীকরণ হালুয়া", "বাজীকরণ", "bajikaran halua", "bajikoron halua", "আরিফ", "কবিরাজ আরিফ", "রাঙ্গামাটি", "রিজার্ভ বাজার", "ব্যাংক এশিয়া", "ন্যাচারাল হারবাল", "ন্যাচারাল", "natural herbal", "natural", "হারবাল", "ইউনানি প্রস্তুতি", "বাজিকরন"],
     "soul mate": ["soul mate", "soulmate", "সোল মেট", "সোলমেট", "সুল মেট", "কস্তুরী", "কস্তুরি", "হরিণের কস্তুরী", "হরিণের কস্তুরি", "kosturi", "kasturi", "horiner kosturi", "শিলাজিৎ", "জাফরান"],
     "amber": ["amber", "ambar", "amber premium", "ambar premium", "আম্বার", "অম্বর", "অ্যাম্বার", "অंबर", "अंबर", "যৌন বিছানা রাজা", "বিছানা রাজা", "bistar raja", "tantra sutra"],
     "dream touch": ["dream touch", "dreamtouch", "ড্রিম টাচ", "ড্রিমটাচ", "ড্রিম"],
@@ -640,7 +640,7 @@ function findMatchedProduct(query, master) {
   return null;
 }
 
-function getLiveProductInfo(query, senderId = null, recentHistory = []) {
+function getLiveProductInfo(query, senderId = null, recentHistory = [], pageName = "") {
   try {
     const masterPath = path.join(process.cwd(), "data", "medicine_master_complete_db.json");
     const editsPath = path.join(process.cwd(), "data", "custom_user_edits.json");
@@ -688,12 +688,16 @@ function getLiveProductInfo(query, senderId = null, recentHistory = []) {
     const isGeneralAdQuery = /^(দাম|কত|প্রাইস|price|কাজ|উপকার|কিভাবে|অর্ডার|ডেলিভারি|খাব|নিয়ম|order|koto|dam|kaj|rule)/i.test(q) ||
       q.includes("খাওয়ার") || q.includes("কাজ কি") || q.includes("দাম কত") || q.includes("নিতে চাই");
 
-    if (!matched && isGeneralAdQuery) {
-      matched = master.find(p => String(p.SL) === "60"); // Kasturi Powder default
+    const isNaturalHerbal = /ন্যাচারাল|হারবাল|natural/i.test(pageName || "") || /ন্যাচারাল|হারবাল/i.test(q);
+
+    if (!matched && (isGeneralAdQuery || isNaturalHerbal)) {
+      const defaultSl = isNaturalHerbal ? "61" : "60";
+      const defaultName = isNaturalHerbal ? "বাজীকরণ হালুয়া (Bajikaran Halua)" : "কস্তুরী পাউডার (Kasturi Powder)";
+      matched = master.find(p => String(p.SL) === defaultSl);
       if (senderId) {
         threadMemory.set(senderId, {
-          sl: "60",
-          name: "কস্তুরী পাউডার (Kasturi Powder)",
+          sl: defaultSl,
+          name: defaultName,
           time: Date.now()
         });
         saveThreadMemory();
@@ -1642,7 +1646,7 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
 
   const { context: productContext, matched } = isPersonalQuery
     ? { context: "", matched: null }
-    : getLiveProductInfo(customerMessage, senderId, recentHistory);
+    : getLiveProductInfo(customerMessage, senderId, recentHistory, pageName);
 
   const masterPath = path.join(process.cwd(), "data", "medicine_master_complete_db.json");
   const editsPath = path.join(process.cwd(), "data", "custom_user_edits.json");
@@ -1736,13 +1740,14 @@ ${catalogSummary}
   তাকে অত্যন্ত আন্তরিক ও সহানুভূতিশীলভাবে বলবে: "আমার মনে হয় আপনি অনেক সংশয়ে আছেন। অনলাইনে ভুল জায়গায় প্রতারিত হয়ে এমন দ্বিধা হওয়া স্বাভাবিক। আপনার সব সংশয় দূর করতে আপনি সরাসরি আমাদের প্রধান হাকীমের সাথে ফোনে যোগাযোগ করতে পারেন — 01870-023804। হাকীম সাহেব নিজে আপনার সব সমস্যা বিস্তারিত শুনে একদম আপনার শরীরের উপযোগী সেরা একটি বিশেষ ওষুধ নিজ হাতে ফ্রেশ ব্যাচে প্রস্তুত করে দেবেন।" পাশাপাশি কুরিয়ারের সামনে পার্সেল খুলে দেখে নেওয়া এবং ১৮ বছরের ক্লিনিক্যাল সুনামের কথা উল্লেখ করে পূর্ণ আস্থা তৈরি করবে।
 - লাইসেন্স ও সনদপত্র সংক্রান্ত নিয়ম: কোনো কাস্টমার যদি লাইসেন্স, সনদপত্র, সরকারি অনুমোদন বা হাকিমের কাগজপত্র সম্পর্কে জানতে চায়—তাকে সরাসরি জানিয়ে দিতে হবে যে হাকীম মো: আব্দুল করিম স্বাস্থ্য মন্ত্রণালয় অনুমোদিত ক্যাটাগরি-এ রেজিস্টার্ড হাকীম (রেজি: ৫৮৪২) এবং আমাদের সার্ভার থেকে স্বয়ংক্রিয়ভাবে ওনার সরকারি সনদপত্র ও ট্রেড লাইসেন্সের ছবি ইনবক্সে পাঠিয়ে দেওয়া হয়েছে।
 
-৩. প্রোডাক্ট ৩: বাজীকরণ হালুয়া (Bajikaran Halua)
-- প্রোডাক্টের নাম: বাজীকরণ হালুয়া
+৩. প্রোডাক্ট ৩: বাজীকরণ হালুয়া (Bajikaran Halua) — [পেজ: ন্যাচারাল হারবাল / Natural Herbal]
+- প্রোডাক্টের নাম: বাজীকরণ হালুয়া (প্রাকৃতিক ইউনানি প্রস্তুতি)
 - পরিমাণ ও ওজন: ৩৫০ গ্রাম হালুয়া
-- মূল্য: ২,৫০০ টাকা
+- মূল্য: ২,০০০ টাকা (সারা দেশে ক্যাশ অন ডেলিভারি, ফ্রি হোম ডেলিভারি)
 - চিকিৎসক / কবিরাজ: কবিরাজ মোহাম্মদ আরিফ
 - চেম্বার ও অফিসের সঠিক ঠিকানা: রাঙ্গামাটি রিজার্ভ বাজার, ব্যাংক এশিয়া পঞ্চম তলা।
 - কার্যকারিতা: মিলনে অক্ষমতা দূর করা, পুরুষাঙ্গের পেশী ও নার্ভ মজবুত করা, দীর্ঘক্ষণ টিকে থাকার শক্তি দেওয়া এবং খেতে অত্যন্ত সুস্বাদু।
+- ছবি পাঠানো: কাস্টমার ছবি দেখতে চাইলে বাজীকরণ হালুয়ার বাস্তব ছবি (ডেলিভারি ছবি, টেবিলের ওপর জারের ছবি) স্বয়ংক্রিয়ভাবে পাঠানো হবে।
 
 HAKIM & ADDRESS INQUIRY RULES:
 - কাস্টমার যদি "যৌবনের রাজা" বা তার ঠিকানা/হাকিম জানতে চায় → হাকিম মোহাম্মদ শামসুর ইসলাম চৌধুরী, রামু, আলীকদম বড়বাজার, কালাম ভাইয়ের মার্কেট, তৃতীয় তলা, ৪২ নম্বর দোকান।
@@ -2154,6 +2159,9 @@ ${voiceModeInstruction}
     return "জি ভাইয়া, আপনার সমস্যাটা কতদিন ধরে? এবং আপনার বয়স কত? এই তথ্যগুলো দিলে সঠিক পরামর্শ দিতে পারব।";
   }
   if (/(?:দাম|price|টাকা|koto|কত|প্রাইস)/i.test(qLowerFb)) {
+    if (/বাজীকরণ|bajikaran|halua|হালুয়া|ন্যাচারাল|natural/i.test(qLowerFb)) {
+      return "জি ভাইয়া, আমাদের বাজীকরণ হালুয়ার অফার মূল্য ২,০০০ টাকা (৩৫০ গ্রাম হালুয়া)। সারা দেশে ক্যাশ অন ডেলিভারিতে পার্সেল হাতে পেয়ে পরিশোধ করবেন।";
+    }
     return "জি ভাইয়া, আমাদের প্রিমিয়াম ১ মাসের ফুল কোর্সের অফার মূল্য ২,৯০০ টাকা লাগবে। ক্যাশ অন ডেলিভারিতে পার্সেল হাতে পেয়ে পরিশোধ করবেন।";
   }
   // Final safe fallback
@@ -2319,6 +2327,34 @@ function getNextKasturiImages(previouslySent = [], isMultiple = false) {
 
   const combined = [...new Set([...previouslySent, ...imagesToSend])];
   const updatedHistory = combined.length >= KASTURI_POWDER_IMAGES.length ? imagesToSend : combined;
+
+  return { imagesToSend, updatedHistory };
+}
+
+const BAJIKARAN_HALUA_IMAGES = [
+  "bajikaran_halua_delivery.jpg",
+  "bajikaran_halua_table.jpg",
+  "bajikaran_halua_chamber.jpg",
+  "bajikaran_1.jpg",
+  "bajikaran_2.jpg"
+];
+
+function getNextBajikaranImages(previouslySent = [], isMultiple = false) {
+  let available = BAJIKARAN_HALUA_IMAGES.filter(img => !previouslySent.includes(img));
+  if (available.length === 0) {
+    available = [...BAJIKARAN_HALUA_IMAGES];
+  }
+
+  let imagesToSend = [];
+  if (isMultiple) {
+    const count = Math.min(available.length, 3);
+    imagesToSend = available.slice(0, count);
+  } else {
+    imagesToSend = [available[0]];
+  }
+
+  const combined = [...new Set([...previouslySent, ...imagesToSend])];
+  const updatedHistory = combined.length >= BAJIKARAN_HALUA_IMAGES.length ? imagesToSend : combined;
 
   return { imagesToSend, updatedHistory };
 }
@@ -3052,13 +3088,26 @@ async function pollOnce() {
               if (isPictureRequest(bText)) {
                 try {
                   const isMultiple = isMultiplePicturesRequest(bText);
+                  const { matched: bMatched } = getLiveProductInfo(bText, senderId, recentHistory, page.pageName);
+                  const isBajikaran = (bMatched && (String(bMatched.SL) === "61" || /বাজীকরণ|bajikaran|halua|হালুয়া/i.test(bMatched.name || bMatched["ওষুধের নাম (Brand Name)"] || ""))) || /ন্যাচারাল|হারবাল|natural/i.test(page.pageName || "");
                   const custProf = customerMemory.getCustomerProfile(senderId);
-                  const previouslySent = Array.isArray(custProf?.sentKasturiImages) ? custProf.sentKasturiImages : [];
-                  const { imagesToSend, updatedHistory } = getNextKasturiImages(previouslySent, isMultiple);
-                  customerMemory.updateCustomerProfile(senderId, { sentKasturiImages: updatedHistory });
-                  for (let idx = 0; idx < imagesToSend.length; idx++) {
-                    await sendFacebookImage(senderId, imagesToSend[idx], page.accessToken);
-                    if (idx < imagesToSend.length - 1) await sleep(800);
+
+                  if (isBajikaran) {
+                    const previouslySent = Array.isArray(custProf?.sentBajikaranImages) ? custProf.sentBajikaranImages : [];
+                    const { imagesToSend, updatedHistory } = getNextBajikaranImages(previouslySent, isMultiple);
+                    customerMemory.updateCustomerProfile(senderId, { sentBajikaranImages: updatedHistory });
+                    for (let idx = 0; idx < imagesToSend.length; idx++) {
+                      await sendFacebookImage(senderId, imagesToSend[idx], page.accessToken);
+                      if (idx < imagesToSend.length - 1) await sleep(800);
+                    }
+                  } else {
+                    const previouslySent = Array.isArray(custProf?.sentKasturiImages) ? custProf.sentKasturiImages : [];
+                    const { imagesToSend, updatedHistory } = getNextKasturiImages(previouslySent, isMultiple);
+                    customerMemory.updateCustomerProfile(senderId, { sentKasturiImages: updatedHistory });
+                    for (let idx = 0; idx < imagesToSend.length; idx++) {
+                      await sendFacebookImage(senderId, imagesToSend[idx], page.accessToken);
+                      if (idx < imagesToSend.length - 1) await sleep(800);
+                    }
                   }
                 } catch (e) {}
               }
@@ -3156,10 +3205,23 @@ async function pollOnce() {
             if (isPictureRequest(messageText)) {
               try {
                 const isMultiple = isMultiplePicturesRequest(messageText);
-                const { matched } = getLiveProductInfo(messageText, senderId, recentHistory);
-                const isKasturi = !matched || !matched.name || /কস্তুরী|kasturi/i.test(matched.name);
+                const { matched } = getLiveProductInfo(messageText, senderId, recentHistory, page.pageName);
+                const isBajikaran = (matched && (String(matched.SL) === "61" || /বাজীকরণ|bajikaran|halua|হালুয়া/i.test(matched.name || matched["ওষুধের নাম (Brand Name)"] || ""))) || /ন্যাচারাল|হারবাল|natural/i.test(page.pageName || "");
+                const isKasturi = !isBajikaran && (!matched || !matched.name || /কস্তুরী|kasturi/i.test(matched.name));
 
-                if (isKasturi) {
+                if (isBajikaran) {
+                  const custProf = customerMemory.getCustomerProfile(senderId);
+                  const previouslySent = Array.isArray(custProf?.sentBajikaranImages) ? custProf.sentBajikaranImages : [];
+                  const { imagesToSend, updatedHistory } = getNextBajikaranImages(previouslySent, isMultiple);
+                  customerMemory.updateCustomerProfile(senderId, { sentBajikaranImages: updatedHistory });
+
+                  console.log(`[FB_BOT] Customer asked for Bajikaran Halua picture (${isMultiple ? 'multiple' : 'single'}). Sending ${imagesToSend.length} image(s): ${imagesToSend.join(', ')} to ${senderId}`);
+                  for (let idx = 0; idx < imagesToSend.length; idx++) {
+                    await sendFacebookImage(senderId, imagesToSend[idx], page.accessToken);
+                    if (idx < imagesToSend.length - 1) await sleep(800);
+                  }
+                  productImagesSent = true;
+                } else if (isKasturi) {
                   const custProf = customerMemory.getCustomerProfile(senderId);
                   const previouslySent = Array.isArray(custProf?.sentKasturiImages) ? custProf.sentKasturiImages : [];
                   const { imagesToSend, updatedHistory } = getNextKasturiImages(previouslySent, isMultiple);
@@ -3173,7 +3235,7 @@ async function pollOnce() {
                   productImagesSent = true;
                 } else {
                   const imgFile = (matched && (matched.imageFile || matched["ছবি পাথ (Image Path)"] || matched["ফাইলের নাম (File Name)"]))
-                    || "kasturi_powder_1.jpg";
+                    || "bajikaran_halua_table.jpg";
                   console.log(`[FB_BOT] Customer asked for picture. Sending "${matched?.name || 'Product'}" image: ${imgFile}`);
                   await sendFacebookImage(senderId, imgFile, page.accessToken);
                   productImagesSent = true;
@@ -3285,10 +3347,23 @@ async function pollOnce() {
             if (!productImagesSent && (mentionsPicInReply || isPictureRequest(messageText))) {
               try {
                 const isMultiple = isMultiplePicturesRequest(messageText) || isMultiplePicturesRequest(replyText);
-                const { matched } = getLiveProductInfo(messageText, senderId, recentHistory);
-                const isKasturi = !matched || !matched.name || /কস্তুরী|kasturi/i.test(matched.name);
+                const { matched } = getLiveProductInfo(messageText, senderId, recentHistory, page.pageName);
+                const isBajikaran = (matched && (String(matched.SL) === "61" || /বাজীকরণ|bajikaran|halua|হালুয়া/i.test(matched.name || matched["ওষুধের নাম (Brand Name)"] || ""))) || /ন্যাচারাল|হারবাল|natural/i.test(page.pageName || "");
+                const isKasturi = !isBajikaran && (!matched || !matched.name || /কস্তুরী|kasturi/i.test(matched.name));
 
-                if (isKasturi) {
+                if (isBajikaran) {
+                  const custProf = customerMemory.getCustomerProfile(senderId);
+                  const previouslySent = Array.isArray(custProf?.sentBajikaranImages) ? custProf.sentBajikaranImages : [];
+                  const { imagesToSend, updatedHistory } = getNextBajikaranImages(previouslySent, isMultiple);
+                  customerMemory.updateCustomerProfile(senderId, { sentBajikaranImages: updatedHistory });
+
+                  console.log(`[FB_BOT] Picture referenced in reply/context for Bajikaran Halua. Ensuring ${imagesToSend.length} image(s): ${imagesToSend.join(', ')} sent to ${senderId}...`);
+                  for (let idx = 0; idx < imagesToSend.length; idx++) {
+                    await sendFacebookImage(senderId, imagesToSend[idx], page.accessToken);
+                    if (idx < imagesToSend.length - 1) await sleep(800);
+                  }
+                  productImagesSent = true;
+                } else if (isKasturi) {
                   const custProf = customerMemory.getCustomerProfile(senderId);
                   const previouslySent = Array.isArray(custProf?.sentKasturiImages) ? custProf.sentKasturiImages : [];
                   const { imagesToSend, updatedHistory } = getNextKasturiImages(previouslySent, isMultiple);
@@ -3302,7 +3377,7 @@ async function pollOnce() {
                   productImagesSent = true;
                 } else {
                   const imgFile = (matched && (matched.imageFile || matched["ছবি পাথ (Image Path)"] || matched["ফাইলের নাম (File Name)"]))
-                    || "kasturi_powder_1.jpg";
+                    || "bajikaran_halua_table.jpg";
                   console.log(`[FB_BOT] Picture referenced in reply. Sending "${matched?.name || 'Product'}" image: ${imgFile}`);
                   await sendFacebookImage(senderId, imgFile, page.accessToken);
                   productImagesSent = true;
