@@ -48,6 +48,16 @@ export async function POST(req: Request) {
     fs.appendFileSync(logFile, `[${new Date().toISOString()}] INCOMING: ${JSON.stringify(body)}\n`);
   } catch {}
 
+  // ── DOUBLE-REPLY GUARD ─────────────────────────────────────────────────────
+  // When fb_realtime_bot.js (standalone polling bot) is running on this VPS,
+  // it already handles all AI replies via long-polling. The webhook must NOT
+  // also process the same messages — that causes 2 replies per customer message.
+  // We still return 200 OK immediately so Facebook does not retry.
+  if (process.env.STANDALONE_BOT_ACTIVE === "true") {
+    console.log("[FB_WEBHOOK] Standalone bot is active — skipping webhook AI processing to prevent double-reply.");
+    return NextResponse.json({ status: "ok" }, { status: 200 });
+  }
+
   // Respond 200 to Facebook IMMEDIATELY to prevent retry/duplicate webhook delivery
   setImmediate(async () => {
     try {
