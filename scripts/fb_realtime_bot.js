@@ -2754,7 +2754,73 @@ async function transcribeAudioWithGemini(audioUrl, pageAccessToken = PAGE_TOKEN)
     console.warn("[FB_BOT_STT_ERR]", err.message);
   }
   return "";
+}
 
+// ── Gemini Vision Image Analysis for incoming customer product/prescription photos ───
+async function analyzeImageWithGemini(imageUrl, pageAccessToken = PAGE_TOKEN, pageName = "হেলথ কেয়ার", userText = "", customerName = "ভাইয়া", recentHistory = []) {
+  if (!imageUrl) return "";
+  try {
+    const url = imageUrl.includes("access_token") ? imageUrl : imageUrl + (imageUrl.includes("?") ? "&" : "?") + "access_token=" + pageAccessToken;
+    console.log(`[FB_BOT_VISION] Fetching customer product/prescription image...`);
+    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(15000) });
+    if (!res.ok) {
+      console.warn("[FB_BOT_VISION_FAIL] Image download failed HTTP status:", res.status);
+      return "";
+    }
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length < 500) return "";
+    const mime = (res.headers.get("content-type") || "image/jpeg").split(";")[0];
+    const b64 = buf.toString("base64");
+
+    const kbText = getKnowledgeBaseContext();
+    const systemPrompt = `আপনি "${pageName}" ফেসবুক পেজের প্রফেশনাল ইউনানি ও আয়ুর্বেদিক চিকিৎসা পরামর্শক এবং হাকীম মো: আব্দুল করিমের অফিসিয়াল অ্যাসিস্ট্যান্ট।
+কাস্টমার মেসেঞ্জারে আপনাকে একটি ছবি (প্রোডাক্ট/ওষুধ/বয়াম/প্রেসক্রিপশন/উপাদান) পাঠিয়েছেন।
+
+[আমাদের পেজ ও প্রোডাক্টের ডাটাবেজ তথ্য]:
+${kbText}
+
+কাস্টমারের নাম: ${customerName}
+কাস্টমারের সাথে পাঠানো মেসেজ (যদি থাকে): "${userText || 'কাস্টমার কোনো ক্যাপশন লেখেননি, শুধুমাত্র ছবি পাঠিয়েছেন'}"
+
+সাম্প্রতিক কথা কথোপকথন:
+${(recentHistory || []).join('\n')}
+
+[আপনার দায়িত্ব ও উত্তর প্রদানের গাইডলাইন]:
+১. ছবিটি অত্যন্ত সতর্কতার সাথে বিশ্লেষণ করুন। ছবিটিতে কী দেখা যাচ্ছে শনাক্ত করুন (যেমন: আমাদের কস্তুরী পাউডার, বাজীকরণ হালুয়া, যৌবনের রাজা, নাকি কোনো বহিরাগত কোম্পানির ওষুধ, অন্য কোনো বয়াম, ডাক্তারের প্রেসক্রিপশন বা গাছগাছড়ার ভেষজ উপাদান)।
+২. আমাদের ফ্ল্যাগশিপ ওষুধ শনাক্ত হলে:
+   - "কস্তুরী পাউডার" (২৫০ গ্রাম কালো/গাঢ় ভেষজ পাউডার বয়াম, মূল্য: ২৮০০/২৯০০ টাকা)
+   - "বাজীকরণ হালুয়া" (৩৫০ গ্রাম সাদা ক্যাপের বাদামী ইউনানি হালুয়া বয়াম, মূল্য: ২০০০ টাকা, পেজ: ন্যাচারাল হারবাল)
+   - "যৌবনের রাজা" (ভেষজ ইউনানি ওষুধ, মূল্য: ৩৫০০ টাকা)
+   এটি আমাদের আসল নিবন্ধিত ইউনানি ওষুধ কিনা তা কাস্টমারকে নিশ্চিত করুন।
+৩. উত্তর দেওয়ার কৌশল (৩-৪ লাইনের সংক্ষিপ্ত ও আন্তরিক বাংলা ভাষায়):
+   - কাস্টমারকে সম্ভাষণ জানিয়ে বলুন যে তার ছবিটি আপনি পেয়েছেন এবং ছবিতে কী ওষুধ/বয়াম দেখা যাচ্ছে তা উল্লেখ করুন।
+   - ওষুধটির কাজ, শারীরিক উপকারিতা (যেমন: যৌন দুর্বলতা রোধ, টাইমিং বৃদ্ধি, ইরেকশন মজবুত করা বা স্থায়ী সমাধান) এবং সঠিক সেবনবিধি বুঝিয়ে বলুন।
+   - যদি কাস্টমার কোনো পর বা অন্য ওষুধ/প্রেসক্রিপশনের ছবি দিয়ে থাকেন, তবে তাকে সহানুভূতি জানিয়ে আমাদের কার্যকরী প্রাকৃতিক ভেষজ কোর্সের পরামর্শ দিন।
+   - শেষে কাস্টমারকে তার বয়স এবং মূল শারীরিক সমস্যা খুলে বলতে বলুন যাতে সেরা সমাধানটি সিলেক্ট করে দেওয়া যায়।
+
+কাস্টমারকে সরাসরি উত্তর হিসেবে পাঠানোর জন্য একটি সাবলীল ও সুন্দর বাংলা অনুচ্ছেদ আউটপুট দিন। কোনো কোড বা অতিরিক্ত ফরম্যাটিং দেবেন না।`;
+
+    const models = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"];
+    for (const m of models) {
+      try {
+        const model = genAI.getGenerativeModel({ model: m });
+        const genRes = await model.generateContent([
+          { inlineData: { data: b64, mimeType: mime } },
+          systemPrompt
+        ]);
+        const text = genRes.response.text().trim();
+        if (text && text.length > 5) {
+          console.log(`[FB_BOT_VISION] (${m}) Image Analysis Success: "${text.slice(0, 80)}..."`);
+          return text;
+        }
+      } catch (e) {
+        console.warn(`[FB_BOT_VISION_ERR] ${m}:`, e.message);
+      }
+    }
+  } catch (err) {
+    console.warn("[FB_BOT_VISION_ERR]", err.message);
+  }
+  return "";
 }
 
 function splitTextIntoVoiceChunks(text, maxChars = 800) {
@@ -3034,13 +3100,16 @@ async function pollOnce() {
               itemText = transcribed || "[Customer sent a voice message]";
               setVoiceMode(senderId, true);
             }
+            const imageAttach = item.attachments?.data?.find(a => a.type === "image" || a.mime_type?.includes("image"));
+            const imageUrl = imageAttach?.payload?.url || imageAttach?.file_url || imageAttach?.image_data?.url || "";
             if (itemText || item.attachments?.data?.length > 0) {
               resolvedItems.push({
                 id: item.id,
                 text: itemText,
                 created_time: item.created_time,
                 hasAudio: Boolean(audioAttach),
-                hasImage: Boolean(item.attachments?.data?.some(a => a.type === "image" || a.mime_type?.includes("image"))),
+                hasImage: Boolean(imageAttach),
+                imageUrl: imageUrl,
                 rawItem: item,
               });
             }
@@ -3134,7 +3203,22 @@ async function pollOnce() {
             }
 
             // 2. Generate unified answer addressing ALL questions in the batch
-            const itemReply = await generateReply(fullBatchText, customerName, senderId, recentHistory, page.pageName, isVoiceMode(senderId));
+            let itemReply = "";
+            const imageItemInBatch = resolvedItems.find(i => i.hasImage && i.imageUrl);
+            if (imageItemInBatch && imageItemInBatch.imageUrl) {
+              console.log(`[FB_BOT] Customer sent an image in batch. Running Gemini Vision analysis...`);
+              itemReply = await analyzeImageWithGemini(
+                imageItemInBatch.imageUrl,
+                page.accessToken,
+                page.pageName,
+                fullBatchText,
+                customerName,
+                recentHistory
+              );
+            }
+            if (!itemReply) {
+              itemReply = await generateReply(fullBatchText, customerName, senderId, recentHistory, page.pageName, isVoiceMode(senderId));
+            }
 
             // 3. Send text reply immediately
             const delay = calculateHumanTypingDelay(itemReply);
@@ -3321,7 +3405,22 @@ async function pollOnce() {
 
             // Generate AI reply with thread memory and page-specific identity
             const isVoiceReq = userInVoiceMode || isVoiceRequested(messageText) || isOnlyVoice;
-            const replyText = await generateReply(messageText, customerName, senderId, recentHistory, page.pageName, isVoiceReq);
+            let replyText = "";
+            const singleImageItem = resolvedItems.find(i => i.hasImage && i.imageUrl);
+            if (singleImageItem && singleImageItem.imageUrl) {
+              console.log(`[FB_BOT] Customer ${customerName} (${senderId}) sent an image attachment. Running Gemini Vision analysis...`);
+              replyText = await analyzeImageWithGemini(
+                singleImageItem.imageUrl,
+                page.accessToken,
+                page.pageName,
+                messageText,
+                customerName,
+                recentHistory
+              );
+            }
+            if (!replyText) {
+              replyText = await generateReply(messageText, customerName, senderId, recentHistory, page.pageName, isVoiceReq);
+            }
             const parsedOrder = parseOrderFromMessage(messageText);
             const orderPlacedDetected = isOrderPlaced(messageText);
             const botConfirmedOrder = /(?:অর্ডারটি|অর্ডার|পার্সেলটি|পার্সেল)\s*(?:সফলভাবে\s*)?(?:কনফার্ম|নিশ্চিত|বুকিং)/i.test(replyText);
