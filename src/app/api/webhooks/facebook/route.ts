@@ -234,6 +234,36 @@ ${text}
   }
   // ── END TELEGRAM ALERT ────────────────────────────────────────────────────
 
+  // ── Gemini Vision Image Interceptor (Run Vision Analysis if customer sent an image) ──────
+  if (imageUrl) {
+    console.log(`[FB_WEBHOOK_VISION] Customer ${senderId} sent an image attachment (${imageUrl.slice(0, 80)}...). Running Gemini Vision...`);
+    try {
+      const { analyzeImageWithGemini } = await import("@/lib/ai");
+      const pageName = pageId === "61559813291583" ? "ন্যাচারাল হারবাল" : "হেলথ কেয়ার";
+      const PERM_TOK = "EAAjkLPT8UegBSsQVgxm1fBW6D7N7oon9ZAudS1UKVLVbBEar1BGEvZCLJ3ibSLO6FmILQDf6mq4rcsL98cpxuuRwAHSwUprKUBLv6ZBBCSjYAGUPTU1SQIRDvR74D5aIivRiDoUG3zobZB83AIwZA8mZAhoqcBDpjii2KsvQshwZCCIdUSJk5NaDb5JZCFGt4YWKBfEZC";
+      const envT = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
+      const quickToken = (envT && envT.length > 150) ? envT : PERM_TOK;
+
+      const visionResult = await analyzeImageWithGemini(
+        imageUrl,
+        quickToken,
+        pageName,
+        text,
+        senderId,
+        []
+      );
+
+      if (visionResult && visionResult.length > 5) {
+        console.log(`[FB_WEBHOOK_VISION] Vision reply generated: "${visionResult.slice(0, 80)}..."`);
+        await sendMessengerReply(pageId, senderId, visionResult, quickToken);
+        try { const { appendChatMessage } = await import("@/lib/customer-memory"); appendChatMessage(senderId, "model", visionResult, false); } catch {}
+        return;
+      }
+    } catch (vErr: any) {
+      console.warn("[FB_WEBHOOK_VISION_ERR]", vErr.message);
+    }
+  }
+
   // ── GUARD: Past-tense / unfulfilled order intent ───────────────────────────
   const isPastUnfulfilledIntent =
     /(?:chaisilam|chaisilem|cheyesilam|cheyechilam|চাইছিলাম|চেয়েছিলাম|চাইসিলাম|চাইছিলেন|চেয়েছিলেন)/i.test(text) ||

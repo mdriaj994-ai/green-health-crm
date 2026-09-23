@@ -101,6 +101,87 @@ function getGenAI(): GoogleGenerativeAI | null {
   return genAIInstance;
 }
 
+// ── Gemini Vision Image Analysis for incoming customer product/prescription photos ───
+export async function analyzeImageWithGemini(
+  imageUrl: string,
+  pageAccessToken?: string,
+  pageName: string = "হেলথ কেয়ার",
+  userText: string = "",
+  customerName: string = "ভাইয়া",
+  recentHistory: any = []
+): Promise<string> {
+  if (!imageUrl) return "";
+  try {
+    const url = imageUrl.includes("access_token") ? imageUrl : imageUrl + (imageUrl.includes("?") ? "&" : "?") + "access_token=" + (pageAccessToken || "");
+    console.log(`[AI_VISION] Fetching customer product/prescription image from ${url.slice(0, 80)}...`);
+    const res = await fetch(url, { headers: { "User-Agent": "Mozilla/5.0" }, signal: AbortSignal.timeout(15000) });
+    if (!res.ok) {
+      console.warn("[AI_VISION_FAIL] Image download failed HTTP status:", res.status);
+      return "";
+    }
+    const buf = Buffer.from(await res.arrayBuffer());
+    if (buf.length < 500) return "";
+    const mime = (res.headers.get("content-type") || "image/jpeg").split(";")[0];
+    const b64 = buf.toString("base64");
+
+    const historyFormatted = Array.isArray(recentHistory) 
+      ? recentHistory.map((h: any) => typeof h === "string" ? h : `${h.sender}: "${h.text}"`).join('\n')
+      : "";
+
+    const systemPrompt = `আপনি "${pageName}" ফেসবুক পেজের প্রফেশনাল ইউনানি ও আয়ুর্বেদিক চিকিৎসা পরামর্শক এবং হাকীম মো: আব্দুল করিমের অফিসিয়াল অ্যাসিস্ট্যান্ট।
+কাস্টমার মেসেঞ্জারে আপনাকে একটি ছবি (প্রোডাক্ট/ওষুধ/বয়াম/প্রেসক্রিপশন/উপাদান/ছবি) পাঠিয়েছেন।
+
+কাস্টমারের নাম: ${customerName}
+কাস্টমারের সাথে পাঠানো মেসেজ (যদি থাকে): "${userText || 'কাস্টমার কোনো ক্যাপশন লেখেননি, শুধুমাত্র ছবি পাঠিয়েছেন'}"
+
+সাম্প্রতিক কথোপকথন:
+${historyFormatted}
+
+[আমাদের প্রোডাক্ট ডাটাবেজ তথ্য]:
+১. কস্তুরী পাউডার (Kasturi Powder / Kasturi Kapor Beshoj) - ২৫০ গ্রাম কালো/গাঢ় ভেষজ পাউডার বয়াম, মূল্য: ২৮০০/২৯০০ টাকা। পেজ: হেলথ কেয়ার।
+২. বাজীকরণ হালুয়া (Bajikaran Halua) - ৩৫০ গ্রাম সাদা ক্যাপের বাদামী ইউনানি হালুয়া বয়াম, মূল্য: ২০০০ টাকা, পেজ: ন্যাচারাল হারবাল।
+৩. যৌবনের রাজা (Jouboner Raja) - ৩৫০০ টাকা।
+
+[আপনার দায়িত্ব ও উত্তর প্রদানের গাইডলাইন]:
+১. ছবিটি অত্যন্ত সতর্কতার সাথে বিশ্লেষণ করুন। ছবিটিতে কী দেখা যাচ্ছে শনাক্ত করুন (যেমন: আমাদের কস্তুরী পাউডার, বাজীকরণ হালুয়া, যৌবনের রাজা, নাকি কোনো মিম/খবরের ছবি, অন্য কোনো ওষুধ, ডাক্তারের প্রেসক্রিপশন বা গাছগাছড়ার ভেষজ উপাদান)।
+২. যদি মিম, ট্রোল, নিউজ বা কোনো বিনোদনমূলক ছবি পাঠানো হয়:
+   - কাস্টমারকে হাসিমুখে ও শালীনভাবে বলুন যে ছবিটি আপনি দেখতে পেয়েছেন।
+   - স্পষ্টভাবে জানিয়ে দিন যে এটি কোনো ওষুধ নয়।
+   - বলুন যে আমাদের পেজে সুস্থতার জন্য খাঁটি কস্তুরী পাউডার / বাজীকরণ হালুয়া পাওয়া যায়।
+৩. যদি ওষুধ/প্রোডাক্টের ছবি হয়:
+   - বলুন ছবিতে দেখা যাওয়া ওষুধের নাম ও কাজ কী।
+   - আমাদের অরিজিনাল ওষুধ হলে আসল পাওয়ার নিশ্চয়তা, দাম ও সঠিক সেবনবিধি বুঝিয়ে বলুন।
+   - অন্য কোনো কোম্পানির ওষুধ বা প্রেসক্রিপশন হলে সহানুভূতি জানিয়ে আমাদের প্রাকৃতিক ভেষজ কোর্সের পরামর্শ দিন।
+৪. কথা শেষে কাস্টমারের বয়স এবং মূল শারীরিক সমস্যা খুলে বলতে বলুন যাতে সঠিক পরামর্শ দেওয়া যায়।
+
+কাস্টমারকে সরাসরি উত্তর হিসেবে পাঠানোর জন্য একটি সাবলীন ও সুন্দর বাংলা অনুচ্ছেদ আউটপুট দিন। কোনো কোড বা অতিরিক্ত ফরম্যাটিং দেবেন না।`;
+
+    const ai = getGenAI();
+    if (!ai) return "";
+
+    const models = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"];
+    for (const m of models) {
+      try {
+        const model = ai.getGenerativeModel({ model: m });
+        const genRes = await model.generateContent([
+          { inlineData: { data: b64, mimeType: mime } },
+          systemPrompt
+        ]);
+        const textRes = genRes.response.text().trim();
+        if (textRes && textRes.length > 5) {
+          console.log(`[AI_VISION] (${m}) Image Analysis Success: "${textRes.slice(0, 80)}..."`);
+          return textRes;
+        }
+      } catch (e: any) {
+        console.warn(`[AI_VISION_ERR] ${m}:`, e.message);
+      }
+    }
+  } catch (err: any) {
+    console.warn("[AI_VISION_ERR]", err.message);
+  }
+  return "";
+}
+
 // ═══════════════════════════════════════════════════════════════════
 // RULE 1: FIXED PERSONA BACKSTORY — IMMUTABLE IDENTITY LOCK
 // This object is the single source of truth for all personal details.
