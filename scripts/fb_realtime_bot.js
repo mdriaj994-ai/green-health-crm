@@ -3226,10 +3226,8 @@ async function pollOnce() {
                 recentHistory
               );
             }
-            if (!itemReply && imageItemInBatch && imageItemInBatch.imageUrl) {
-              // Vision failed but image was sent — use safe fallback instead of calling generateReply
-              itemReply = "ভাইয়া, আপনার পাঠানো ছবিটি দেখলাম। এটি কোনো ওষুধ বা চিকিৎসা সংক্রান্ত ছবি বলে মনে হচ্ছে না। আপনার কি কোনো শারীরিক সমস্যা আছে? বললে আমি সঠিক পরামর্শ দিতে পারব।";
-            } else if (!itemReply) {
+            if (!itemReply) {
+              // Vision failed — fall back to normal AI reply using customer text
               itemReply = await generateReply(fullBatchText, customerName, senderId, recentHistory, page.pageName, isVoiceMode(senderId));
             }
 
@@ -3431,10 +3429,8 @@ async function pollOnce() {
                 recentHistory
               );
             }
-            if (!replyText && singleImageItem && singleImageItem.imageUrl) {
-              // Vision failed but image was sent — use safe fallback instead of calling generateReply
-              replyText = "ভাইয়া, আপনার পাঠানো ছবিটি দেখলাম। এটি কোনো ওষুধ বা চিকিৎসা সংক্রান্ত ছবি বলে মনে হচ্ছে না। আপনার কি কোনো শারীরিক সমস্যা আছে? বললে আমি সঠিক পরামর্শ দিতে পারব।";
-            } else if (!replyText) {
+            if (!replyText) {
+              // Vision failed — fall back to normal AI reply using customer text
               replyText = await generateReply(messageText, customerName, senderId, recentHistory, page.pageName, isVoiceReq);
             }
             const parsedOrder = parseOrderFromMessage(messageText);
