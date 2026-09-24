@@ -1,4 +1,4 @@
-// scripts/fb_realtime_bot.js
+﻿// scripts/fb_realtime_bot.js
 // 24/7 Real-time Facebook Messenger AI Bot Engine
 // Runs inside the VPS container alongside Next.js
 const path = require("path");
@@ -3455,12 +3455,9 @@ async function pollOnce() {
               );
             }
             if (!replyText) {
-              if (singleImageItem && singleImageItem.imageUrl && !messageText.trim()) {
-                // Image only, no text - Vision failed. Send fixed neutral reply
-                replyText = "ভাইয়া, এই ছবিটি দেখলাম। এটি আমাদের পণ্য (কস্তুরী পাউডার বা বাজীকরণ হালুয়া) মনে হচ্ছে না। আপনার কি কোনো শারীরিক সমস্যা আছে বা আমাদের ওষুধ সম্পর্কে জানতে চান?";
-              } else if (singleImageItem && singleImageItem.imageUrl && messageText.trim()) {
-                // Image + text - Vision failed but use text to reply normally
-                replyText = await generateReply(messageText, customerName, senderId, recentHistory, page.pageName, isVoiceReq);
+              if (singleImageItem && singleImageItem.imageUrl) {
+                // Image present but Vision failed - always neutral reply regardless of text
+                replyText = "u{09AD}u{09BE}u{0987}u{09AF}u{09BC}u{09BE}, u{098F}u{0987} u{099B}u{09AC}u{09BF}u{099F}u{09BF} u{09A6}u{09C7}u{0996}u{09B2}u{09BE}u{09AE}u{0964} u{098F}u{099F}u{09BF} u{0986}u{09AE}u{09BE}u{09A6}u{09C7}u{09B0} u{09AA}u{09A3}u{09CD}u{09AF} (u{0995}u{09B8}u{09CD}u{09A4}u{09C1}u{09B0}u{09C0} u{09AA}u{09BE}u{0989}u{09A1}u{09BE}u{09B0} u{09AC}u{09BE} u{09AC}u{09BE}u{099C}u{09C0}u{0995}u{09B0}u{09A3} u{09B9}u{09BE}u{09B2}u{09C1}u{09AF}u{09BC}u{09BE}) u{09AE}u{09A8}u{09C7} u{09B9}u{099A}u{09CD}u{099B}u{09C7} u{09A8}u{09BE}u{0964} u{0986}u{09AA}u{09A8}u{09BE}u{09B0} u{0995}u{09BF} u{0995}u{09CB}u{09A8}u{09CB} u{09B6}u{09BE}u{09B0}u{09C0}u{09B0}u{09BF}u{0995} u{09B8}u{09AE}u{09B8}u{09CD}u{09AF}u{09BE} u{0986}u{099B}u{09C7} u{09AC}u{09BE} u{0986}u{09AE}u{09BE}u{09A6}u{09C7}u{09B0} u{0993}u{09B7}u{09C1}u{09A7} u{09B8}u{09AE}u{09CD}u{09AA}u{09B0}u{09CD}u{0995}u{09C7} u{099C}u{09BE}u{09A8}u{09A4}u{09C7} u{099A}u{09BE}u{09A8}?";
               } else {
                 replyText = await generateReply(messageText, customerName, senderId, recentHistory, page.pageName, isVoiceReq);
               }
