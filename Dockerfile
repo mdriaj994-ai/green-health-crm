@@ -21,8 +21,7 @@ ENV NEXT_TELEMETRY_DISABLED=1
 ENV NODE_OPTIONS="--max-old-space-size=2048"
 RUN npm run build
 
-# Remove build-only compiler tools to shrink image and conserve disk space
-RUN apt-get purge -y --auto-remove python3 make g++ && rm -rf /var/lib/apt/lists/*
+# Note: build tools (python3, make, g++) are kept — purge step removed as it caused exit code 255 crash
 
 # Configure runtime environment (switch to production after build)
 ENV NODE_ENV=production
