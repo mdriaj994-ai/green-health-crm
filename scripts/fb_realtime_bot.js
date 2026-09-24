@@ -3233,9 +3233,9 @@ async function pollOnce() {
               );
             }
             if (!itemReply) {
-              if (imageItemInBatch && imageItemInBatch.imageUrl) {
-                const imgNote = "[SYSTEM: Customer sent an image but Vision failed. Do NOT assume Kasturi Powder. Ask what product or health issue.] ";
-                itemReply = await generateReply(imgNote + (fullBatchText || ""), customerName, senderId, recentHistory, page.pageName, isVoiceMode(senderId));
+              if (imageItemInBatch && imageItemInBatch.imageUrl && !fullBatchText.trim()) {
+                // Image only, no text - Vision failed. Send fixed neutral reply
+                itemReply = "ভাইয়া, আপনার পাঠানো ছবিটি পেয়েছি। তবে ছবিটি ভালোভাবে বুঝতে পারছি না। আপনি কি আমাদের কোনো পণ্যের বিষয়ে জানতে চাইছেন? নাকি কোনো শারীরিক সমস্যার সমাধান খুঁজছেন? একটু লিখে জানান, আমি সাহায্য করব।";
               } else {
                 itemReply = await generateReply(fullBatchText, customerName, senderId, recentHistory, page.pageName, isVoiceMode(senderId));
               }
@@ -3440,9 +3440,12 @@ async function pollOnce() {
               );
             }
             if (!replyText) {
-              if (singleImageItem && singleImageItem.imageUrl) {
-                const imgNote = "[SYSTEM: Customer sent an image but Vision failed. Do NOT assume Kasturi Powder. Ask what product or health issue.] ";
-                replyText = await generateReply(imgNote + (messageText || ""), customerName, senderId, recentHistory, page.pageName, isVoiceReq);
+              if (singleImageItem && singleImageItem.imageUrl && !messageText.trim()) {
+                // Image only, no text - Vision failed. Send fixed neutral reply
+                replyText = "ভাইয়া, আপনার পাঠানো ছবিটি পেয়েছি। তবে ছবিটি ভালোভাবে বুঝতে পারছি না। আপনি কি আমাদের কোনো পণ্যের বিষয়ে জানতে চাইছেন? নাকি কোনো শারীরিক সমস্যার সমাধান খুঁজছেন? একটু লিখে জানান, আমি সাহায্য করব।";
+              } else if (singleImageItem && singleImageItem.imageUrl && messageText.trim()) {
+                // Image + text - Vision failed but use text to reply normally
+                replyText = await generateReply(messageText, customerName, senderId, recentHistory, page.pageName, isVoiceReq);
               } else {
                 replyText = await generateReply(messageText, customerName, senderId, recentHistory, page.pageName, isVoiceReq);
               }
