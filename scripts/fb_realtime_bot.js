@@ -1,4 +1,4 @@
-// scripts/fb_realtime_bot.js
+﻿// scripts/fb_realtime_bot.js
 // 24/7 Real-time Facebook Messenger AI Bot Engine
 // Runs inside the VPS container alongside Next.js
 const path = require("path");
@@ -3235,7 +3235,7 @@ async function pollOnce() {
             if (!itemReply) {
               if (imageItemInBatch && imageItemInBatch.imageUrl && !fullBatchText.trim()) {
                 // Image only, no text - Vision failed. Send fixed neutral reply
-                itemReply = "ভাইয়া, আপনার পাঠানো ছবিটি পেয়েছি। তবে ছবিটি ভালোভাবে বুঝতে পারছি না। আপনি কি আমাদের কোনো পণ্যের বিষয়ে জানতে চাইছেন? নাকি কোনো শারীরিক সমস্যার সমাধান খুঁজছেন? একটু লিখে জানান, আমি সাহায্য করব।";
+                itemReply = "ভাইয়া, এই ছবিটি দেখলাম। এটি আমাদের পণ্য (কস্তুরী পাউডার বা বাজীকরণ হালুয়া) মনে হচ্ছে না। আপনার কি কোনো শারীরিক সমস্যা আছে বা আমাদের ওষুধ সম্পর্কে জানতে চান?";
               } else {
                 itemReply = await generateReply(fullBatchText, customerName, senderId, recentHistory, page.pageName, isVoiceMode(senderId));
               }
@@ -3443,7 +3443,7 @@ async function pollOnce() {
             if (!replyText) {
               if (singleImageItem && singleImageItem.imageUrl && !messageText.trim()) {
                 // Image only, no text - Vision failed. Send fixed neutral reply
-                replyText = "ভাইয়া, আপনার পাঠানো ছবিটি পেয়েছি। তবে ছবিটি ভালোভাবে বুঝতে পারছি না। আপনি কি আমাদের কোনো পণ্যের বিষয়ে জানতে চাইছেন? নাকি কোনো শারীরিক সমস্যার সমাধান খুঁজছেন? একটু লিখে জানান, আমি সাহায্য করব।";
+                replyText = "ভাইয়া, এই ছবিটি দেখলাম। এটি আমাদের পণ্য (কস্তুরী পাউডার বা বাজীকরণ হালুয়া) মনে হচ্ছে না। আপনার কি কোনো শারীরিক সমস্যা আছে বা আমাদের ওষুধ সম্পর্কে জানতে চান?";
               } else if (singleImageItem && singleImageItem.imageUrl && messageText.trim()) {
                 // Image + text - Vision failed but use text to reply normally
                 replyText = await generateReply(messageText, customerName, senderId, recentHistory, page.pageName, isVoiceReq);
