@@ -2069,7 +2069,13 @@ ${voiceModeInstruction}
       return `${matched.name}-এর বর্তমান মূল্য ${matched.price} টাকা ${matched.regPrice && matched.regPrice !== matched.price ? `(রেগুলার: ${matched.regPrice} টাকা)` : ""}। ${matched.note || "সারা দেশে ক্যাশ অন ডেলিভারিতে হোম ডেলিভারি নিতে পারেন।"}`;
     }
     if (isAvailability) {
+      const productNamedInMsg = /kasturi|বাজীকরণ|bajikaran|যৌবন|jouboner|halua|হালুয়া|পাউডার|powder|কস্তুরী/i.test(qLower);
+      const isVague = /^(aita|eta|eita|ota|oita|seta)\b/i.test(qLower.trim());
+      if (isVague && !productNamedInMsg) {
+        return "ভাইয়া, আপনি কোন পণ্যের বিষয়ে জিজ্ঞেস করছেন? আমাদের কাছে কস্তুরী পাউডার ও বাজীকরণ হালুয়া আছে। কোনটি সম্পর্কে জানতে চান?";
+      }
       return `জি, ${matched.name} আমাদের কাছে ১০০% অরিজিনাল স্টকে রয়েছে। এটি সম্পর্কে কি কোনো তথ্য জানতে চাচ্ছেন?`;
+
     }
     if (isDosage) {
       return `${matched.name}-এর সেবনবিধি: ${matched.dosage || "নিয়ম অনুযায়ী সেবন করলে সেরা ফলাফল পাবেন"}।`;
