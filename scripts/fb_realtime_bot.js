@@ -1,4 +1,4 @@
-﻿// scripts/fb_realtime_bot.js
+// scripts/fb_realtime_bot.js
 // 24/7 Real-time Facebook Messenger AI Bot Engine
 // Runs inside the VPS container alongside Next.js
 const path = require("path");
@@ -3305,9 +3305,10 @@ async function pollOnce() {
               }
             }
 
-            // Check if customer asked for a picture of medicine
+            // Check if customer asked for a picture of medicine (skip if customer already sent an image)
+            const hasIncomingImage = !!(singleImageItem && singleImageItem.imageUrl);
             let productImagesSent = false;
-            if (isPictureRequest(messageText)) {
+            if (!hasIncomingImage && isPictureRequest(messageText)) {
               try {
                 const isMultiple = isMultiplePicturesRequest(messageText);
                 const { matched } = getLiveProductInfo(messageText, senderId, recentHistory, page.pageName);
@@ -3472,7 +3473,7 @@ async function pollOnce() {
             // Guarantee: If bot reply mentions sending a picture OR customer asked for a picture and it wasn't sent yet, ALWAYS deliver product image
             const mentionsPicInReply = /(?:ছবি|সবি|পিক|পিকচার|ফটো|ইমেজ|বয়াম|বয়ম).*(?:পাঠিয়ে|দিচ্ছি|দিলাম|পাঠাচ্ছি|দিব|পাঠাব|দেখুন|দেওয়া হলো)/i.test(replyText) ||
                                        /(?:পাঠিয়ে|দিচ্ছি|দিলাম|পাঠাচ্ছি|দিব|পাঠাব).*(?:ছবি|সবি|পিক|পিকচার|ফটো)/i.test(replyText);
-            if (!productImagesSent && (mentionsPicInReply || isPictureRequest(messageText))) {
+            if (!productImagesSent && !hasIncomingImage && (mentionsPicInReply || isPictureRequest(messageText))) {
               try {
                 const isMultiple = isMultiplePicturesRequest(messageText) || isMultiplePicturesRequest(replyText);
                 const { matched } = getLiveProductInfo(messageText, senderId, recentHistory, page.pageName);
