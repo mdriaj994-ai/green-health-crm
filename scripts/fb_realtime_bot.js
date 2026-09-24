@@ -1,4 +1,4 @@
-﻿// scripts/fb_realtime_bot.js
+// scripts/fb_realtime_bot.js
 // 24/7 Real-time Facebook Messenger AI Bot Engine
 // Runs inside the VPS container alongside Next.js
 const path = require("path");
@@ -3232,11 +3232,8 @@ async function pollOnce() {
               );
             }
             if (!itemReply) {
-              // Vision failed — tell AI that image was sent but couldn't be analyzed
-              const textWithImageCtx = imageItemInBatch
-                ? [কাস্টমার একটি ছবি পাঠিয়েছেন কিন্তু ছবিটি analyze করা সম্ভব হয়নি। ছবিটি আমাদের পণ্য (কস্তুরী পাউডার/বাজীকরণ হালুয়া) কিনা নিশ্চিত না। কাস্টমারকে বলুন যে ছবিটি ভালোভাবে দেখা যাচ্ছে না, এবং কোন পণ্যের বিষয়ে জানতে চাচ্ছেন তা লিখে জানাতে বলুন।] 
-                : fullBatchText;
-              itemReply = await generateReply(textWithImageCtx, customerName, senderId, recentHistory, page.pageName, isVoiceMode(senderId));
+              // Vision failed — use original text for normal AI reply
+              itemReply = await generateReply(fullBatchText, customerName, senderId, recentHistory, page.pageName, isVoiceMode(senderId));
             }
 
             // 3. Send text reply immediately
@@ -3438,11 +3435,8 @@ async function pollOnce() {
               );
             }
             if (!replyText) {
-              // Vision failed — tell AI that image was sent but couldn't be analyzed
-              const msgWithImageCtx = singleImageItem
-                ? [কাস্টমার একটি ছবি পাঠিয়েছেন কিন্তু ছবিটি analyze করা সম্ভব হয়নি। ছবিটি আমাদের পণ্য (কস্তুরী পাউডার/বাজীকরণ হালুয়া) কিনা নিশ্চিত না। কাস্টমারকে বলুন যে ছবিটি ভালোভাবে দেখা যাচ্ছে না, এবং কোন পণ্যের বিষয়ে জানতে চাচ্ছেন তা লিখে জানাতে বলুন।] 
-                : messageText;
-              replyText = await generateReply(msgWithImageCtx, customerName, senderId, recentHistory, page.pageName, isVoiceReq);
+              // Vision failed — use original text for normal AI reply
+              replyText = await generateReply(messageText, customerName, senderId, recentHistory, page.pageName, isVoiceReq);
             }
             const parsedOrder = parseOrderFromMessage(messageText);
             const orderPlacedDetected = isOrderPlaced(messageText);
