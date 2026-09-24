@@ -1,4 +1,4 @@
-﻿// scripts/fb_realtime_bot.js
+// scripts/fb_realtime_bot.js
 // 24/7 Real-time Facebook Messenger AI Bot Engine
 // Runs inside the VPS container alongside Next.js
 const path = require("path");
@@ -2807,18 +2807,32 @@ async function analyzeImageWithGemini(imageUrl, pageAccessToken = PAGE_TOKEN, pa
 
 ধাপ ৩: ২-৩ লাইনের সংক্ষিপ্ত ও আন্তরিক বাংলায় উত্তর দিন। কোনো ** বা markdown নয়।`;
 
-    const models = ["gemini-3.1-flash-image", "gemini-2.5-flash-image", "gemini-3.8-flash", "gemini-3.6-flash"];
-    for (const m of models) {
+    // Use direct REST API (SDK inlineData has issues with this key type)
+    const visionModels = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.1-flash-lite"];
+    for (const m of visionModels) {
       try {
-        const model = genAI.getGenerativeModel({ model: m });
-        const genRes = await model.generateContent([
-          { inlineData: { data: b64, mimeType: mime } },
-          systemPrompt
-        ]);
-        const text = genRes.response.text().trim();
+        const apiKey = process.env.GEMINI_API_KEY || GEMINI_API_KEY || "";
+        const restUrl = `https://generativelanguage.googleapis.com/v1beta/models/${m}:generateContent?key=${apiKey}`;
+        const restRes = await fetch(restUrl, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            contents: [{
+              parts: [
+                { inline_data: { mime_type: mime, data: b64 } },
+                { text: systemPrompt }
+              ]
+            }]
+          }),
+          signal: AbortSignal.timeout(20000)
+        });
+        const restData = await restRes.json();
+        const text = restData?.candidates?.[0]?.content?.parts?.[0]?.text?.trim();
         if (text && text.length > 5) {
-          console.log(`[FB_BOT_VISION] (${m}) Image Analysis Success: "${text.slice(0, 80)}..."`);
+          console.log(`[FB_BOT_VISION] (${m}) REST Vision Success: "${text.slice(0, 80)}..."`);
           return text;
+        } else if (!restRes.ok) {
+          console.warn(`[FB_BOT_VISION_ERR] ${m} HTTP ${restRes.status}:`, restData?.error?.message);
         }
       } catch (e) {
         console.warn(`[FB_BOT_VISION_ERR] ${m}:`, e.message);
