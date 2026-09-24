@@ -1,4 +1,4 @@
-// scripts/fb_realtime_bot.js
+﻿// scripts/fb_realtime_bot.js
 // 24/7 Real-time Facebook Messenger AI Bot Engine
 // Runs inside the VPS container alongside Next.js
 const path = require("path");
@@ -3233,8 +3233,12 @@ async function pollOnce() {
               );
             }
             if (!itemReply) {
-              // Vision failed — use original text for normal AI reply
-              itemReply = await generateReply(fullBatchText, customerName, senderId, recentHistory, page.pageName, isVoiceMode(senderId));
+              if (imageItemInBatch && imageItemInBatch.imageUrl) {
+                const imgNote = "[SYSTEM: Customer sent an image but Vision failed. Do NOT assume Kasturi Powder. Ask what product or health issue.] ";
+                itemReply = await generateReply(imgNote + (fullBatchText || ""), customerName, senderId, recentHistory, page.pageName, isVoiceMode(senderId));
+              } else {
+                itemReply = await generateReply(fullBatchText, customerName, senderId, recentHistory, page.pageName, isVoiceMode(senderId));
+              }
             }
 
             // 3. Send text reply immediately
@@ -3436,8 +3440,12 @@ async function pollOnce() {
               );
             }
             if (!replyText) {
-              // Vision failed — use original text for normal AI reply
-              replyText = await generateReply(messageText, customerName, senderId, recentHistory, page.pageName, isVoiceReq);
+              if (singleImageItem && singleImageItem.imageUrl) {
+                const imgNote = "[SYSTEM: Customer sent an image but Vision failed. Do NOT assume Kasturi Powder. Ask what product or health issue.] ";
+                replyText = await generateReply(imgNote + (messageText || ""), customerName, senderId, recentHistory, page.pageName, isVoiceReq);
+              } else {
+                replyText = await generateReply(messageText, customerName, senderId, recentHistory, page.pageName, isVoiceReq);
+              }
             }
             const parsedOrder = parseOrderFromMessage(messageText);
             const orderPlacedDetected = isOrderPlaced(messageText);
