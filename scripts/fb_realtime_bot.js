@@ -2735,7 +2735,7 @@ async function transcribeAudioWithGemini(audioUrl, pageAccessToken = PAGE_TOKEN)
 
     // 2. Fallback: Gemini Audio
     const b64 = buf.toString("base64");
-    const models = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"];
+    const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.0-flash-lite", "gemini-1.5-pro"];
     for (const m of models) {
       try {
         const model = genAI.getGenerativeModel({ model: m });
@@ -2806,7 +2806,7 @@ async function analyzeImageWithGemini(imageUrl, pageAccessToken = PAGE_TOKEN, pa
 → সহানুভূতি জানিয়ে আমাদের প্রাকৃতিক ভেষজ কোর্সের পরামর্শ দিন।
 
 ধাপ ৩: ২-৩ লাইনের সংক্ষিপ্ত ও আন্তরিক বাংলায় উত্তর দিন। কোনো ** বা formatting নয়।`;
-    const models = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-flash-latest", "gemini-3.1-flash-lite"];
+    const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.0-flash-lite", "gemini-1.5-pro"];
     for (const m of models) {
       try {
         const model = genAI.getGenerativeModel({ model: m });
