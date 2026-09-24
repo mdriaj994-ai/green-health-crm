@@ -164,7 +164,7 @@ export async function analyzeImageWithGemini(
     const ai = getGenAI();
     if (!ai) return "";
 
-    const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.0-flash-lite", "gemini-1.5-pro"];
+    const models = ["gemini-3.1-flash-image", "gemini-2.5-flash-image", "gemini-3.8-flash", "gemini-3.6-flash"];
     for (const m of models) {
       try {
         const model = ai.getGenerativeModel({ model: m });

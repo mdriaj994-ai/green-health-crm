@@ -2735,7 +2735,7 @@ async function transcribeAudioWithGemini(audioUrl, pageAccessToken = PAGE_TOKEN)
 
     // 2. Fallback: Gemini Audio
     const b64 = buf.toString("base64");
-    const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.0-flash-lite", "gemini-1.5-pro"];
+    const models = ["gemini-3.1-flash-image", "gemini-2.5-flash-image", "gemini-3.8-flash", "gemini-3.6-flash"];
     for (const m of models) {
       try {
         const model = genAI.getGenerativeModel({ model: m });
@@ -2806,7 +2806,7 @@ async function analyzeImageWithGemini(imageUrl, pageAccessToken = PAGE_TOKEN, pa
 → সহানুভূতি জানিয়ে আমাদের প্রাকৃতিক ভেষজ কোর্সের পরামর্শ দিন।
 
 ধাপ ৩: ২-৩ লাইনের সংক্ষিপ্ত ও আন্তরিক বাংলায় উত্তর দিন। কোনো ** বা formatting নয়।`;
-    const models = ["gemini-2.0-flash", "gemini-1.5-flash", "gemini-2.0-flash-lite", "gemini-1.5-pro"];
+    const models = ["gemini-3.1-flash-image", "gemini-2.5-flash-image", "gemini-3.8-flash", "gemini-3.6-flash"];
     for (const m of models) {
       try {
         const model = genAI.getGenerativeModel({ model: m });
@@ -3232,8 +3232,11 @@ async function pollOnce() {
               );
             }
             if (!itemReply) {
-              // Vision failed — fall back to normal AI reply using customer text
-              itemReply = await generateReply(fullBatchText, customerName, senderId, recentHistory, page.pageName, isVoiceMode(senderId));
+              // Vision failed — tell AI that image was sent but couldn't be analyzed
+              const textWithImageCtx = imageItemInBatch
+                ? [কাস্টমার একটি ছবি পাঠিয়েছেন কিন্তু ছবিটি analyze করা সম্ভব হয়নি। ছবিটি আমাদের পণ্য (কস্তুরী পাউডার/বাজীকরণ হালুয়া) কিনা নিশ্চিত না। কাস্টমারকে বলুন যে ছবিটি ভালোভাবে দেখা যাচ্ছে না, এবং কোন পণ্যের বিষয়ে জানতে চাচ্ছেন তা লিখে জানাতে বলুন।] 
+                : fullBatchText;
+              itemReply = await generateReply(textWithImageCtx, customerName, senderId, recentHistory, page.pageName, isVoiceMode(senderId));
             }
 
             // 3. Send text reply immediately
@@ -3435,8 +3438,11 @@ async function pollOnce() {
               );
             }
             if (!replyText) {
-              // Vision failed — fall back to normal AI reply using customer text
-              replyText = await generateReply(messageText, customerName, senderId, recentHistory, page.pageName, isVoiceReq);
+              // Vision failed — tell AI that image was sent but couldn't be analyzed
+              const msgWithImageCtx = singleImageItem
+                ? [কাস্টমার একটি ছবি পাঠিয়েছেন কিন্তু ছবিটি analyze করা সম্ভব হয়নি। ছবিটি আমাদের পণ্য (কস্তুরী পাউডার/বাজীকরণ হালুয়া) কিনা নিশ্চিত না। কাস্টমারকে বলুন যে ছবিটি ভালোভাবে দেখা যাচ্ছে না, এবং কোন পণ্যের বিষয়ে জানতে চাচ্ছেন তা লিখে জানাতে বলুন।] 
+                : messageText;
+              replyText = await generateReply(msgWithImageCtx, customerName, senderId, recentHistory, page.pageName, isVoiceReq);
             }
             const parsedOrder = parseOrderFromMessage(messageText);
             const orderPlacedDetected = isOrderPlaced(messageText);
