@@ -1,4 +1,4 @@
-﻿// scripts/fb_realtime_bot.js
+// scripts/fb_realtime_bot.js
 // 24/7 Real-time Facebook Messenger AI Bot Engine
 // Runs inside the VPS container alongside Next.js
 const path = require("path");
@@ -237,6 +237,13 @@ function isBotSentMessage(msg) {
   if (msg.id && botSentMsgIds.has(String(msg.id))) return true;
   if (msg.message && botSentTexts.has(String(msg.message).trim())) return true;
   return false;
+}
+
+function isFacebookAutomatedMessage(msg) {
+  if (!msg) return false;
+  const t = (msg.message || "").trim();
+  if (!t && (!msg.attachments || msg.attachments.data?.length === 0)) return true; // empty notification
+  return /replied to an ad|Please let us know how we can help you|Thanks for reaching out|Thanks for messaging us|স্বাগতম|Welcome to|help you/i.test(t);
 }
 
 function reloadVoiceUsersFromDisk() {
@@ -3048,17 +3055,18 @@ async function pollOnce() {
       try {
         const convs = await fetchConversations(page.pageId, page.accessToken);
         for (const conv of convs) {
-          const msgs = conv.messages?.data || [];
-          if (msgs.length === 0) continue;
-
-          // 1. Collect ALL unprocessed customer messages from this thread.
-          // msgs is sorted newest-first.
-          // If customer sent another message while bot was replying or right before,
-          // we must NOT drop it just because a bot reply was posted!
           const unrepliedCustomerMsgs = [];
-          for (const m of msgs) {
-            const isFromCustomer = m.from?.id && String(m.from.id) !== String(page.pageId);
-            if (isFromCustomer) {
+          try {
+            const msgs = conv.messages?.data || [];
+            if (msgs.length === 0) continue;
+
+            // 1. Collect ALL unprocessed customer messages from this thread.
+            // msgs is sorted newest-first.
+            // If customer sent another message while bot was replying or right before,
+            // we must NOT drop it just because a bot reply was posted!
+            for (const m of msgs) {
+              const isFromCustomer = m.from?.id && String(m.from.id) !== String(page.pageId);
+              if (isFromCustomer) {
               if (isProcessedId(m.id)) {
                 // Reached a customer message that was already processed & replied to!
                 break;
@@ -3066,6 +3074,10 @@ async function pollOnce() {
               unrepliedCustomerMsgs.push(m);
             } else {
               // This message is from the Page.
+              // If it's Facebook's automated ad message or greeting, ignore it and continue checking customer messages!
+              if (isFacebookAutomatedMessage(m)) {
+                continue;
+              }
               // If it's from a HUMAN AGENT (not sent by our bot), stop checking — human took over!
               if (!isBotSentMessage(m)) {
                 break;
@@ -3802,10 +3814,15 @@ ${paymentLine}
             }
 
             saveProcessedId(lastMsg.id); // Persist to file once successfully attempted
+          } catch (convErr) {
+            console.error(`[FB_BOT_CONV_ERR] [${page.pageName}] Error processing thread ${conv.id}:`, convErr.message);
+            for (const m of unrepliedCustomerMsgs) {
+              inFlightMsgIds.delete(m.id);
+            }
+          }
         }
       } catch (pageErr) {
-        // Log individual page poll error without breaking others
-        // console.warn(`[FB_BOT] Error polling ${page.pageName}:`, pageErr.message);
+        console.error(`[FB_BOT] Error polling ${page.pageName}:`, pageErr.message);
       }
     }
   } catch (err) {

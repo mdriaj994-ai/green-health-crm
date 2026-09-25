@@ -1104,7 +1104,7 @@ async function transcribeAudioWithGemini(audioUrl: string, accessToken: string =
   return "";
 }
 
-export async function handleMessengerMessage(pageId: string, event: any) {
+export async function handleMessengerMessage(pageId: string, event: any, isFromPoller: boolean = false) {
   if (event.message?.is_echo) return;
 
   const senderId  = event.sender?.id;
@@ -1135,11 +1135,13 @@ export async function handleMessengerMessage(pageId: string, event: any) {
   if (!senderId || (!text && !imageUrl && !audioUrl)) return;
 
   // 1. Shared Persistent Deduplication (shared with polling bot across processes)
-  if (msgId) {
+  if (msgId && !isFromPoller) {
     if (isProcessedId(msgId)) {
       console.log(`[MESSENGER] Shared DUPLICATE message ${msgId} dropped.`);
       return;
     }
+    markProcessedId(msgId);
+  } else if (msgId && isFromPoller) {
     markProcessedId(msgId);
   }
 

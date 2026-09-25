@@ -115,6 +115,10 @@ export function getPollerStatus() {
 }
 
 export async function startMessengerPoller() {
+  if (process.env.STANDALONE_BOT_ACTIVE === "true") {
+    console.log("[MESSENGER_POLLER] Standalone bot engine (fb_realtime_bot.js) is active — internal Next.js poller disabled.");
+    return;
+  }
   if (isPollerRunning) return;
   isPollerRunning = true;
   console.log("[MESSENGER_POLLER] Initializing 24/7 fail-safe background poller inside Next.js...");
@@ -173,8 +177,7 @@ export async function startMessengerPoller() {
             } catch {}
             // ── END DOUBLE REPLY FIX ───────────────────────────────────
 
-            // Mark IMMEDIATELY before processing (prevent re-entry)
-            markProcessed(m.id);
+            // Mark in-memory to prevent rapid local re-entry
             inMemoryProcessedIds.add(m.id);
             console.log(`[MESSENGER_POLLER] 🎯 Handling customer message from ${m.from?.name || m.from?.id}: "${m.message}"`);
 
@@ -203,7 +206,8 @@ export async function startMessengerPoller() {
             // Call message handler directly
             try {
               const { handleMessengerMessage } = await import("@/app/api/webhooks/facebook/route");
-              await handleMessengerMessage(p.pageId, event);
+              await handleMessengerMessage(p.pageId, event, true);
+              markProcessed(m.id);
             } catch (handleErr: any) {
               console.error("[MESSENGER_POLLER_HANDLE_ERR]", handleErr.message);
             }
