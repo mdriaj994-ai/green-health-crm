@@ -135,8 +135,9 @@ async function callGroqLLM(prompt, systemInstruction) {
   return null;
 }
 
-// Fetch all active connected Facebook pages dynamically from database
+// Fetch all active connected Facebook pages dynamically from database + environment
 function getActivePages() {
+  const pages = [];
   try {
     const dbPath = path.join(process.cwd(), "prisma", "social_inbox.db");
     if (fs.existsSync(dbPath)) {
@@ -144,23 +145,48 @@ function getActivePages() {
       const rows = db.prepare("SELECT * FROM ConnectedAccount WHERE platform = 'FACEBOOK' AND (isActive = 1 OR isActive = 'true')").all();
       db.close();
       if (rows && rows.length > 0) {
-        return rows.map(r => ({
-          id: r.id,
-          pageId: String(r.pageId),
-          pageName: r.pageName || "গ্রীন হেলথ ইউনানী ফার্মেসী",
-          accessToken: (r.accessToken && r.accessToken.startsWith("EAAjkLPT8UegBSs") && r.accessToken.length > 150) ? r.accessToken : PAGE_TOKEN,
-          aiAutoReply: r.aiAutoReply !== 0
-        })).filter(p => p.pageId && p.accessToken);
+        for (const r of rows) {
+          const validTok = (r.accessToken && r.accessToken.startsWith("EAA") && r.accessToken.length > 50) ? r.accessToken : PAGE_TOKEN;
+          if (r.pageId && validTok) {
+            pages.push({
+              id: r.id,
+              pageId: String(r.pageId),
+              pageName: r.pageName || (String(r.pageId) === "932259009980880" ? "হেলথ কেয়ার" : "ন্যাচারাল হারবাল"),
+              accessToken: validTok,
+              aiAutoReply: r.aiAutoReply !== 0
+            });
+          }
+        }
       }
     }
   } catch (e) {
     console.warn("[FB_BOT] DB load pages error:", e.message);
   }
+
+  // Also load Page 2 (ন্যাচারাল হারবাল) from environment variables if present
+  const p2Id = process.env.FACEBOOK_PAGE_ID_2 || process.env.NATURAL_HERBAL_PAGE_ID;
+  const p2Token = process.env.FACEBOOK_PAGE_ACCESS_TOKEN_2 || process.env.NATURAL_HERBAL_PAGE_ACCESS_TOKEN;
+  const p2Name = process.env.FACEBOOK_PAGE_NAME_2 || "ন্যাচারাল হারবাল";
+  if (p2Id && p2Token) {
+    const exists = pages.some(p => String(p.pageId) === String(p2Id));
+    if (!exists) {
+      pages.push({
+        id: "env-page-2",
+        pageId: String(p2Id),
+        pageName: p2Name,
+        accessToken: p2Token,
+        aiAutoReply: true
+      });
+    }
+  }
+
+  if (pages.length > 0) return pages;
+
   // Fallback to primary configured page if DB is empty or inaccessible
   return [{
     id: "default-env",
     pageId: PAGE_ID,
-    pageName: "গ্রীন হেলথ ইউনানী ফার্মেসী",
+    pageName: "হেলথ কেয়ার",
     accessToken: PAGE_TOKEN,
     aiAutoReply: true
   }];
@@ -1086,6 +1112,136 @@ function getNaturalPriceReply(senderName = "", isVoiceMode = false) {
   return textVariations[Math.floor(Math.random() * textVariations.length)];
 }
 
+// ── CLINICAL CHATBOT ENGINE FOR "ন্যাচারাল হারবাল" (বাজীকরণ হালুয়া) ──────────────
+function handleNaturalHerbalConsultation(senderId, senderName, customerMessage, isVoiceMode = false) {
+  const raw = (customerMessage || "").trim();
+  const clean = raw.toLowerCase();
+
+  // Greetings
+  if (/^(?:assalamu?\s*alaikum|assalamualaikum|asalam|সালাম|আসসালামু\s*আলাইকুম)(?:\s*(?:ভাই|ভাইয়া|স্যার|vai|bhai))?$/i.test(clean)) {
+    return "ওয়ালাইকুম আসসালাম ভাইয়া। জনতা ইউনানী চিকিৎসালয় থেকে হাকীম মো: আব্দুল করিম বলছি। বলুন, কীভাবে সাহায্য করতে পারি?";
+  }
+  if (/^(?:hi|hello|hey|হ্যালো|হ্যাল্লো|হাই)(?:\s*(?:ভাই|ভাইয়া|স্যার|vai|bhai))?$/i.test(clean)) {
+    return "জি ভাইয়া, আসসালামু আলাইকুম। জনতা ইউনানী চিকিৎসালয় থেকে হাকীম মো: আব্দুল করিম বলছি। বলুন, কীভাবে সাহায্য করতে পারি?";
+  }
+
+  // 1. SKEPTICISM / TRUST BUILDING
+  if (/(?:আগেও|অনেক\s*জায়গায়|কাজ\s*হয়\s*না|কাজ\s*হয়\s*না|প্রতারণা|ধোঁকা|ভুয়া|fake|kaj\s*hoy\s*na|protarona|dhoka|bhebe\s*dekhi)/i.test(clean)) {
+    return "ভাই, অন্য জায়গায় কী হয়েছে জানি না। আমরা বাংলাদেশ সরকার অনুমোদিত 'বাংলাদেশ বোর্ড অব ইউনানী এন্ড আয়ুবেদিক সিস্টেমস্ অফ মেডিসিন' কর্তৃক রেজিস্টার্ড (রেজিস্ট্রেশন নং ৫৮৪২)। আমাদের আলীকদম বান্দরবানের নিজস্ব ইউনানী ভাণ্ডার থেকে শতভাগ পরীক্ষিত ভেষজ উপাদান দিয়ে এটি তৈরি। আমাদের সরকারি সার্টিফিকেট ও ট্রেড লাইসেন্স দেখতে চাইলে বলুন, পাঠিয়ে দিচ্ছি।";
+  }
+
+  // 2. ADDRESS / CHAMBER / DOCTOR / LICENSE
+  if (/(?:চেম্বার|ঠিকানা|বাসা|দোকান|chamber|address|লাইসেন্স|সার্টিফিকেট|রেজিস্ট্রেশন)/i.test(clean) && !/(?:দাম|price|koto)/i.test(clean)) {
+    return `আমাদের প্রতিষ্ঠানের বিবরণ:
+প্রতিষ্ঠান: জনতা ইউনানী চিকিৎসালয় ও ভেষজ ভাণ্ডার
+চিকিৎসক: হাকীম মো: আব্দুল করিম (ক্যাটাগরি-এ রেজিস্টার্ড চিকিৎসক, রেজি: নং ৫৮৪২)
+ঠিকানা: দোকান নং- ৩৩, ৩য় তলা, আলীকদম কাঁচাবাজার, ডাকঘর ও থানা: আলীকদম, জেলা: বান্দরবান।
+ট্রেড লাইসেন্স: TRAD/ALIKADOM/0482/2026
+হেল্পলাইন: 01870-023804 (বিকাশ ও নগদ)। সারা দেশে কুরিয়ারে ক্যাশ অন ডেলিভারি দেওয়া হয় ভাইয়া।`;
+  }
+
+  // Extract facts into memory
+  if (senderId && customerMemory.extractCustomerFacts) {
+    customerMemory.extractCustomerFacts(senderId, customerMessage, senderName);
+  }
+  const prof = senderId ? customerMemory.getCustomerProfile(senderId, senderName) : {};
+
+  // Custom extractors for the 5 Bajikaran steps
+  const bajikaranData = prof.bajikaranData || {};
+
+  const bDigits = ["০","১","২","৩","৪","৫","৬","৭","৮","৯"];
+  const toEN = (s) => String(s).replace(/[০-৯]/g, d => "০১২৩৪৫৬৭৮৯".indexOf(d).toString());
+  const toBN = (s) => String(s).replace(/\d/g, d => bDigits[parseInt(d,10)] || d);
+
+  // Step 1: Age
+  const ageMatch = clean.match(/(?:ব[\u09AF\u09DF\u09BC]*স|boyos|age)\s*[:=]?\s*([০-৯0-9]{2})/i) ||
+                   clean.match(/(?:^|\s)([০-৯0-9]{2})\s*(?:ব[\u09AF\u09DF\u09BC]*চর|বছর|bochor|years?|$)/i);
+  if (ageMatch && !bajikaranData.age) {
+    const v = parseInt(toEN(ageMatch[1]), 10);
+    if (v >= 16 && v <= 85) bajikaranData.age = toBN(v);
+  } else if (prof.age && !bajikaranData.age) {
+    bajikaranData.age = prof.age;
+  }
+
+  // Step 2: Problem
+  if (/(?:টাইম|সময়|টাইমিং|কম|পাতলা|বীর্য|ছোট|নরম|রগ|হস্তমৈথুন|হাত\s*দিয়ে|দুর্বল|timing|patla|dhonu)/i.test(clean) && !bajikaranData.problem) {
+    bajikaranData.problem = customerMessage.trim();
+  }
+
+  // Step 3: Intercourse frequency
+  if (/(?:একবার|১\s*বার|প্রথমবার|২\s*বার|৩\s*বার|বার|korte\s*pari|shesh|শেষ|পারি\s*না)/i.test(clean) && !bajikaranData.frequency) {
+    bajikaranData.frequency = customerMessage.trim();
+  }
+
+  // Step 4: Chronic diseases
+  if (/(?:নাই|নেই|ডায়াবেটিস|ডায়াবেটিস|প্রেসার|হাই\s*প্রেসার|হেপাটাইটিস|কোনো\s*সমস্যা\s*নাই|কোনো\s*রোগ\s*নাই|no|diabetes|pressure)/i.test(clean) && !bajikaranData.chronic) {
+    bajikaranData.chronic = customerMessage.trim();
+  }
+
+  // Step 5: Penile structure
+  if (/(?:আগা\s*মোটা|গোড়া\s*চিকন|গোড়া\s*চিকন|বাঁকা|বাকা|ডান|বাম|সোজা|structure)/i.test(clean) && !bajikaranData.structure) {
+    bajikaranData.structure = customerMessage.trim();
+  }
+
+  if (senderId) {
+    customerMemory.updateCustomerProfile(senderId, { bajikaranData });
+  }
+
+  // Check how many steps completed
+  const hasStep1 = Boolean(bajikaranData.age);
+  const hasStep2 = Boolean(bajikaranData.problem || (prof.symptoms && prof.symptoms.length > 0) || prof.timing || prof.erectionQuality);
+  const hasStep3 = Boolean(bajikaranData.frequency);
+  const hasStep4 = Boolean(bajikaranData.chronic !== undefined && bajikaranData.chronic !== null);
+  const hasStep5 = Boolean(bajikaranData.structure);
+
+  const isAskingPrice = /(?:দাম|dam|price|koto|কত|taka|টাকা)/i.test(clean);
+
+  // If asking price before consultation is complete (Rule #1: Price Objection Handling):
+  if (isAskingPrice && (!hasStep1 || !hasStep2 || !hasStep3 || !hasStep4 || !hasStep5)) {
+    let nextQuestion = "আপনার বর্তমান বয়স কত?";
+    if (hasStep1 && !hasStep2) nextQuestion = "প্রধান সমস্যাটা একটু খুলে বলুন (যেমন: টাইম কম, পাতলা বীর্য, লিঙ্গ ছোট বা নরম হয়ে যাওয়া, কিংবা হাত দিয়ে অভ্যাসের ফলে রগ নষ্ট হয়ে যাওয়া)।";
+    else if (hasStep1 && hasStep2 && !hasStep3) nextQuestion = "মিলন করার সময় কি এক রাতে ২-৩ বার করতে পারেন নাকি প্রথমবারই শেষ?";
+    else if (hasStep1 && hasStep2 && hasStep3 && !hasStep4) nextQuestion = "শারীরিক অন্য কোনো বড় জটিলতা আছে কি না? (যেমন: ডায়াবেটিস, হাই প্রেসার, বা হেপাটাইটিস বি)।";
+    else if (hasStep1 && hasStep2 && hasStep3 && hasStep4 && !hasStep5) nextQuestion = "লিঙ্গের গঠন কেমন? (আগা মোটা গোড়া চিকন, নাকি ডান/বাম দিকে বাঁকা)।";
+
+    const objectionReply = `ভাই, শুধু দাম জেনে তো লাভ নেই। ডিম আর আলুর মতো আপনার শরীরটাও কি বয়সের চাপে নরম হয়ে গেছে? আগে আপনার আসল সমস্যাটা কী, বয়স কত, আর শরীরের ভেতর কী অবস্থা তা না জানলে সঠিক চিকিৎসা দেওয়া সম্ভব নয়। আমাদের এখান থেকে সরকারি রেজিস্টার্ড হাকিমের তত্ত্বাবধানে ফাইল চেক করে চিকিৎসা দেওয়া হয়。\n\n${nextQuestion}`;
+    if (senderId) customerMemory.appendChatMessage(senderId, "model", objectionReply, isVoiceMode);
+    return objectionReply;
+  }
+
+  // Step progression (Ask one by one like a real doctor):
+  if (!hasStep1) {
+    const q = "আপনার বর্তমান বয়স কত?";
+    if (senderId) customerMemory.appendChatMessage(senderId, "model", q, isVoiceMode);
+    return q;
+  }
+  if (!hasStep2) {
+    const q = "প্রধান সমস্যাটা একটু খুলে বলুন (যেমন: টাইম কম, পাতলা বীর্য, লিঙ্গ ছোট বা নরম হয়ে যাওয়া, কিংবা হাত দিয়ে অভ্যাসের ফলে রগ নষ্ট হয়ে যাওয়া)।";
+    if (senderId) customerMemory.appendChatMessage(senderId, "model", q, isVoiceMode);
+    return q;
+  }
+  if (!hasStep3) {
+    const q = "মিলন করার সময় কি এক রাতে ২-৩ বার করতে পারেন নাকি প্রথমবারই শেষ?";
+    if (senderId) customerMemory.appendChatMessage(senderId, "model", q, isVoiceMode);
+    return q;
+  }
+  if (!hasStep4) {
+    const q = "শারীরিক অন্য কোনো বড় জটিলতা আছে কি না? (যেমন: ডায়াবেটিস, হাই প্রেসার, বা হেপাটাইটিস বি)।";
+    if (senderId) customerMemory.appendChatMessage(senderId, "model", q, isVoiceMode);
+    return q;
+  }
+  if (!hasStep5) {
+    const q = "লিঙ্গের গঠন কেমন? (আগা মোটা গোড়া চিকন, নাকি ডান/বাম দিকে বাঁকা)।";
+    if (senderId) customerMemory.appendChatMessage(senderId, "model", q, isVoiceMode);
+    return q;
+  }
+
+  // FINAL STEP: All 5 collected -> Prescription & Closing terms
+  const closingReply = `এক রাতে ২-৩ বার করার ক্ষমতা এবং লোহার চেয়েও শক্ত করতে আজই ৩৫০ গ্রামের এক জার বাজীকরণ হালুয়া অর্ডার করুন। মূল্য মাত্র ২,০০০ টাকা। অর্ডার কনফার্ম করতে মাত্র ৫০০ টাকা বিকাশ বা নগদ এ অ্যাডভান্স করতে হবে, বাকি ১৫০০ টাকা মাল হাতে পেয়ে ক্যাশ অন ডেলিভারি (Cash on Delivery) দেবেন। আপনার নাম, পূর্ণ ঠিকানা ও মোবাইল নম্বর দিন, এখনই পার্সেলটি বুকিং করে দিচ্ছি!`;
+  if (senderId) customerMemory.appendChatMessage(senderId, "model", closingReply, isVoiceMode);
+  return closingReply;
+}
+
 async function generateReply(customerMessage, senderName, senderId = null, recentHistory = [], pageName = "গ্রীন হেলথ ইউনানী ফার্মেসী", isVoiceMode = false) {
   // Extract and persist permanent customer facts
   if (senderId) {
@@ -1103,6 +1259,13 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     customerMemory.appendChatMessage(senderId, "user", customerMessage, false);
   }
 
+  // Dedicated routing for "ন্যাচারাল হারবাল" (বাজীকরণ হালুয়া) Page
+  const isNaturalHerbal = /ন্যাচারাল|হারবাল|natural|133420039845881|61551438782626/i.test(pageName || "") || /বাজীকরণ|bajikaran/i.test(customerMessage);
+  if (isNaturalHerbal) {
+    const nhReply = handleNaturalHerbalConsultation(senderId, senderName, customerMessage, isVoiceMode);
+    if (nhReply) return nhReply;
+  }
+
   // ── DIRECT CONTACT CTA INTERCEPTOR ────────────────────────────────────────
   // For customers who replied 3-4 messages: check in on them, explain that keeping
   // this secret problem untreated is harmful and increases day by day, incorporate
@@ -1116,8 +1279,9 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
       const _chatLog = _ctaProf.chatLog || [];
       const _userMsgCount = _chatLog.filter(m => m.role === 'user').length;
       const _isAskingForContact = /(?:number|namber|নম্বর|নাম্বার|call|কল|phone|ফোন|whatsapp|হোয়াটসঅ্যাপ|যোগাযোগ|contact|সরাসরি)/i.test(customerMessage);
+      const _hasSpecificQuestion = /(?:dam|দাম|price|প্রাইস|koto|কত|taka|টাকা|khawa|খাওয়া|খাব|sebon|সেবন|niyom|নিয়ম|মেলামেশা|সাইড|side|ক্ষতি|khoti|উপাদান|উপকার|ডেলিভারি|ঠিকানা|কোথায়|kothay)/i.test(customerMessage);
       
-      if (_userMsgCount >= 3 && !_isAskingForContact) {
+      if (_userMsgCount >= 3 && !_isAskingForContact && !_hasSpecificQuestion) {
         const sName = (_ctaProf && _ctaProf.name && _ctaProf.name !== 'Customer' && _ctaProf.name !== 'কাস্টমার') ? _ctaProf.name + ' ভাইয়া' : 'ভাইয়া';
         const symptomStr = (_ctaProf.symptoms && _ctaProf.symptoms.length > 0) ? _ctaProf.symptoms.slice(0, 2).join(' ও ') : '';
         const contextMention = symptomStr ? `আপনার এই ${symptomStr}-এর বিষয়টি` : 'আপনার শারীরিক সমস্যাটির বিষয়ে';
@@ -1489,12 +1653,49 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     return addressReply;
   }
 
+  // ── Multi-Domain Question Check ──────────────────────────────────────────
+  const hasUsageCheck = /(?:khawa|খাওয়া|sebon|সেবন|khabo|খাব|niyom|নিয়ম|কত\s*মিনিট|মেলামেশা|dosage|ডোজ)/i.test(trimmedClean);
+  const hasSideEffectCheck = /(?:parsho|পার্শ্ব|side\s*effects?|সাইড\s*এফেক্ট|সাইডএফেক্ট|ক্ষতি|khoti)/i.test(trimmedClean);
+  const hasIngredientCheck = /(?:upadan|উপাদান|ki\s*diye|কী\s*দিয়ে)/i.test(trimmedClean);
+  const hasAddressCheck = /(?:basa|bari|বাড়ি|বাসা|address|ঠিকানা|chamber|চেম্বার|dokan|দোকান)/i.test(trimmedClean);
+  const hasPriceCheck = /(?:dam|দাম|price|প্রাইস|koto|কত|taka|টাকা)/i.test(trimmedClean);
+
+  const matchedDomainCount = [hasUsageCheck, hasSideEffectCheck, hasIngredientCheck, hasAddressCheck, hasPriceCheck].filter(Boolean).length;
+  const isMultiDomainQuestion = matchedDomainCount > 1 || (customerMessage.includes('\n') && matchedDomainCount >= 1);
+
+  // If customer asked a multi-part question (e.g. price + usage + side effect):
+  // Generate a complete, combined response answering EVERY asked question!
+  if (isMultiDomainQuestion) {
+    console.log(`[MULTI_QUESTION_DETECTED] Customer asked multiple questions across domains: price=${hasPriceCheck}, usage=${hasUsageCheck}, sideEffects=${hasSideEffectCheck}, ingredients=${hasIngredientCheck}, address=${hasAddressCheck}`);
+    const answers = [];
+    if (hasPriceCheck) {
+      answers.push("• কোর্সের অফার মূল্য:\nআমাদের ১ মাসের ফুল কোর্স (২৫০ গ্রাম) খাঁটি 'কস্তুরী পাউডার'-এর বর্তমান অফার মূল্য মাত্র ২,৮০০ টাকা। সারা দেশে কুরিয়ারে ক্যাশ অন ডেলিভারিতে হোম ডেলিভারি দেওয়া হয়।");
+    }
+    if (hasUsageCheck) {
+      answers.push("• সেবনবিধি ও মেলামেশার নিয়ম:\nভাইয়া, এটি ওয়ান-টাইম কোনো ক্ষতিকর উত্তেজক বড়ি নয় যে মেলামেশার কিছুক্ষণ আগে খেতে হবে। এটি ১০০% প্রাকৃতিক ও ভেষজ কোর্স—ভেতর থেকে হরমোন বৃদ্ধি, নার্ভ শক্ত এবং দীর্ঘস্থায়ী সমাধানের জন্য প্রতিদিন সকালে খালি পেটে ১ চামচ পাউডার হালকা কুসুম গরম দুধ অথবা পানিতে মিশিয়ে সেবন করতে হয়। নিয়মিত সেবনে এটি স্থায়ীভাবে মেলামেশার টাইমিং ও শক্তি বৃদ্ধি করে ইনশাআল্লাহ।");
+    }
+    if (hasSideEffectCheck) {
+      answers.push("• পার্শ্বপ্রতিক্রিয়া (সাইড এফেক্ট):\nআলহামদুলিল্লাহ, এতে কোনো প্রকার পার্শ্বপ্রতিক্রিয়া বা সাইড এফেক্ট নেই। কারণ এটি স্বাস্থ্য ও পরিবার কল্যাণ মন্ত্রণালয়ের ফর্মুলায় খাঁটি মৃগনাভি কস্তুরী, হিমালয়ান শিলাজিৎ, কোরিয়ান রেড জিনসেং ও কাশ্মীরি জাফরান দিয়ে তৈরি ১০০% কেমিক্যালমুক্ত নিরাপদ চিকিৎসা।");
+    }
+    if (hasIngredientCheck) {
+      answers.push("• মূল উপাদানসমূহ:\nএতে রয়েছে ৬টি দুর্লভ প্রাকৃতিক উপাদান: খাঁটি মৃগনাভি কস্তুরী, হিমালয়ান শিলাজিৎ, কোরিয়ান রেড জিনসেং, কাশ্মীরি জাফরান, অশ্বগন্ধা ও শ্বেত মুসলি।");
+    }
+    if (hasAddressCheck) {
+      answers.push("• চেম্বারের ঠিকানা:\nজনতা ইউনানী চিকিৎসালয় ও ভেষজ ভান্ডার, দোকান নং-৩৩ (৩য় তলা), আলীকদম কাঁচাবাজার, আলীকদম, বান্দরবান। হেল্পলাইন: 01870-023804।");
+    }
+
+    const sName = senderName && senderName !== 'Customer' ? `${senderName} ভাইয়া` : 'ভাইয়া';
+    const multiReply = `জি ${sName}, আপনার সব কয়টি প্রশ্নের বিস্তারিত উত্তর নিচে দেওয়া হলো:\n\n${answers.join("\n\n")}\n\nভাইয়া, ওষুধ নেওয়ার আগে আপনার মূল সমস্যাটা কী হচ্ছে (যেমন: টাইমিং কম, দ্রুত বীর্যপাত, নাকি শারীরিক দুর্বলতা) এবং আপনার বয়স কত জানালে আরও সঠিক পরামর্শ দিতে পারব।`;
+    if (senderId) customerMemory.appendChatMessage(senderId, "model", multiReply, isVoiceMode);
+    return multiReply;
+  }
+
   // ── 3. PRICE / DAM INTERCEPTOR ────────────────────────────────────────────
   const isPriceQuery =
     /(?:dam|দাম|price|প্রাইস|koto|কত|taka|টাকা)\s*(?:koto|কত|hobe|হবে|bhai|ভাই|plz)?/i.test(trimmedClean) &&
     /(?:dam|দাম|price|প্রাইস|koto|কত|taka|টাকা|খরচ|khoroch)/i.test(trimmedClean);
 
-  if (isPriceQuery && !/(?:samprotik|somosya|সমস্যা|durbol|দুর্বল)/i.test(trimmedClean)) {
+  if (isPriceQuery && !isMultiDomainQuestion && !/(?:samprotik|somosya|সমস্যা|durbol|দুর্বল)/i.test(trimmedClean)) {
     if (/(?:joubon|যৌবন|raja|রাজা)/i.test(trimmedClean)) {
       const pReply = "জি ভাইয়া, 'যৌবনের রাজা' (২০০ গ্রাম) এর রেগুলার মূল্য ৩,০০০ টাকা। কুরিয়ারে ক্যাশ অন ডেলিভারিতে সারাদেশে পাঠানো হয়। ভাইয়া, আপনার শারীরিক কোন সমস্যার জন্য জানতে চাচ্ছেন? বললে আরও ভালো গাইড করতে পারব।";
       if (senderId) customerMemory.appendChatMessage(senderId, "model", pReply, isVoiceMode);
@@ -4077,7 +4278,7 @@ async function startBot() {
           "https://graph.facebook.com/v19.0/932259009980880?fields=access_token,name&access_token=" + _appRes.access_token
         ).then(r => r.json()).catch(() => ({}));
         if (_pgRes.access_token) {
-          _db.prepare("UPDATE ConnectedAccount SET accessToken = ?, pageId = ?, pageName = ? WHERE platform = 'FACEBOOK'").run(_pgRes.access_token, PAGE_ID, "হেলথ কেয়ার");
+          _db.prepare("UPDATE ConnectedAccount SET accessToken = ?, pageName = ? WHERE platform = 'FACEBOOK' AND pageId = ?").run(_pgRes.access_token, "হেলথ কেয়ার", PAGE_ID);
           _db.close();
           console.log("[STARTUP] ✅ Token refreshed via app credentials! Page:", _pgRes.name);
           return;
@@ -4098,8 +4299,8 @@ async function startBot() {
     const _syncDbPath = path.join(process.cwd(), "prisma", "social_inbox.db");
     if (fs.existsSync(_syncDbPath)) {
       const _syncDb = new Database(_syncDbPath);
-      _syncDb.prepare("UPDATE ConnectedAccount SET accessToken = ?, pageId = ?, pageName = ?, isActive = 1, aiAutoReply = 1 WHERE platform = 'FACEBOOK'").run(PAGE_TOKEN, PAGE_ID, "হেলথ কেয়ার");
-      console.log("[STARTUP] ✅ Token guaranteed valid in DB before page load");
+      _syncDb.prepare("UPDATE ConnectedAccount SET accessToken = ?, pageName = ?, isActive = 1, aiAutoReply = 1 WHERE platform = 'FACEBOOK' AND (pageId = ? OR pageId = '110644118793600')").run(PAGE_TOKEN, "হেলথ কেয়ার", PAGE_ID);
+      console.log("[STARTUP] ✅ Token guaranteed valid in DB for হেলথ কেয়ার");
       _syncDb.close();
     }
   } catch (_se) { console.warn("[STARTUP_PRESYNC_ERR]", _se.message); }

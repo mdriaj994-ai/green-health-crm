@@ -33,9 +33,22 @@ try {
     db.prepare(`
       UPDATE ConnectedAccount 
       SET accessToken = ?, pageId = '932259009980880', pageName = 'হেলথ কেয়ার', isActive = 1, aiAutoReply = 1
-      WHERE pageId = '932259009980880' OR pageId = '110644118793600' OR platform = 'FACEBOOK'
+      WHERE pageId = '932259009980880' OR pageId = '110644118793600'
     `).run(PERM_PAGE_TOKEN);
     console.log("[STARTUP] ✅ Token updated in DB to permanent token for হেলথ কেয়ার (932259009980880)");
+
+    // Ensure Page 2 (ন্যাচারাল হারবাল) is also present in DB
+    const p2Id = process.env.FACEBOOK_PAGE_ID_2 || "133420039845881";
+    const p2Token = process.env.FACEBOOK_PAGE_ACCESS_TOKEN_2 || "EAAjkLPT8UegBSmaUZC2VEtoZBKusiVBHZB2M9M7fL9R7lMUJnKsodgY93PJaMPzBLvZB1O53ZBTWHdTjICLv3GH4W3h8xSEXKDZC408I74slcSzIxGoHvY2XVrq1KdTEnSB5ErMLcPCzcuIRhGHxEb1tsAtQRBkPZBt2ZCFGzSciz7G6U0fZArXmQVmjwOpygUQ0pEqvZBECkn0LBsRyGCzOpdFxT0743C58gmOLUZBJgZDZD";
+    const p2Name = process.env.FACEBOOK_PAGE_NAME_2 || "ন্যাচারাল  হারবাল";
+    const existingP2 = db.prepare("SELECT * FROM ConnectedAccount WHERE pageId = ?").get(p2Id);
+    if (existingP2) {
+      db.prepare("UPDATE ConnectedAccount SET accessToken = ?, pageName = ?, isActive = 1, aiAutoReply = 1 WHERE pageId = ?").run(p2Token, p2Name, p2Id);
+    } else {
+      const crypto = require("crypto");
+      db.prepare("INSERT INTO ConnectedAccount (id, platform, pageId, pageName, accessToken, isActive, aiAutoReply, createdAt, updatedAt, userId) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)").run(crypto.randomUUID(), "FACEBOOK", p2Id, p2Name, p2Token, 1, 1, new Date().toISOString(), new Date().toISOString(), "65433082-c685-43ba-b0ce-0eb7f8780590");
+    }
+    console.log("[STARTUP] ✅ Token updated in DB for ন্যাচারাল হারবাল (133420039845881)");
     db.close();
   }
 } catch (dbErr) {
