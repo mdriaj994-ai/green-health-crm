@@ -3338,6 +3338,7 @@ async function pollOnce() {
             }
 
             // Check if customer asked for a picture of medicine (skip if customer already sent an image)
+            const singleImageItem = resolvedItems.find(i => i.hasImage && i.imageUrl);
             const hasIncomingImage = !!(singleImageItem && singleImageItem.imageUrl);
             let productImagesSent = false;
             if (!hasIncomingImage && isPictureRequest(messageText)) {
@@ -3460,7 +3461,6 @@ async function pollOnce() {
             // Generate AI reply with thread memory and page-specific identity
             const isVoiceReq = userInVoiceMode || isVoiceRequested(messageText) || isOnlyVoice;
             let replyText = "";
-            const singleImageItem = resolvedItems.find(i => i.hasImage && i.imageUrl);
             if (singleImageItem && singleImageItem.imageUrl) {
               console.log(`[FB_BOT] Customer ${customerName} (${senderId}) sent an image attachment. Running Gemini Vision analysis...`);
               replyText = await analyzeImageWithGemini(
