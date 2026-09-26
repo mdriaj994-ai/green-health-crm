@@ -167,8 +167,22 @@ async function flushSenderEvent(senderId: string) {
   const imageUrl = items.find(i => i.imageUrl)?.imageUrl || null;
   const audioUrl = items.find(i => i.audioUrl)?.audioUrl || null;
   const timestamp = items[items.length - 1].timestamp;
+  const isNaturalHerbal = pageId === "133420039845881" || pageId === "61559813291583";
+  const pageName = isNaturalHerbal ? "ন্যাচারাল হারবাল" : "হেলথ কেয়ার";
+  const pageProductName = isNaturalHerbal ? "বাজীকরণ হালুয়া" : "কস্তুরী পাউডার";
+  const pageProductWeight = isNaturalHerbal ? "৩৫০ গ্রাম" : "২৫০ গ্রাম";
+  const pageProductPrice = isNaturalHerbal ? "২,০০০ টাকা" : "২,৮০০ টাকা";
+  const pageProductAdvance = "২০০ টাকা";
+  const pageProductRemaining = isNaturalHerbal ? "১,৮০০ টাকা" : "২,৬০০ টাকা";
+  const pageProductCourse = isNaturalHerbal ? "" : "১ মাসের ফুল কোর্স, ";
 
-  console.log(`[AUTO_REPLY] Processing message(s) from ${senderId} | Batch Count: ${items.length} | Text: "${text}"`);
+  const PERM_TOK_1 = "EAAjkLPT8UegBSsQVgxm1fBW6D7N7oon9ZAudS1UKVLVbBEar1BGEvZCLJ3ibSLO6FmILQDf6mq4rcsL98cpxuuRwAHSwUprKUBLv6ZBBCSjYAGUPTU1SQIRDvR74D5aIivRiDoUG3zobZB83AIwZA8mZAhoqcBDpjii2KsvQshwZCCIdUSJk5NaDb5JZCFGt4YWKBfEZC";
+  const PERM_TOK_2 = "EAAjkLPT8UegBSlTpJCzJozD4WojJ5v10uUXa5Th5B3MM4aWykYYSeMjXqM23XJ8UJD3nGUHeh06MlLZAgnQmZB7TaPghIFS8AhhyB9DgfZCn4XX1fd8IXtqNjm3UlT6uch8KNWT18su6Uvz3ZB8JYV7LUE0dfAmCgHrIo5nq40ZBCjZAKMH62hVxyHZBrmrYQgrPlCkEB6FUo5hW6S8pkA1ZAGVTboWvYaSM1JFEyM4ZD";
+  const quickToken = isNaturalHerbal
+    ? (process.env.FACEBOOK_PAGE_ACCESS_TOKEN_2 || PERM_TOK_2)
+    : (process.env.FACEBOOK_PAGE_ACCESS_TOKEN || PERM_TOK_1);
+
+  console.log(`[AUTO_REPLY] Processing message(s) from ${senderId} | Batch Count: ${items.length} | Text: "${text}" | Page: ${pageName}`);
 
   // ── TELEGRAM ALERT: Phone number বা হাকিমের সাথে কথা বলার request ──────
   try {
@@ -403,13 +417,9 @@ ${text}
         `জি ${sName}, অর্ডার করতে অবশ্যই পারবেন ইনশাআল্লাহ। তবে সরাসরি অর্ডার নেওয়ার আগে আপনার শারীরিক সমস্যাগুলো জেনে সঠিক ওষুধ নির্ধারণ করা আমাদের দায়িত্ব। কারণ সঠিক রোগ নির্ণয় ছাড়া ওষুধ দিলে কাঙ্ক্ষিত ফল পাওয়া যায় না।\n\nভাইয়া, একটু বলবেন কি—আপনার মূল সমস্যাটা ঠিক কী এবং বয়স কত? সবকিছু জেনে-শুনে আপনার জন্য সেরা ওষুধটি নির্ধারণ করে দেব ইনশাআল্লাহ।`
       ];
       chosenReply = earlyConsultReplies[Math.floor(Math.random() * earlyConsultReplies.length)];
-    } else {
-      chosenReply = `জি ভাইয়া, আপনার অর্ডারটি কনফার্ম করতে নিচের তথ্যগুলো পূরণ করে পাঠিয়ে দিন:\n\nনাম:\nফোন নম্বর:\nজেলা:\nথানা/উপজেলা:\nবিস্তারিত ঠিকানা:\n\nকস্তুরী পাউডার (১ মাসের ফুল কোর্স, ২৫০ গ্রাম) অফার মূল্য ২,৮০০ টাকা। পার্সেল বুকিং নিশ্চিত করতে ২০০ টাকা অগ্রিম আমাদের অফিসিয়াল বিকাশ হেল্পলাইন 01870-023804 নম্বরে পাঠিয়ে লাস্ট ২/৩ ডিজিট জানাবেন। বাকি ২,৬০০ টাকা পার্সেল হাতে পেয়ে দেখে ডেলিভারি ম্যানকে পরিশোধ করবেন।`;
+      chosenReply = `জি ভাইয়া, আপনার অর্ডারটি কনফার্ম করতে নিচের তথ্যগুলো পূরণ করে পাঠিয়ে দিন:\n\nনাম:\nফোন নম্বর:\nজেলা:\nথানা/উপজেলা:\nবিস্তারিত ঠিকানা:\n\n${pageProductName} (${pageProductCourse}${pageProductWeight}) অফার মূল্য ${pageProductPrice}। পার্সেল বুকিং নিশ্চিত করতে ${pageProductAdvance} আমাদের অফিসিয়াল বিকাশ হেল্পলাইন 01870-023804 নম্বরে পাঠিয়ে লাস্ট ২/৩ ডিজিট জানাবেন। বাকি ${pageProductRemaining} পার্সেল হাতে পেয়ে দেখে ডেলিভারি ম্যানকে পরিশোধ করবেন।`;
     }
 
-    const PERM_TOK = "EAAjkLPT8UegBSsQVgxm1fBW6D7N7oon9ZAudS1UKVLVbBEar1BGEvZCLJ3ibSLO6FmILQDf6mq4rcsL98cpxuuRwAHSwUprKUBLv6ZBBCSjYAGUPTU1SQIRDvR74D5aIivRiDoUG3zobZB83AIwZA8mZAhoqcBDpjii2KsvQshwZCCIdUSJk5NaDb5JZCFGt4YWKBfEZC";
-    const envT = process.env.FACEBOOK_PAGE_ACCESS_TOKEN;
-    const quickToken = (envT && envT.length > 150) ? envT : PERM_TOK;
     await sendMessengerReply(pageId, senderId, chosenReply, quickToken);
     console.log(`[ORDER_PROCESS_INSTANT] ✅ Sent reply to ${senderId} (consultation: ${!hasHealthData})`);
     try { const { appendChatMessage } = await import("@/lib/customer-memory"); appendChatMessage(senderId, "model", chosenReply, false); } catch {}
