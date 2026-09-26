@@ -39,7 +39,7 @@ try {
 
     // Ensure Page 2 (ন্যাচারাল হারবাল) is also present in DB
     const p2Id = process.env.FACEBOOK_PAGE_ID_2 || "133420039845881";
-    const p2Token = process.env.FACEBOOK_PAGE_ACCESS_TOKEN_2 || "EAAjkLPT8UegBSmaUZC2VEtoZBKusiVBHZB2M9M7fL9R7lMUJnKsodgY93PJaMPzBLvZB1O53ZBTWHdTjICLv3GH4W3h8xSEXKDZC408I74slcSzIxGoHvY2XVrq1KdTEnSB5ErMLcPCzcuIRhGHxEb1tsAtQRBkPZBt2ZCFGzSciz7G6U0fZArXmQVmjwOpygUQ0pEqvZBECkn0LBsRyGCzOpdFxT0743C58gmOLUZBJgZDZD";
+    const p2Token = process.env.FACEBOOK_PAGE_ACCESS_TOKEN_2 || "EAAjkLPT8UegBSiXMSZAWZCDYYanU9N0DmRctFdyr0QWBeeikoZATtjnOo7as6edTd4ZBvc94429ZByAWcFnZC6Ejsnca5QfS1ue87TypBPWmbg4qnxLceeTkTV6wcMqDVpU2EfSZAOWu2CEGf9zc07jmGzawewDguZAaPgt8GK6aotWa3rL93H9YSe9KnZC4ghRvZBUk46WQcZD";
     const p2Name = process.env.FACEBOOK_PAGE_NAME_2 || "ন্যাচারাল  হারবাল";
     const existingP2 = db.prepare("SELECT * FROM ConnectedAccount WHERE pageId = ?").get(p2Id);
     if (existingP2) {
