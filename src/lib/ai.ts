@@ -256,6 +256,8 @@ export interface AIContextOptions {
   senderId?: string;
   customerName?: string;
   isVoiceMode?: boolean;
+  pageId?: string;
+  pageName?: string;
 }
 
 let cachedDefaultKB = "";
@@ -292,11 +294,19 @@ function buildSystemInstruction(options: AIContextOptions, liveProductContext: s
   const customerMemoryPrompt = options.senderId ? buildCustomerMemoryPrompt(options.senderId, options.customerName) : "";
   const timeAwareStatus = getTimeAwareGreeting();
 
+  const isNaturalHerbal = 
+    options.pageId === "133420039845881" || 
+    options.pageId === "61559813291583" ||
+    options.pageId === "61551438782626" ||
+    /ন্যাচারাল|হারবাল|natural|herbal/i.test(options.pageName || options.businessName || "");
+
+  const voiceDoctorName = isNaturalHerbal ? "Kaviraj Mohammad Arif" : "Hakim Md. Abdul Karim";
+
   const voiceModeInstruction = options.isVoiceMode
     ? `\n🎙️ CRITICAL SPOKEN VOICE MODE INSTRUCTION:
 THIS REPLY WILL BE SPOKEN DIRECTLY TO THE CUSTOMER AS A REAL DOCTOR VOICE NOTE (ভয়েস মেসেজ)!
 - ABSOLUTE STRICT BAN: NEVER say "এখানে ভয়েস পাঠানোর সুবিধা নেই", "আমি টেক্সটে বুঝিয়ে বলছি", "লিখে দিচ্ছি", "মেসেজে বলছি", or "অডিও পাঠাতে পারি না"! Saying this is a fatal contradiction because you ARE speaking directly via voice note!
-- You are directly talking to the patient with your real human voice as Hakim Md. Abdul Karim.
+- You are directly talking to the patient with your real human voice as ${voiceDoctorName}.
 - Answer what the customer asked directly in 2-3 warm, caring, natural spoken sentences.\n`
     : "";
 
@@ -560,7 +570,14 @@ const PRIMARY_MODELS = [
 ];
 
 
-export function getClinicalConsultationReply(senderId = "", senderName = "", customerMessage = "", isVoiceMode = false) {
+export function getClinicalConsultationReply(senderId = "", senderName = "", customerMessage = "", isVoiceMode = false, isNaturalHerbal = false) {
+  const pName = isNaturalHerbal ? "বাজীকরণ হালুয়া" : "কস্তুরী পাউডার";
+  const pWeight = isNaturalHerbal ? "৩৫০ গ্রাম" : "২৫০ গ্রাম";
+  const pPrice = isNaturalHerbal ? "২,০০০ টাকা" : "২,৮০০ টাকা";
+  const pAdvance = "২০০ টাকা";
+  const pRemaining = isNaturalHerbal ? "১,৮০০ টাকা" : "২,৬০০ টাকা";
+  const pVoicePrice = isNaturalHerbal ? "দুই হাজার টাকা" : "দুই হাজার আটশত টাকা";
+  const pVoiceRemaining = isNaturalHerbal ? "এক হাজার আটশত টাকা" : "দুই হাজার ছয়শত টাকা";
   const clean = (customerMessage || "").toLowerCase().trim();
   if (senderId && customerMessage) {
     try { extractCustomerFacts(senderId, customerMessage, senderName); } catch (e) {}
@@ -796,24 +813,29 @@ export function getClinicalConsultationReply(senderId = "", senderName = "", cus
   return `জি ${nameSalute}, আপনার সমস্যাটি বিস্তারিত বুঝতে পেরেছি। সঠিক পরামর্শের জন্য আপনার বয়স এবং সমস্যা কতদিন ধরে হচ্ছে একটু জানান ভাইয়া।`;
 }
 
-function getNaturalPriceReply(customerName: string = "", isVoiceMode: boolean = false): string {
+function getNaturalPriceReply(customerName: string = "", isVoiceMode: boolean = false, isNaturalHerbal: boolean = false): string {
   const nameSalute = (customerName && customerName !== "Customer" && customerName !== "কাস্টমার" && customerName !== "ভাইয়া")
     ? `${customerName} ভাইয়া`
     : "ভাইয়া";
 
+  const pName = isNaturalHerbal ? "বাজীকরণ হালুয়া" : "কস্তুরী পাউডার";
+  const pWeight = isNaturalHerbal ? "৩৫০ গ্রাম" : "২৫০ গ্রাম";
+  const pPrice = isNaturalHerbal ? "২,০০০ টাকা" : "২,৮০০ টাকা";
+  const pVoicePrice = isNaturalHerbal ? "দুই হাজার টাকা" : "দুই হাজার আটশত টাকা";
+
   if (isVoiceMode) {
     const voiceVariations = [
-      `জি ${nameSalute}, আমাদের ২৫০ গ্রামের এক মাসের ফুল কোর্স খাঁটি কস্তুরী পাউডারের অফার মূল্য মাত্র দুই হাজার আটশত টাকা। সারা দেশে কুরিয়ার সার্ভিসে ক্যাশ অন ডেলিভারিতে পাঠানো হয়। তবে ভাইয়া, ওষুধ গ্রহণের পূর্বে আপনার শারীরিক অবস্থা জেনে নেওয়া প্রয়োজন। আপনার মূল সমস্যাটা ঠিক কী হচ্ছে একটু খুলে বলবেন কি? যেমন: দ্রুত বীর্যপাত, লিঙ্গের শিথিলতা, নাকি শারীরিক দুর্বলতা? এবং আপনার বয়স কত?`,
-      `জি ${nameSalute}, এক মাসের সম্পূর্ণ কোর্সের জন্য ২৫০ গ্রাম কস্তুরী পাউডারের বর্তমান অফার প্রাইস মাত্র দুই হাজার আটশত টাকা। কুরিয়ারে ক্যাশ অন ডেলিভারিতে সারা দেশে পৌঁছে দেওয়া হয়। ভাইয়া, আপনি কোন শারীরিক সমস্যার জন্য ওষুধটি নিতে চাচ্ছেন এবং সমস্যাটি কতদিন ধরে? আপনার বয়স কত ভাইয়া?`,
-      `জি ${nameSalute}, আমাদের ২৫০ গ্রামের ফুল কোর্সের খাঁটি কস্তুরী পাউডার এখন বিশেষ ছাড়ে দুই হাজার আটশত টাকায় পাচ্ছেন। তবে সঠিক রোগ নির্ণয় ছাড়া ওষুধ দিলে কাঙ্ক্ষিত ফল পাওয়া যায় না। আপনার মূল সমস্যা ও বয়স জানালে আপনার জন্য সঠিক ও কার্যকরী পরামর্শ দিতে পারব ইনশাআল্লাহ।`
+      `জি ${nameSalute}, আমাদের ${pWeight}-এর খাঁটি ${pName}-এর অফার মূল্য মাত্র ${pVoicePrice}। সারা দেশে কুরিয়ার সার্ভিসে ক্যাশ অন ডেলিভারিতে পাঠানো হয়। তবে ভাইয়া, ওষুধ গ্রহণের পূর্বে আপনার শারীরিক অবস্থা জেনে নেওয়া প্রয়োজন। আপনার মূল সমস্যাটা ঠিক কী হচ্ছে একটু খুলে বলবেন কি? যেমন: দ্রুত বীর্যপাত, লিঙ্গের শিথিলতা, নাকি শারীরিক দুর্বলতা? এবং আপনার বয়স কত?`,
+      `জি ${nameSalute}, ${pWeight} ${pName}-এর বর্তমান অফার প্রাইস মাত্র ${pVoicePrice}। কুরিয়ারে ক্যাশ অন ডেলিভারিতে সারা দেশে পৌঁছে দেওয়া হয়। ভাইয়া, আপনি কোন শারীরিক সমস্যার জন্য ওষুধটি নিতে চাচ্ছেন এবং সমস্যাটি কতদিন ধরে? আপনার বয়স কত ভাইয়া?`,
+      `জি ${nameSalute}, আমাদের ${pWeight}-এর খাঁটি ${pName} এখন বিশেষ ছাড়ে ${pVoicePrice} পাচ্ছেন। তবে সঠিক রোগ নির্ণয় ছাড়া ওষুধ দিলে কাঙ্ক্ষিত ফল পাওয়া যায় না। আপনার মূল সমস্যা ও বয়স জানালে আপনার জন্য সঠিক ও কার্যকরী পরামর্শ দিতে পারব ইনশাআল্লাহ।`
     ];
     return voiceVariations[Math.floor(Math.random() * voiceVariations.length)];
   }
 
   const textVariations = [
-    `জি ${nameSalute}, আমাদের ২৫০ গ্রামের ১ মাসের ফুল কোর্সের 'কস্তুরী পাউডার'-এর অফার মূল্য মাত্র ২,৮০০ টাকা। সারা দেশে কুরিয়ারে ক্যাশ অন ডেলিভারিতে হোম ডেলিভারি দেওয়া হয়।\n\nতবে ভাইয়া, ওষুধ নেওয়ার আগে আপনার শারীরিক অবস্থা অনুযায়ী এটি সঠিক কিনা তা জানা অত্যন্ত জরুরি। ভাইয়া, আপনার মূল সমস্যাটা ঠিক কী হচ্ছে একটু খুলে বলবেন কি? যেমন: দ্রুত বীর্যপাত বা টাইমিং কম, ইরেকশন বা শক্ত না হওয়া, নাকি শারীরিক দুর্বলতা? এবং আপনার বয়স কত?`,
-    `জি ${nameSalute}, ১ মাসের ফুল কোর্সের জন্য ২৫০ গ্রাম প্রিমিয়াম কস্তুরী পাউডারের বর্তমান অফার প্রাইস মাত্র ২,৮০০ টাকা।\n\nভাইয়া, আপনি ঠিক কোন শারীরিক সমস্যার জন্য ওষুধটি খুঁজছেন একটু জানাবেন কি? (যেমন: দ্রুত বীর্যপাত, পাতলা বীর্য, নাকি লিঙ্গের শিথিলতা?) আপনার সমস্যা ও বয়স জানালে আপনাকে সবচেয়ে সঠিক সমাধান দিতে পারব ইনশাআল্লাহ।`,
-    `জি ${nameSalute}, আমাদের ২৫০ গ্রামের ফুল কোর্সের খাঁটি কস্তুরী পাউডার এখন বিশেষ ছাড়ে ২,৮০০ টাকায় পাচ্ছেন। সারাদেশে ক্যাশ অন ডেলিভারি সুবিধা রয়েছে।\n\nতবে ভাইয়া, ওষুধ নেওয়ার পূর্বে আপনার স্বাস্থ্য লক্ষণগুলো জেনে নেওয়া আমাদের দায়িত্ব। আপনার মূল সমস্যাটা ঠিক কী এবং কতদিন ধরে ফেস করছেন? আপনার বয়স কত ভাইয়া?`
+    `জি ${nameSalute}, আমাদের ${pWeight} খাঁটি '${pName}'-এর অফার মূল্য মাত্র ${pPrice}। সারা দেশে কুরিয়ারে ক্যাশ অন ডেলিভারিতে হোম ডেলিভারি দেওয়া হয়।\n\nতবে ভাইয়া, ওষুধ নেওয়ার আগে আপনার শারীরিক অবস্থা অনুযায়ী এটি সঠিক কিনা তা জানা অত্যন্ত জরুরি। ভাইয়া, আপনার মূল সমস্যাটা ঠিক কী হচ্ছে একটু খুলে বলবেন কি? যেমন: দ্রুত বীর্যপাত বা টাইমিং কম, ইরেকশন বা শক্ত না হওয়া, নাকি শারীরিক দুর্বলতা? এবং আপনার বয়স কত?`,
+    `জি ${nameSalute}, ${pWeight} প্রিমিয়াম ${pName}-এর বর্তমান অফার প্রাইস মাত্র ${pPrice}।\n\nভাইয়া, আপনি ঠিক কোন শারীরিক সমস্যার জন্য ওষুধটি খুঁজছেন একটু জানাবেন কি? (যেমন: দ্রুত বীর্যপাত, পাতলা বীর্য, নাকি লিঙ্গের শিথিলতা?) আপনার সমস্যা ও বয়স জানালে আপনাকে সবচেয়ে সঠিক সমাধান দিতে পারব ইনশাআল্লাহ।`,
+    `জি ${nameSalute}, আমাদের ${pWeight} খাঁটি ${pName} এখন বিশেষ ছাড়ে ${pPrice} পাচ্ছেন। সারাদেশে ক্যাশ অন ডেলিভারি সুবিধা রয়েছে।\n\nতবে ভাইয়া, ওষুধ নেওয়ার পূর্বে আপনার স্বাস্থ্য লক্ষণগুলো জেনে নেওয়া আমাদের দায়িত্ব। আপনার মূল সমস্যাটা ঠিক কী এবং কতদিন ধরে ফেস করছেন? আপনার বয়স কত ভাইয়া?`
   ];
   return textVariations[Math.floor(Math.random() * textVariations.length)];
 }
@@ -825,6 +847,21 @@ export async function generateAutoReply(
   const effectiveMessage = incomingMessage?.trim() || "";
   const trimmedClean = effectiveMessage.toLowerCase().replace(/[.,!?;:()\-]/g, "").replace(/\s+/g, " ");
   const senderId = options.senderId;
+
+  const isNaturalHerbal = 
+    options.pageId === "133420039845881" || 
+    options.pageId === "61559813291583" ||
+    options.pageId === "61551438782626" ||
+    /ন্যাচারাল|হারবাল|natural|herbal/i.test(options.pageName || options.businessName || "") ||
+    /বাজীকরণ|bajikaran|bajikoron|halua|হালুয়া|কবিরাজ আরিফ|রাঙ্গামাটি/i.test(effectiveMessage);
+
+  const pageProductName     = isNaturalHerbal ? "বাজীকরণ হালুয়া" : "কস্তুরী পাউডার";
+  const pageProductWeight   = isNaturalHerbal ? "৩৫০ গ্রাম" : "২৫০ গ্রাম";
+  const pageProductPrice    = isNaturalHerbal ? "২,০০০ টাকা" : "২,৮০০ টাকা";
+  const pageProductAdvance  = "২০০ টাকা";
+  const pageProductRemaining = isNaturalHerbal ? "১,৮০০ টাকা" : "২,৬০০ টাকা";
+  const pageProductCourse   = isNaturalHerbal ? "" : "১ মাসের ফুল কোর্স, ";
+  const pageDoctorName      = isNaturalHerbal ? "কবিরাজ মোহাম্মদ আরিফ" : "হাকীম মো: আব্দুল করিম";
 
   // Instant interceptor for pure greetings (Salam, How are you, Hi/Hello)
   const isPureSalam = /^(?:assalamu?\s*alaikum|assalamualaikum|asalam|asalamu\s*alaikum|slaam|salam|সালাম|আসসালামু\s*আলাইকুম|আসসালামুআলাইকুম)(?:\s*(?:vai|vaiya|bhai|bhaiya|doctor|hakeem|hakim|sir|ভাই|ভাইয়া|স্যার))?$/i.test(trimmedClean);
@@ -857,7 +894,9 @@ export async function generateAutoReply(
                              /(?:ke|কে)s*(?:toiri|তৈরি|ketos*eri|কেটোs*এরি|banay|বানায়|banise|বানিয়েছে)/i.test(trimmedClean) ||
                              /(?:apnars*porichoy|আপনারs*পরিচয়|পরিচয়s*কি|apnis*ke|আপনিs*কে)/i.test(trimmedClean);
   if (isAskingDoctorName) {
-    const reply = "জি ভাইয়া, আমি হাকীম মো: আব্দুল করিম বলছি। আমি স্বাস্থ্য মন্ত্রণালয় ও বাংলাদেশ ইউনানী বোর্ডের ক্যাটাগরি-এ নিবন্ধিত চিকিৎসক (রেজি নং: ৫৮৪২/২০১৮), জনতা ইউনানী চিকিৎসালয়, আলীকদম, বান্দরবান। আমাদের কস্তুরী পাউডার ১০০% প্রাকৃতিক ভেষজ উপাদানে আমার নিজস্ব ফর্মুলায় প্রস্তুত করা। বলুন ভাইয়া, আপনাকে কীভাবে সাহায্য করতে পারি?";
+    const reply = isNaturalHerbal
+      ? "জি ভাইয়া, এটি কবিরাজ মোহাম্মদ আরিফের নিজস্ব ফর্মুলায় তৈরি খাঁটি প্রাকৃতিক বাজীকরণ হালুয়া। ওনার চেম্বার: রাঙ্গামাটি রিজার্ভ বাজার, ব্যাংক এশিয়া পঞ্চম তলা। বলুন ভাইয়া, আপনাকে কীভাবে সাহায্য করতে পারি?"
+      : "জি ভাইয়া, আমি হাকীম মো: আব্দুল করিম বলছি। আমি স্বাস্থ্য মন্ত্রণালয় ও বাংলাদেশ ইউনানী বোর্ডের ক্যাটাগরি-এ নিবন্ধিত চিকিৎসক (রেজি নং: ৫৮৪২/২০১৮), জনতা ইউনানী চিকিৎসালয়, আলীকদম, বান্দরবান। আমাদের কস্তুরী পাউডার ১০০% প্রাকৃতিক ভেষজ উপাদানে আমার নিজস্ব ফর্মুলায় প্রস্তুত করা। বলুন ভাইয়া, আপনাকে কীভাবে সাহায্য করতে পারি?";
     if (senderId) appendChatMessage(senderId, "model", reply, false);
     return reply;
   }
@@ -1084,7 +1123,7 @@ export async function generateAutoReply(
       return earlyReply;
     }
 
-    const orderReply = `জি ভাইয়া, আপনার অর্ডারটি কনফার্ম করতে নিচের তথ্যগুলো পূরণ করে পাঠিয়ে দিন:\n\nনাম:\nফোন নম্বর:\nজেলা:\nথানা/উপজেলা:\nবিস্তারিত ঠিকানা:\n\nকস্তুরী পাউডার (১ মাসের ফুল কোর্স, ২৫০ গ্রাম) অফার মূল্য ২,৮০০ টাকা। পার্সেল বুকিং নিশ্চিত করতে ২০০ টাকা অগ্রিম আমাদের অফিসিয়াল বিকাশ হেল্পলাইন 01870-023804 নম্বরে পাঠিয়ে লাস্ট ২/৩ ডিজিট জানাবেন। বাকি ২,৬০০ টাকা পার্সেল হাতে পেয়ে দেখে ডেলিভারি ম্যানকে পরিশোধ করবেন।`;
+    const orderReply = `জি ভাইয়া, আপনার অর্ডারটি কনফার্ম করতে নিচের তথ্যগুলো পূরণ করে পাঠিয়ে দিন:\n\nনাম:\nফোন নম্বর:\nজেলা:\nথানা/উপজেলা:\nবিস্তারিত ঠিকানা:\n\n${pageProductName} (${pageProductCourse}${pageProductWeight}) অফার মূল্য ${pageProductPrice}। পার্সেল বুকিং নিশ্চিত করতে ${pageProductAdvance} আমাদের অফিসিয়াল বিকাশ হেল্পলাইন 01870-023804 নম্বরে পাঠিয়ে লাস্ট ২/৩ ডিজিট জানাবেন। বাকি ${pageProductRemaining} পার্সেল হাতে পেয়ে দেখে ডেলিভারি ম্যানকে পরিশোধ করবেন।`;
     if (senderId) appendChatMessage(senderId, "model", orderReply, false);
     return orderReply;
   }
@@ -1097,7 +1136,15 @@ export async function generateAutoReply(
     /(?:বাসা|বাড়ি|চেম্বার|দোকান|chamber)\s*(?:কোথায়|কই|kothay|kothai)/i.test(trimmedClean);
 
   if (isAddressQuestion) {
-    const addressReply = `জি ভাইয়া, আমাদের চেম্বার ও দোকানের ঠিকানা:
+    const addressReply = isNaturalHerbal
+      ? `জি ভাইয়া, আমাদের চেম্বার ও দোকানের ঠিকানা:
+
+কবিরাজ মোহাম্মদ আরিফ
+রাঙ্গামাটি রিজার্ভ বাজার, ব্যাংক এশিয়া (৫ম তলা), রাঙ্গামাটি।
+
+হেল্পলাইন: 01870-023804 (বিকাশ)
+সারা দেশে কুরিয়ারে ক্যাশ অন ডেলিভারিতে হোম ডেলিভারি দেওয়া হয়।`
+      : `জি ভাইয়া, আমাদের চেম্বার ও দোকানের ঠিকানা:
 
 জনতা ইউনানী চিকিৎসালয় ও ভেষজ ভান্ডার
 দোকান নং-৩৩ (৩য় তলা)
@@ -1121,7 +1168,7 @@ export async function generateAutoReply(
       return pReply;
     }
     if (/(?:baji|বাজী|halua|হালুয়া)/i.test(trimmedClean)) {
-      const pReply = "জি ভাইয়া, 'বাজীকরণ হালুয়া' (৩৫০ গ্রাম) এর মূল্য ২,৫০০ টাকা। এটি খেতে সুস্বাদু এবং পেনাইল নার্ভ মজবুত করে। ভাইয়া, আপনার কি নার্ভ দুর্বলতার সমস্যা আছে?";
+      const pReply = "জি ভাইয়া, 'বাজীকরণ হালুয়া' (৩৫০ গ্রাম) এর অফার মূল্য মাত্র ২,০০০ টাকা (বুকিং ২০০ টাকা, বাকি ১,৮০০ টাকা ক্যাশ অন ডেলিভারি)। এটি খেতে সুস্বাদু এবং পেনাইল নার্ভ মজবুত করে। ভাইয়া, আপনার কি নার্ভ দুর্বলতার সমস্যা আছে?";
       if (senderId) appendChatMessage(senderId, "model", pReply, false);
       return pReply;
     }
@@ -1136,16 +1183,16 @@ export async function generateAutoReply(
     ));
 
     if (_hasHealthData) {
-      const pReply = `জি ভাইয়া, আমাদের ২৫০ গ্রামের ১ মাসের ফুল কোর্স খাঁটি 'কস্তুরী পাউডার'-এর বর্তমান অফার মূল্য মাত্র ২,৮০০ টাকা। সারা দেশে কুরিয়ারে ক্যাশ অন ডেলিভারিতে হোম ডেলিভারি দেওয়া হয়। আপনার সমস্যা অনুযায়ী এটি নিয়মিত ১ মাস সেবনে স্থায়ী ফলাফল পাবেন ইনশাআল্লাহ। আপনি কি অর্ডারটি কনফার্ম করতে চাচ্ছেন ভাইয়া?`;
+      const pReply = `জি ভাইয়া, আমাদের ${pageProductWeight} খাঁটি '${pageProductName}'-এর বর্তমান অফার মূল্য মাত্র ${pageProductPrice}। সারা দেশে কুরিয়ারে ক্যাশ অন ডেলিভারিতে হোম ডেলিভারি দেওয়া হয়। আপনার সমস্যা অনুযায়ী এটি নিয়মিত সেবনে স্থায়ী ফলাফল পাবেন ইনশাআল্লাহ। আপনি কি অর্ডারটি কনফার্ম করতে চাচ্ছেন ভাইয়া?`;
       if (senderId) appendChatMessage(senderId, "model", pReply, false);
       return pReply;
     }
 
     // Health data NOT yet collected: State price and ask problem assessment questions WITHOUT 500 advance!
     const priceConsultReplies = [
-      `জি ভাইয়া, আমাদের ১ মাসের ফুল কোর্স (২৫০ গ্রাম) খাঁটি 'কস্তুরী পাউডার'-এর বর্তমান অফার মূল্য মাত্র ২,৮০০ টাকা। সারা দেশে কুরিয়ার সার্ভিসে ক্যাশ অন ডেলিভারিতে পাঠানো হয়।\n\nতবে ভাইয়া, ওষুধ নেওয়ার আগে আপনার শারীরিক অবস্থা অনুযায়ী এটি আপনার জন্য সঠিক কিনা তা জানা অত্যন্ত জরুরি। ভাইয়া, আপনার মূল সমস্যাটা ঠিক কী হচ্ছে একটু খুলে বলবেন কি? যেমন: দ্রুত বীর্যপাত বা টাইমিং কম, ইরেকশন বা শক্ত না হওয়া, নাকি শারীরিক দুর্বলতা? এবং আপনার বয়স কত?`,
-      `জি ভাইয়া, ২৫০ গ্রামের ফুল কোর্সের কস্তুরী পাউডারের অফার মূল্য মাত্র ২,৮০০ টাকা।\n\nভাইয়া, আপনি ঠিক কোন শারীরিক সমস্যার জন্য ওষুধটি নিতে চাচ্ছেন একটু জানাবেন কি? (যেমন: দ্রুত বীর্যপাত, পাতলা বীর্য, নাকি লিঙ্গের শিথিলতা?) আপনার সমস্যা ও বয়স জানালে আপনাকে সবচেয়ে সঠিক ও কার্যকর সমাধান দিতে পারব ইনশাআল্লাহ।`,
-      `জি ভাইয়া, আমাদের ১ মাসের ফুল কোর্সের দাম মাত্র ২,৮০০ টাকা। সারাদেশে ক্যাশ অন ডেলিভারি সুবিধা রয়েছে।\n\nতবে ভাইয়া, সঠিক রোগ নির্ণয় ছাড়া ওষুধ দিলে কাঙ্ক্ষিত ফল পাওয়া যায় না। আপনার মূল সমস্যাটা ঠিক কী এবং কতদিন ধরে ফেস করছেন? আপনার বয়স কত ভাইয়া?`
+      `জি ভাইয়া, আমাদের ${pageProductWeight} খাঁটি '${pageProductName}'-এর বর্তমান অফার মূল্য মাত্র ${pageProductPrice}। সারা দেশে কুরিয়ার সার্ভিসে ক্যাশ অন ডেলিভারিতে পাঠানো হয়।\n\nতবে ভাইয়া, ওষুধ নেওয়ার আগে আপনার শারীরিক অবস্থা অনুযায়ী এটি আপনার জন্য সঠিক কিনা তা জানা অত্যন্ত জরুরি। ভাইয়া, আপনার মূল সমস্যাটা ঠিক কী হচ্ছে একটু খুলে বলবেন কি? যেমন: দ্রুত বীর্যপাত বা টাইমিং কম, ইরেকশন বা শক্ত না হওয়া, নাকি শারীরিক দুর্বলতা? এবং আপনার বয়স কত?`,
+      `জি ভাইয়া, ${pageProductWeight} '${pageProductName}'-এর অফার মূল্য মাত্র ${pageProductPrice}।\n\nভাইয়া, আপনি ঠিক কোন শারীরিক সমস্যার জন্য ওষুধটি নিতে চাচ্ছেন একটু জানাবেন কি? (যেমন: দ্রুত বীর্যপাত, পাতলা বীর্য, নাকি লিঙ্গের শিথিলতা?) আপনার সমস্যা ও বয়স জানালে আপনাকে সবচেয়ে সঠিক ও কার্যকর সমাধান দিতে পারব ইনশাআল্লাহ।`,
+      `জি ভাইয়া, আমাদের ${pageProductName}-এর বর্তমান অফার মূল্য মাত্র ${pageProductPrice} (${pageProductWeight})। সারাদেশে ক্যাশ অন ডেলিভারি সুবিধা রয়েছে।\n\nতবে ভাইয়া, সঠিক রোগ নির্ণয় ছাড়া ওষুধ দিলে কাঙ্ক্ষিত ফল পাওয়া যায় না। আপনার মূল সমস্যাটা ঠিক কী এবং কতদিন ধরে ফেস করছেন? আপনার বয়স কত ভাইয়া?`
     ];
     const pReply = priceConsultReplies[Math.floor(Math.random() * priceConsultReplies.length)];
     if (senderId) appendChatMessage(senderId, "model", pReply, false);
@@ -1158,7 +1205,13 @@ export async function generateAutoReply(
     /(?:khawa|খাওয়া|sebon|সেবন|khabo|খাব|niyom|নিয়ম)/i.test(trimmedClean);
 
   if (isUsageQuery) {
-    const usageReply = `জি ভাইয়া, সেবনবিধি খুবই সহজ:
+    const usageReply = isNaturalHerbal
+      ? `জি ভাইয়া, সেবনবিধি খুবই সহজ:
+
+প্রতিদিন রাতে শোবার আগে ১ চামচ বাজীকরণ হালুয়া হালকা কুসুম গরম দুধ অথবা পানিতে মিশিয়ে সেবন করবেন। 
+
+নিয়মিত সেবনে ৩ থেকে ৫ দিনেই পরিবর্তন বোঝা যায় এবং ইনশাআল্লাহ স্থায়ী ফলাফল পাওয়া যায়।`
+      : `জি ভাইয়া, সেবনবিধি খুবই সহজ:
 
 প্রতিদিন সকালে খালি পেটে ১ চামচ কস্তুরী পাউডার হালকা কুসুম গরম দুধ অথবা পানিতে মিশিয়ে সেবন করবেন। 
 
@@ -1172,7 +1225,16 @@ export async function generateAutoReply(
     /(?:upadan|উপাদান|toiri|তৈরি|উপাদানগুলো|বানানো)/i.test(trimmedClean);
 
   if (isIngredientsQuery) {
-    const ingReply = `জি ভাইয়া, আমাদের কস্তুরী পাউডারে রয়েছে ৬টি দুর্লভ ও খাঁটি প্রাকৃতিক উপাদান:
+    const ingReply = isNaturalHerbal
+      ? `জি ভাইয়া, আমাদের খাঁটি বাজীকরণ হালুয়া প্রস্তুত করা হয় সম্পূর্ণ প্রাকৃতিক ও পাহাড়ি ভেষজ উপাদানে:
+
+১) খাঁটি মধু ও পুষ্টিকর হালুয়া বেস
+২) তালমাখনা ও শ্বেত মুসলি
+৩) অশ্বগন্ধা ও প্রাকৃতিক বলকারক উপাদান
+৪) বিশেষ পাহাড়ি ইউনানী মিশ্রণ
+
+এটি শতভাগ প্রাকৃতিক এবং কোনো রাসায়নিক বা পার্শ্বপ্রতিক্রিয়া নেই ভাইয়া।`
+      : `জি ভাইয়া, আমাদের কস্তুরী পাউডারে রয়েছে ৬টি দুর্লভ ও খাঁটি প্রাকৃতিক উপাদান:
 
 ১) খাঁটি মৃগনাভি কস্তুরী
 ২) হিমালয়ান বন্য শিলাজিৎ
@@ -1197,11 +1259,13 @@ export async function generateAutoReply(
   // Instant interceptor for Available Products
   const isCatalogQuery = /(?:ki\s*ki|কি\s*কি|কী\s*কী)\s*(?:product|item|osudh|ওষুধ|course|কোর্স|আছে|paoya\s*jay|পাওয়া\s*যায়)/i.test(trimmedClean);
   if (isCatalogQuery) {
-    const catReply = `জি ভাইয়া, আমাদের প্রধান ৩টি বিশেষ প্রাকৃতিক কোর্স রয়েছে:
+    const catReply = isNaturalHerbal
+      ? `জি ভাইয়া, আমাদের ন্যাচারাল হারবাল পেজের প্রধান ও অফিশিয়াল ওষুধ হলো 'বাজীকরণ হালুয়া' (৩৫০ গ্রাম, অফার মূল্য ২,০০০ টাকা)। এটি পুরুষের পেনাইল নার্ভ মজবুত করে, দ্রুত বীর্যপাত দূর করে এবং দীর্ঘস্থায়ী শক্তি বৃদ্ধি করে। আপনি কি আপনার শারীরিক সমস্যার জন্য এটি নিতে চাচ্ছেন ভাইয়া?`
+      : `জি ভাইয়া, আমাদের প্রধান ৩টি বিশেষ প্রাকৃতিক কোর্স রয়েছে:
 
 ১. কস্তুরী পাউডার (১ মাসের ফুল কোর্স, ২৫০ গ্রাম) — অফার মূল্য ২,৮০০ টাকা (দুর্বলতা দূর ও স্থায়ী শক্তি বৃদ্ধি)।
 ২. যৌবনের রাজা (২০০ গ্রাম) — মূল্য ৩,০০০ টাকা (তীব্র স্ট্যামিনা ও হরমোন বৃদ্ধি)।
-৩. বাজীকরণ হালুয়া (৩৫০ গ্রাম) — মূল্য ২,৫০০ টাকা (নার্ভ মজবুত ও সুস্বাদু হালুয়া)।
+৩. বাজীকরণ হালুয়া (৩৫০ গ্রাম) — মূল্য ২,০০০ টাকা (নার্ভ মজবুত ও সুস্বাদু হালুয়া)।
 
 আপনার শারীরিক অবস্থা অনুযায়ী কোনটি প্রয়োজন ভাইয়া?`;
     if (senderId) appendChatMessage(senderId, "model", catReply, false);

@@ -724,6 +724,9 @@ ${text}
             senderId,
             customerName: resolvedCustomerName || undefined,
             isVoiceMode: false,
+            pageId,
+            pageName,
+            businessName: pageName,
           });
 
           // 3. Send using native Messenger reply_to (links natively to that specific message)
@@ -743,6 +746,9 @@ ${text}
               senderId,
               customerName: resolvedCustomerName || undefined,
               isVoiceMode: true,
+              pageId,
+              pageName,
+              businessName: pageName,
             });
             await sendMessengerVoiceNote(senderId, combinedVoiceReply, effectiveToken);
             appendChatMessage(senderId, "model", combinedVoiceReply, true);
@@ -901,7 +907,7 @@ ${text}
             district:     parsedOrder?.district || distFromReply || custProf.district || "",
             thana:        parsedOrder?.thana    || thanaFromReply || custProf.thana    || "",
             address:      parsedOrder?.address  || addrFromReply  || custProf.address  || text,
-            product:      parsedOrder?.product  || custProf.productDiscussed || "Soul Mate (খাঁটি কস্তুরী ফর্মুলা)",
+            product:      parsedOrder?.product  || custProf.productDiscussed || (isNaturalHerbal ? "বাজীকরণ হালুয়া (Bajikaran Halua)" : "Soul Mate (খাঁটি কস্তুরী ফর্মুলা)"),
             quantity:     parsedOrder?.quantity || 1,
             senderId:     String(senderId),
             facebookName: resolvedCustomerName || senderId,
@@ -976,7 +982,9 @@ ${text}
 📍 ঠিকানা: ${orderData.address}${orderData.thana ? '\n🏘️ থানা: '+orderData.thana : ''}${orderData.district ? '\n📮 জেলা: '+orderData.district : ''}
 💊 পণ্য: ${orderData.product}
 📦 পরিমাণ: ${orderData.quantity} পিস
-${(/কস্তুরী|kosturi|kasturi|আব্দুল করিম/i.test(orderData.product || "") || /কস্তুরী|kosturi|kasturi/i.test(text || "")) ? "💰 মূল্য: ২,৮০০ টাকা (বুকিং নিশ্চিত করতে ২০০ টাকা অগ্রিম বিকাশ প্রযোজ্য, বাকি ২,৬০০ টাকা ক্যাশ অন ডেলিভারি)\n📱 বিকাশ: 01870-023804\n📌 বুকিং কনফার্ম করতে ২০০ টাকা পাঠিয়ে লাস্ট ২/৩ ডিজিট জানান\n" : "💰 পেমেন্ট: ক্যাশ অন ডেলিভারি\n"}
+${isNaturalHerbal
+  ? "💰 মূল্য: ২,০০০ টাকা (বুকিং নিশ্চিত করতে ২০০ টাকা অগ্রিম বিকাশ প্রযোজ্য, বাকি ১,৮০০ টাকা ক্যাশ অন ডেলিভারি)\n📱 বিকাশ: 01870-023804\n📌 বাজীকরণ হালুয়া বুকিং কনফার্ম করতে ২০০ টাকা পাঠিয়ে লাস্ট ২/৩ ডিজিট জানান\n"
+  : ((/কস্তুরী|kosturi|kasturi|আব্দুল করিম/i.test(orderData.product || "") || /কস্তুরী|kosturi|kasturi/i.test(text || "")) ? "💰 মূল্য: ২,৮০০ টাকা (বুকিং নিশ্চিত করতে ২০০ টাকা অগ্রিম বিকাশ প্রযোজ্য, বাকি ২,৬০০ টাকা ক্যাশ অন ডেলিভারি)\n📱 বিকাশ: 01870-023804\n📌 বুকিং কনফার্ম করতে ২০০ টাকা পাঠিয়ে লাস্ট ২/৩ ডিজিট জানান\n" : "💰 পেমেন্ট: ক্যাশ অন ডেলিভারি\n")}
 ━━━━━━━━━━━━━━━━━━━━
 🚚 ডেলিভারি: ২-৪ কার্যদিবস
 ⚠️ তথ্যে ভুল থাকলে এখনই জানান।
@@ -1684,56 +1692,67 @@ function splitTextIntoVoiceChunks(text: string, maxChars: number = 800): string[
 }
 
 async function sendSingleVoiceNote(recipientId: string, text: string, accessToken: string): Promise<string | null> {
-  const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || "sk_b704126ae6ecca01f041a6505e4e7a695f40df803a4f8bd3";
-  const rawVoiceId = process.env.ELEVENLABS_VOICE_ID;
-  const ELEVENLABS_VOICE_ID = (rawVoiceId && rawVoiceId !== "2RikWi4odb2uhZQb9waV" && rawVoiceId !== "UvaBYZVczBD1eq5jTquX" && rawVoiceId !== "FhOnCtjmaAIRIS1Dg2bk" && rawVoiceId !== "TX3LPaxmHKxFdv7VOQHJ") ? rawVoiceId : "nsJQzXf7dXyDnOFqO3uX";
+  const CARTESIA_API_KEY = process.env.CARTESIA_API_KEY || "sk_car_us2GDcmgZpkWk1c5hSkv6v";
+  const CARTESIA_VOICE_ID = process.env.CARTESIA_VOICE_ID || "2e100707-bb62-40fb-90b6-9d79da563828";
 
-  if (!ELEVENLABS_API_KEY) return null;
+  if (!CARTESIA_API_KEY) return null;
 
   try {
     const cleanText = prepareBangladeshiTTSAudioText(text);
-    console.log(`[FB_VOICE_NOTE] Generating Bangladeshi voice note with Voice ID: ${ELEVENLABS_VOICE_ID} | Text: "${cleanText.slice(0, 60)}..."`);
-    const ttsUrl = `https://api.elevenlabs.io/v1/text-to-speech/${ELEVENLABS_VOICE_ID}`;
-    const BD_VOICE_SETTINGS = {
-      stability: 0.50
-    };
+    console.log(`[FB_VOICE_NOTE] Generating Cartesia voice note with Voice ID: ${CARTESIA_VOICE_ID} | Text: "${cleanText.slice(0, 60)}..."`);
+    const ttsUrl = "https://api.cartesia.ai/tts/bytes";
 
     let ttsRes = await fetch(ttsUrl, {
       method: "POST",
       headers: {
-        "xi-api-key": ELEVENLABS_API_KEY,
+        "X-API-Key": CARTESIA_API_KEY,
+        "Cartesia-Version": "2024-06-10",
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        text: cleanText,
-        model_id: "eleven_v3",
-        voice_settings: BD_VOICE_SETTINGS
+        model_id: "sonic-3.6",
+        transcript: cleanText,
+        voice: {
+          mode: "id",
+          id: CARTESIA_VOICE_ID
+        },
+        output_format: {
+          container: "mp3",
+          bit_rate: 128000,
+          sample_rate: 44100
+        },
+        language: "bn"
       })
     });
 
     if (!ttsRes.ok) {
-      console.warn("[VOICE_NOTE_ELEVEN_RETRY] Retrying with eleven_turbo_v2_5");
+      console.warn("[VOICE_NOTE_CARTESIA_RETRY] Retrying with sonic-3.5");
       ttsRes = await fetch(ttsUrl, {
         method: "POST",
         headers: {
-          "xi-api-key": ELEVENLABS_API_KEY,
+          "X-API-Key": CARTESIA_API_KEY,
+          "Cartesia-Version": "2024-06-10",
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          text: cleanText,
-          model_id: "eleven_turbo_v2_5",
-          voice_settings: {
-            stability: 0.50,
-            similarity_boost: 0.90,
-            style: 0.0,
-            use_speaker_boost: true
-          }
+          model_id: "sonic-3.5",
+          transcript: cleanText,
+          voice: {
+            mode: "id",
+            id: CARTESIA_VOICE_ID
+          },
+          output_format: {
+            container: "mp3",
+            bit_rate: 128000,
+            sample_rate: 44100
+          },
+          language: "bn"
         })
       });
     }
 
     if (!ttsRes.ok) {
-      console.warn("[VOICE_NOTE_ELEVEN_FAIL]", await ttsRes.text());
+      console.warn("[VOICE_NOTE_CARTESIA_FAIL]", await ttsRes.text());
       return null;
     }
 
@@ -1774,16 +1793,16 @@ async function sendSingleVoiceNote(recipientId: string, text: string, accessToke
       });
       const sendData = await sendRes.json().catch(() => null);
       if (sendRes.ok) {
-        console.log(`[FB_VOICE_NOTE_OK] Sent ElevenLabs voice note to ${recipientId}`);
+        console.log(`[FB_VOICE_NOTE_OK] Sent Cartesia voice note to ${recipientId}`);
         return upData.attachment_id;
       } else {
         console.warn(`[FB_VOICE_NOTE_SEND_WARN]`, sendData);
       }
     } else {
-      console.warn(`[FB_VOICE_ATTACH_WARN]`, upData);
+      console.warn(`[FB_VOICE_NOTE_UPLOAD_WARN]`, upData);
     }
   } catch (err: any) {
-    console.error("[VOICE_NOTE_ERROR]", err.message);
+    console.error(`[FB_VOICE_NOTE_ERROR]`, err.message);
   }
   return null;
 }

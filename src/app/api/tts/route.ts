@@ -8,9 +8,9 @@ import crypto from "crypto";
 const execAsync = promisify(exec);
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
-const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || "sk_b704126ae6ecca01f041a6505e4e7a695f40df803a4f8bd3";
-const rawVoiceId = process.env.ELEVENLABS_VOICE_ID;
-const ELEVENLABS_VOICE_ID = (rawVoiceId && rawVoiceId !== "2RikWi4odb2uhZQb9waV" && rawVoiceId !== "UvaBYZVczBD1eq5jTquX" && rawVoiceId !== "FhOnCtjmaAIRIS1Dg2bk" && rawVoiceId !== "TX3LPaxmHKxFdv7VOQHJ") ? rawVoiceId : "nsJQzXf7dXyDnOFqO3uX";
+const CARTESIA_API_KEY = process.env.CARTESIA_API_KEY || "sk_car_us2GDcmgZpkWk1c5hSkv6v";
+const rawVoiceId = process.env.CARTESIA_VOICE_ID;
+const CARTESIA_VOICE_ID = rawVoiceId || "2e100707-bb62-40fb-90b6-9d79da563828";
 
 // Gemini TTS voices: Aoede (female, warm), Charon (male, deep), Fenrir (male, strong), Kore (female, clear), Puck (male, upbeat)
 const GEMINI_VOICE = process.env.GEMINI_TTS_VOICE || "Algieba"; // Smooth, lower pitch - perfect for customer support
@@ -194,64 +194,75 @@ function prepareBangladeshiTTSAudioText(rawText: string): string {
   return t;
 }
 
-async function generateWithElevenLabsTTS(text: string, filePath: string, voiceId: string = ELEVENLABS_VOICE_ID): Promise<boolean> {
-  if (!ELEVENLABS_API_KEY) return false;
+async function generateWithCartesiaTTS(text: string, filePath: string, voiceId: string = CARTESIA_VOICE_ID): Promise<boolean> {
+  if (!CARTESIA_API_KEY) return false;
   try {
-    const activeVoice = voiceId || ELEVENLABS_VOICE_ID;
+    const activeVoice = voiceId || CARTESIA_VOICE_ID;
     const cleanText = prepareBangladeshiTTSAudioText(text);
-    console.log(`[ELEVENLABS_TTS] Generating audio with Voice ID: ${activeVoice} | Text: "${cleanText.slice(0, 60)}..."`);
-    const url = `https://api.elevenlabs.io/v1/text-to-speech/${activeVoice}`;
-    // Generation 1: My Bangla Voice 1 + Eleven v3 with stability 0.5
-    const BD_VOICE_SETTINGS = {
-      stability: 0.50
-    };
+    console.log(`[CARTESIA_TTS] Generating audio with Voice ID: ${activeVoice} | Text: "${cleanText.slice(0, 60)}..."`);
+    const url = "https://api.cartesia.ai/tts/bytes";
 
     let res = await fetch(url, {
       method: "POST",
       headers: {
-        "xi-api-key": ELEVENLABS_API_KEY,
+        "X-API-Key": CARTESIA_API_KEY,
+        "Cartesia-Version": "2024-06-10",
         "Content-Type": "application/json"
       },
       body: JSON.stringify({
-        text: cleanText,
-        model_id: "eleven_v3",
-        voice_settings: BD_VOICE_SETTINGS
+        model_id: "sonic-3.6",
+        transcript: cleanText,
+        voice: {
+          mode: "id",
+          id: activeVoice
+        },
+        output_format: {
+          container: "mp3",
+          bit_rate: 128000,
+          sample_rate: 44100
+        },
+        language: "bn"
       })
     });
 
     if (!res.ok) {
-      console.warn(`[ELEVENLABS_TTS_RETRY] Retrying with eleven_turbo_v2_5`);
+      console.warn(`[CARTESIA_TTS_RETRY] Retrying with sonic-3.5`);
       res = await fetch(url, {
         method: "POST",
         headers: {
-          "xi-api-key": ELEVENLABS_API_KEY,
+          "X-API-Key": CARTESIA_API_KEY,
+          "Cartesia-Version": "2024-06-10",
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
-          text: cleanText,
-          model_id: "eleven_turbo_v2_5",
-          voice_settings: {
-            stability: 0.50,
-            similarity_boost: 0.90,
-            style: 0.0,
-            use_speaker_boost: true
-          }
+          model_id: "sonic-3.5",
+          transcript: cleanText,
+          voice: {
+            mode: "id",
+            id: activeVoice
+          },
+          output_format: {
+            container: "mp3",
+            bit_rate: 128000,
+            sample_rate: 44100
+          },
+          language: "bn"
         })
       });
     }
 
     if (!res.ok) {
       const err = await res.text();
-      console.warn(`[ELEVENLABS_TTS_WARN] Status ${res.status}:`, err);
+      console.warn(`[CARTESIA_TTS_WARN] Status ${res.status}:`, err);
       return false;
     }
 
     const arrayBuffer = await res.arrayBuffer();
     fs.writeFileSync(filePath, Buffer.from(arrayBuffer));
-    console.log(`[ELEVENLABS_TTS_SUCCESS] Generated audio: ${path.basename(filePath)}`);
+    console.log(`[CARTESIA_TTS_SUCCESS] Generated audio: ${path.basename(filePath)}`);
     return true;
   } catch (err: any) {
-    console.warn("[ELEVENLABS_TTS_ERROR]", err.message);
+    console.warn("[CARTESIA_TTS_ERROR]", err.message);
     return false;
   }
 }
@@ -362,16 +373,16 @@ export async function POST(req: Request) {
       fs.mkdirSync(audioDir, { recursive: true });
     }
 
-    const selectedVoiceId = overrideVoice || ELEVENLABS_VOICE_ID;
-    const cacheKey = cleanText + `_eleven_${selectedVoiceId}`;
+    const selectedVoiceId = overrideVoice || CARTESIA_VOICE_ID;
+    const cacheKey = cleanText + `_cartesia_${selectedVoiceId}`;
     const hash = crypto.createHash("md5").update(cacheKey).digest("hex");
     const filename = `tts_${hash}.mp3`;
     const filePath = path.join(audioDir, filename);
 
     // Generate audio if not cached
     if (!fs.existsSync(filePath)) {
-      // 1. Try ElevenLabs TTS first (Creator Plan, highest quality, Bangladeshi voice)
-      let generated = await generateWithElevenLabsTTS(cleanText, filePath, selectedVoiceId);
+      // 1. Try Cartesia TTS first (Sonic 3.6, ultra fast, natural Bengali)
+      let generated = await generateWithCartesiaTTS(cleanText, filePath, selectedVoiceId);
 
       // 2. Fallback to Gemini TTS
       if (!generated) {
