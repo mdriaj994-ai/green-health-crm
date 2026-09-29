@@ -3744,17 +3744,21 @@ async function pollOnce() {
             // CASE 1: Customer explicitly asked to speak in voice ("voice dao", "voice a bolte", "porte pari na voice daoya jabe")
             if (isOnlyVoice) {
               setVoiceMode(senderId, true);
-              const voiceText = "জি ভাইয়া, অবশ্যই! আমি ডাক্তার হাকিম রিয়াজুল করিম বলছি। কোনো সমস্যা নেই ভাইয়া, আপনি আর পড়তে হবে না—আমি আপনার সাথে মুখে কথা বলছি। আপনার কী সমস্যা হচ্ছে বা কী জানতে চাচ্ছেন, আমাকে নির্দ্বিধায় মুখে বলুন বা লিখে জানান, আমি আপনাকে ভয়েসেই সবকিছু বুঝিয়ে বলছি।";
+              const isNaturalHerbal = String(page.pageId) === "133420039845881" || (page.pageName && page.pageName.includes("ন্যাচারাল"));
+              const docName = isNaturalHerbal ? "কবিরাজ মোহাম্মদ আরিফ" : "হাকিম রিয়াজুল করিম";
+              const voiceText = `জি ভাইয়া, অবশ্যই! আমি ডাক্তার ${docName} বলছি। কোনো সমস্যা নেই ভাইয়া, আপনি আর পড়তে হবে না—আমি আপনার সাথে মুখে কথা বলছি। আপনার কী সমস্যা হচ্ছে বা কী জানতে চাচ্ছেন, আমাকে নির্দ্বিধায় মুখে বলুন বা লিখে জানান, আমি আপনাকে ভয়েসেই সবকিছু বুঝিয়ে বলছি।`;
 
-              console.log(`[FB_BOT] Customer asked for voice consultation. Sending fresh doctor voice note to ${senderId}`);
+              console.log(`[FB_BOT] Customer asked for voice consultation. Sending text + fresh doctor voice note to ${senderId}`);
+              // 1. Send text reply immediately
               await sendSenderAction(senderId, "typing_on", page.accessToken);
+              await sendFacebookMessage(senderId, voiceText, page.accessToken);
+              customerMemory.appendChatMessage(senderId, "model", voiceText, false);
+              recordOutgoingBotMessageInDb(senderId, voiceText, false);
+
+              // 2. Also send voice note
               const sentVoice = await sendFacebookVoiceNote(senderId, voiceText, page.accessToken);
               if (sentVoice) {
-                customerMemory.appendChatMessage(senderId, "model", voiceText, true);
                 recordOutgoingBotMessageInDb(senderId, voiceText, true);
-              } else {
-                await sendFacebookMessage(senderId, voiceText, page.accessToken);
-                recordOutgoingBotMessageInDb(senderId, voiceText, false);
               }
               saveProcessedId(lastMsg.id);
               continue;

@@ -622,14 +622,18 @@ ${text}
 
     // CASE 1: Customer explicitly requested to speak in voice ("voice dao", "voice a bolte", "porte pari na voice daoya jabe")
     if (isOnlyVoice) {
-      const voiceText = "জি ভাইয়া, অবশ্যই! আমি ডাক্তার হাকিম রিয়াজুল করিম বলছি। কোনো সমস্যা নেই ভাইয়া, আপনি আর পড়তে হবে না—আমি আপনার সাথে মুখে কথা বলছি। আপনার কী সমস্যা হচ্ছে বা কী জানতে চাচ্ছেন, আমাকে নির্দ্বিধায় মুখে বলুন বা লিখে জানান, আমি আপনাকে ভয়েসেই সবকিছু বুঝিয়ে বলছি।";
+      setVoiceMode(senderId, true);
+      const isNaturalHerbal = String(pageId) === "133420039845881";
+      const docName = isNaturalHerbal ? "কবিরাজ মোহাম্মদ আরিফ" : "হাকিম রিয়াজুল করিম";
+      const voiceText = `জি ভাইয়া, অবশ্যই! আমি ডাক্তার ${docName} বলছি। কোনো সমস্যা নেই ভাইয়া, আপনি আর পড়তে হবে না—আমি আপনার সাথে মুখে কথা বলছি। আপনার কী সমস্যা হচ্ছে বা কী জানতে চাচ্ছেন, আমাকে নির্দ্বিধায় মুখে বলুন বা লিখে জানান, আমি আপনাকে ভয়েসেই সবকিছু বুঝিয়ে বলছি।`;
 
-      console.log(`[EXPLICIT_VOICE_REQUEST] Customer asked for voice consultation. Sending voice note only to ${senderId}: "${voiceText.substring(0, 60)}..."`);
+      console.log(`[EXPLICIT_VOICE_REQUEST] Customer asked for voice consultation. Sending text + voice note to ${senderId}: "${voiceText.substring(0, 60)}..."`);
+      // 1. Send text
       await sendSenderAction(senderId, "typing_on", effectiveToken);
+      await sendMessengerReply(pageId, senderId, voiceText, effectiveToken);
+
+      // 2. Also send voice note
       const sentVoice = await sendMessengerVoiceNote(senderId, voiceText, effectiveToken);
-      if (!sentVoice) {
-        await sendMessengerReply(pageId, senderId, voiceText, effectiveToken);
-      }
 
       // Save bot voice reply to DB
       try {
@@ -832,7 +836,8 @@ ${text}
     }
 
     const userPrefersText = isTextModeRequested(text);
-    const shouldSendVoice = !userPrefersText && (userInVoiceMode || isVoiceRequested(text) || Boolean(audioUrl));
+    const isLongReply = replyText && replyText.length >= 200;
+    const shouldSendVoice = !userPrefersText && (userInVoiceMode || isVoiceRequested(text) || Boolean(audioUrl) || isLongReply);
 
     if (replyText && effectiveToken) {
       // 1. ALWAYS SEND TEXT FIRST (Instant 1s response)
