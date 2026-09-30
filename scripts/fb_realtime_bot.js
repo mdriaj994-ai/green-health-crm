@@ -1749,7 +1749,7 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
 
   if (isPriceQuery && !isMultiDomainQuestion && !/(?:samprotik|somosya|সমস্যা|durbol|দুর্বল)/i.test(trimmedClean)) {
     if (/(?:joubon|যৌবন|raja|রাজা)/i.test(trimmedClean)) {
-      const pReply = "জি ভাইয়া, আমাদের 'যৌবনের রাজা (১০০% প্রাকৃতিক ও ভেষজ)'-এর মূল্য মাত্র ৩,০০০ টাকা। অর্ডার কনফার্ম করতে বিকাশ বা নগদের মাধ্যমে মাত্র ২০০ টাকা অগ্রিম (এডভান্স) করতে হবে এবং বাকি ২,৮০০ টাকা ক্যাশ অন ডেলিভারিতে দিতে হবে। যোগাযোগের নম্বর: ০১৮৭০০২৩৮০৪ (কল, হোয়াটসঅ্যাপ, ইমো ও মেসেঞ্জার সাপোর্ট)। ভাইয়া, আপনি কি এটি নিতে চাচ্ছেন?";
+      const pReply = "জি ভাইয়া, আমাদের 'যৌবনের রাজা (১০০% প্রাকৃতিক ও ভেষজ)'-এর মূল্য মাত্র ৩,০০০ টাকা। অর্ডার কনফার্ম করতে বিকাশের মাধ্যমে মাত্র ২০০ টাকা অগ্রিম (এডভান্স) করতে হবে এবং বাকি ২,৮০০ টাকা ক্যাশ অন ডেলিভারিতে দিতে হবে। যোগাযোগের নম্বর: ০১৮৭০০২৩৮০৪ (কল, হোয়াটসঅ্যাপ, ইমো ও মেসেঞ্জার সাপোর্ট)। ভাইয়া, আপনি কি এটি নিতে চাচ্ছেন?";
       if (senderId) customerMemory.appendChatMessage(senderId, "model", pReply, isVoiceMode);
       return pReply;
     }
