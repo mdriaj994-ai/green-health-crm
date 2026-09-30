@@ -2930,6 +2930,7 @@ function convertBengaliNumbersToWords(text) {
 
 function prepareBangladeshiTTSAudioText(rawText) {
   if (!rawText) return "";
+  rawText = rawText.replace(/u\{[0-9a-fA-F]+\}/g, " ");
   // Strip any accidental text-referencing words from spoken voice notes
   rawText = rawText
     .replace(/(এখানে|ফেসবুকে)?\s*(তো)?\s*(সরাসরি)?\s*(অডিও|ভয়েস|ভয়েস)\s*(মেসেজ)?\s*(পাঠানোর)?\s*(সুবিধা\s*নেই|পাঠাতে\s*পারি\s*না)[^\n।.!?]*[।.!?]?/gi, "")
@@ -3046,6 +3047,15 @@ async function transcribeAudioWithGemini(audioUrl, pageAccessToken = PAGE_TOKEN)
   return "";
 }
 
+function getKnowledgeBaseContext() {
+  try {
+    const kbPath = path.join(process.cwd(), "data", "knowledge_base.txt");
+    return fs.existsSync(kbPath) ? fs.readFileSync(kbPath, "utf-8") : "";
+  } catch {
+    return "";
+  }
+}
+
 // ── Gemini Vision Image Analysis for incoming customer product/prescription photos ───
 async function analyzeImageWithGemini(imageUrl, pageAccessToken = PAGE_TOKEN, pageName = "হেলথ কেয়ার", userText = "", customerName = "ভাইয়া", recentHistory = []) {
   if (!imageUrl) return "";
@@ -3071,7 +3081,7 @@ async function analyzeImageWithGemini(imageUrl, pageAccessToken = PAGE_TOKEN, pa
 আমাদের পণ্যের তালিকা:
 ১. কস্তুরী পাউডার / Kasturi Powder — ২৫০ গ্রাম কালো পাউডার বয়াম — ২৮০০ টাকা
 ২. বাজীকরণ হালুয়া / Bajikaran Halua — ৩৫০ গ্রাম বাদামী হালুয়া বয়াম — ২০০০ টাকা
-৩. যৌবনের রাজা / Jouboner Raja — ৩৫০০ টাকা
+৩. যৌবনের রাজা / Jouboner Raja — ৩০০০ টাকা (বিকাশ ২০০ টাকা এডভান্স, বাকি ২৮০০ টাকা ক্যাশ অন ডেলিভারি)
 
 [আপনার কাজ — ধাপে ধাপে করুন]:
 
@@ -3087,7 +3097,7 @@ async function analyzeImageWithGemini(imageUrl, pageAccessToken = PAGE_TOKEN, pa
 → এটা আমাদের বাজীকরণ হালুয়া। confirm করুন — ৩৫০ গ্রাম, ২০০০ টাকা।
 
 ■ যদি লেখায় পাওয়া যায়: "যৌবনের রাজা", "Jouboner Raja"
-→ এটা আমাদের যৌবনের রাজা। confirm করুন — ৩৫০০ টাকা।
+→ এটা আমাদের যৌবনের রাজা। confirm করুন — ৩,০০০ টাকা (বিকাশ ২০০ টাকা এডভান্স, বাকি ২,৮০০ টাকা ক্যাশ অন ডেলিভারি)।
 
 ■ যদি ছবিতে মানুষ, খেলোয়াড়, ব্যাগ, ইলেকট্রনিক্স, প্রকৃতি বা অন্য কোনো পণ্য আছে যা আমাদের ওষুধ নয়:
 → বলুন: "ভাইয়া, এটি আমাদের পণ্যের ছবি নয়। আপনার কি কোনো শারীরিক সমস্যা আছে? বললে সাহায্য করতে পারব।"
@@ -3098,7 +3108,7 @@ async function analyzeImageWithGemini(imageUrl, pageAccessToken = PAGE_TOKEN, pa
 ধাপ ৩: ২-৩ লাইনের সংক্ষিপ্ত ও আন্তরিক বাংলায় উত্তর দিন। কোনো ** বা markdown নয়।`;
 
     // Use direct REST API (SDK inlineData has issues with this key type)
-    const visionModels = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.5-flash", "gemini-3.1-flash-lite"];
+    const visionModels = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-3.1-flash-lite"];
     for (const m of visionModels) {
       try {
         const apiKey = process.env.GEMINI_API_KEY || GEMINI_API_KEY || "";
@@ -3298,7 +3308,7 @@ async function sendFacebookVoiceNote(recipientId, text, pageAccessToken = PAGE_T
 // ── Fetch Recent Conversations from Facebook ─────────────────────────────────
 async function fetchConversations(pageId = PAGE_ID, pageAccessToken = PAGE_TOKEN) {
   const url = `https://graph.facebook.com/v19.0/${pageId}/conversations?fields=messages.limit(15){message,from,created_time,id,attachments{id,type,mime_type,name,file_url,image_data,payload}}&access_token=${pageAccessToken}`;
-  const res = await fetch(url, { signal: AbortSignal.timeout(6000) });
+  const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
   if (!res.ok) return [];
   const data = await res.json();
   return data.data || [];
@@ -3556,7 +3566,9 @@ async function pollOnce() {
             if (!itemReply) {
               if (imageItemInBatch && imageItemInBatch.imageUrl && !fullBatchText.trim()) {
                 // Image only, no text - Vision failed. Send fixed neutral reply
-                itemReply = "ভাইয়া, এই ছবিটি দেখলাম। এটি আমাদের পণ্য (কস্তুরী পাউডার বা বাজীকরণ হালুয়া) মনে হচ্ছে না। আপনার কি কোনো শারীরিক সমস্যা আছে বা আমাদের ওষুধ সম্পর্কে জানতে চান?";
+                const isNaturalHerbal = String(page.pageId) === "133420039845881" || (page.pageName && page.pageName.includes("ন্যাচারাল"));
+                const prodNames = isNaturalHerbal ? "বাজীকরণ হালুয়া বা যৌবনের রাজা" : "কস্তুরী পাউডার বা বাজীকরণ হালুয়া";
+                itemReply = `ভাইয়া, এই ছবিটি দেখলাম। এটি আমাদের পণ্য (${prodNames}) মনে হচ্ছে না। আপনার কি কোনো শারীরিক সমস্যা আছে বা আমাদের ওষুধ সম্পর্কে জানতে চান?`;
               } else {
                 itemReply = await generateReply(fullBatchText, customerName, senderId, recentHistory, page.pageName, isVoiceMode(senderId), page.pageId);
               }
@@ -3768,7 +3780,9 @@ async function pollOnce() {
             if (!replyText) {
               if (singleImageItem && singleImageItem.imageUrl) {
                 // Image present but Vision failed - always neutral reply regardless of text
-                replyText = "u{09AD}u{09BE}u{0987}u{09AF}u{09BC}u{09BE}, u{098F}u{0987} u{099B}u{09AC}u{09BF}u{099F}u{09BF} u{09A6}u{09C7}u{0996}u{09B2}u{09BE}u{09AE}u{0964} u{098F}u{099F}u{09BF} u{0986}u{09AE}u{09BE}u{09A6}u{09C7}u{09B0} u{09AA}u{09A3}u{09CD}u{09AF} (u{0995}u{09B8}u{09CD}u{09A4}u{09C1}u{09B0}u{09C0} u{09AA}u{09BE}u{0989}u{09A1}u{09BE}u{09B0} u{09AC}u{09BE} u{09AC}u{09BE}u{099C}u{09C0}u{0995}u{09B0}u{09A3} u{09B9}u{09BE}u{09B2}u{09C1}u{09AF}u{09BC}u{09BE}) u{09AE}u{09A8}u{09C7} u{09B9}u{099A}u{09CD}u{099B}u{09C7} u{09A8}u{09BE}u{0964} u{0986}u{09AA}u{09A8}u{09BE}u{09B0} u{0995}u{09BF} u{0995}u{09CB}u{09A8}u{09CB} u{09B6}u{09BE}u{09B0}u{09C0}u{09B0}u{09BF}u{0995} u{09B8}u{09AE}u{09B8}u{09CD}u{09AF}u{09BE} u{0986}u{099B}u{09C7} u{09AC}u{09BE} u{0986}u{09AE}u{09BE}u{09A6}u{09C7}u{09B0} u{0993}u{09B7}u{09C1}u{09A7} u{09B8}u{09AE}u{09CD}u{09AA}u{09B0}u{09CD}u{0995}u{09C7} u{099C}u{09BE}u{09A8}u{09A4}u{09C7} u{099A}u{09BE}u{09A8}?";
+                const isNaturalHerbal = String(page.pageId) === "133420039845881" || (page.pageName && page.pageName.includes("ন্যাচারাল"));
+                const prodNames = isNaturalHerbal ? "বাজীকরণ হালুয়া বা যৌবনের রাজা" : "কস্তুরী পাউডার বা বাজীকরণ হালুয়া";
+                replyText = `ভাইয়া, এই ছবিটি দেখলাম। এটি আমাদের পণ্য (${prodNames}) মনে হচ্ছে না। আপনার কি কোনো শারীরিক সমস্যা আছে বা আমাদের ওষুধ সম্পর্কে জানতে চান?`;
               } else {
                 replyText = await generateReply(messageText, customerName, senderId, recentHistory, page.pageName, isVoiceReq, page.pageId);
               }
