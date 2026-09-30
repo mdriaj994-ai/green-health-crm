@@ -16,9 +16,27 @@ export async function GET() {
 
   // 2. Check running processes inside container
   try {
-    info.ps = execSync("ps aux || ps -ef || true").toString();
+    const pids = fs.readdirSync("/proc").filter(p => /^\d+$/.test(p));
+    info.processes = pids.map(pid => {
+      try {
+        const cmd = fs.readFileSync(`/proc/${pid}/cmdline`, "utf8").replace(/\0/g, " ").trim();
+        return { pid, cmd };
+      } catch { return null; }
+    }).filter(Boolean);
   } catch (e: any) {
-    info.psError = e.message;
+    info.procError = e.message;
+  }
+
+  // 2b. Bot Heartbeat
+  try {
+    const hbPath = path.join(process.cwd(), "data", "bot_heartbeat.json");
+    if (fs.existsSync(hbPath)) {
+      info.botHeartbeat = JSON.parse(fs.readFileSync(hbPath, "utf8"));
+    } else {
+      info.botHeartbeat = "No bot_heartbeat.json found";
+    }
+  } catch (e: any) {
+    info.botHeartbeatError = e.message;
   }
 
   // 3. Check data directory and files
@@ -61,7 +79,7 @@ export async function GET() {
         db.prepare(`
           UPDATE ConnectedAccount 
           SET accessToken = ?, pageId = '932259009980880', pageName = 'হেলথ কেয়ার', isActive = 1, aiAutoReply = 1 
-          WHERE platform = 'FACEBOOK'
+          WHERE pageId = '932259009980880'
         `).run(safeToken);
         info.dbTokenRepaired = true;
       } catch (repErr: any) {

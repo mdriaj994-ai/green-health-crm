@@ -3349,6 +3349,14 @@ async function pollOnce() {
 
   try {
     const activePages = getActivePages();
+    try {
+      const hbPath = path.join(process.cwd(), "data", "bot_heartbeat.json");
+      fs.writeFileSync(hbPath, JSON.stringify({
+        lastPoll: new Date().toISOString(),
+        pid: process.pid,
+        activePages: activePages.map(p => ({ id: p.pageId, name: p.pageName }))
+      }), "utf8");
+    } catch {}
     for (const page of activePages) {
       if (!page.aiAutoReply) continue;
       try {

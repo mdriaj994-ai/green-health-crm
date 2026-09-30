@@ -12,6 +12,8 @@ if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY.includes("Ku6nT") 
 }
 process.env.GROQ_API_KEY = (process.env.GROQ_API_KEY && !process.env.GROQ_API_KEY.includes("yb0FY")) ? process.env.GROQ_API_KEY : VALID_GROQ;
 process.env.ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || VALID_ELEVEN;
+process.env.CARTESIA_API_KEY = process.env.CARTESIA_API_KEY || "sk_car_us2GDcmgZpkWk1c5hSkv6v";
+process.env.CARTESIA_VOICE_ID = process.env.CARTESIA_VOICE_ID || "2e100707-bb62-40fb-90b6-9d79da563828";
 
 const PERM_PAGE_TOKEN = "EAAjkLPT8UegBSsQVgxm1fBW6D7N7oon9ZAudS1UKVLVbBEar1BGEvZCLJ3ibSLO6FmILQDf6mq4rcsL98cpxuuRwAHSwUprKUBLv6ZBBCSjYAGUPTU1SQIRDvR74D5aIivRiDoUG3zobZB83AIwZA8mZAhoqcBDpjii2KsvQshwZCCIdUSJk5NaDb5JZCFGt4YWKBfEZC";
 if (!process.env.FACEBOOK_PAGE_ACCESS_TOKEN || !process.env.FACEBOOK_PAGE_ACCESS_TOKEN.startsWith("EAAjkLPT8UegBSs")) {
@@ -19,6 +21,29 @@ if (!process.env.FACEBOOK_PAGE_ACCESS_TOKEN || !process.env.FACEBOOK_PAGE_ACCESS
 }
 
 process.env.STANDALONE_BOT_ACTIVE = "true";
+
+
+// Sync essential knowledge & database files into /app/data volume if missing
+try {
+  const fsSync = require("fs");
+  const dataDir = path.join(process.cwd(), "data");
+  const initDir = path.join(process.cwd(), "data-init");
+  if (fsSync.existsSync(initDir)) {
+    const initFiles = fsSync.readdirSync(initDir);
+    for (const file of initFiles) {
+      const src = path.join(initDir, file);
+      const dest = path.join(dataDir, file);
+      if (!fsSync.existsSync(dest) || file.endsWith(".txt") || file.endsWith(".json")) {
+        try {
+          fsSync.copyFileSync(src, dest);
+          console.log("[STARTUP] Synced ${file} into /app/data");
+        } catch {}
+      }
+    }
+  }
+} catch (syncErr) {
+  console.warn("[STARTUP_DATA_SYNC_WARN]", syncErr.message);
+}
 
 console.log("==========================================");
 console.log("  STARTING SOCIAL INBOX & FB REALTIME BOT ");
