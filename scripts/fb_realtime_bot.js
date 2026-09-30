@@ -1806,6 +1806,25 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
   }
 
   // ── 5. INGREDIENTS INTERCEPTOR ────────────────────────────────────────────
+  const isJoubonerRajaIng = /(?:joubon|যৌবন|raja|রাজা)/i.test(trimmedClean);
+  const isHowItWorksOrIng = /(?:upadan|উপাদান|ki\s*diye|কী\s*দিয়ে|ingredients|ki\s*ki\s*ache|কী\s*কী\s*আছে|kivabe\s*kaj|কীভাবে\s*কাজ|কিভাবে\s*কাজ|kaj\s*kore\s*kivabe|কাজ\s*করে\s*কীভাবে|কাজ\s*কী|কাজ\s*কি|উপকারিতা|upokarita|keno\s*alada|কেন\s*আলাদা|কেন\s*সবার\s*থেকে\s*আলাদা)/i.test(trimmedClean);
+
+  if (isHowItWorksOrIng && isJoubonerRajaIng) {
+    const joubonReply = `জি ভাইয়া, 'যৌবনের রাজা (১০০% প্রাকৃতিক ও ভেষজ)' আদি ও অকৃত্রিম পরীক্ষিত ফর্মুলায় তৈরি।
+
+এতে রয়েছে বিশেষ দুর্লভ উপাদান ও কার্যপদ্ধতি:
+১. রক্ত চলাচল বৃদ্ধি: এতে রয়েছে হাতেসুরি গাছের শিকড় ও স্বর্ণলতা গাছের ফল, যা সরাসরি ধমনীর রক্ত চলাচল দ্বিগুণ বাড়িয়ে লিঙ্গকে লোহার মতো টানটান করে তোলে।
+২. স্ট্যামিনা বৃদ্ধি: সবল সচেত জিনসেং এবং টাটকা শতমূলী স্ট্যামিনা এমন পর্যায়ে নিয়ে যায় যে, টানা ১ থেকে ২ ঘণ্টা মিলন করলেও কোনো ক্লান্তি আসবে না।
+৩. লিঙ্গের সাইজ ও দৃঢ়তা: কস্তুরী লিঙ্গের সাইজ করে তোলে দানবাকৃতি ও সুদৃঢ়।
+৪. বীর্য ঘন করা: চড়ুই পাখির নিমাই ও পারদ ভস্ম জলের মতো পাতলা বীর্যকে বরফের মতো কুচকে ঘনীভূত করে তোলে।
+৫. যৌবন ফিরিয়ে আনা: বয়স ৭০ বা ৮০ বছর হলেও এটি সেবনের সাথে সাথেই শরীরে ২০ বছরের টগবগে যুবকের তেজ ও শক্তি বয়ে যায়।
+
+কেন সবার থেকে আলাদা?
+এটি শতভাগ ভেষজ ও পরীক্ষিত আদি ফর্মুলায় তৈরি। স্ত্রীর কাছে লজ্জিত না হয়ে খুব দ্রুত নিজের পুরুষত্ব শতভাগ ফিরিয়ে আনার জন্য এটি অত্যন্ত কার্যকর ভাইয়া।`;
+    if (senderId) customerMemory.appendChatMessage(senderId, "model", joubonReply, isVoiceMode);
+    return joubonReply;
+  }
+
   const isIngredientsQuery = /(?:upadan|উপাদান|ki\s*diye|কী\s*দিয়ে|ingredients|ki\s*ki\s*ache|কী\s*কী\s*আছে)/i.test(trimmedClean) &&
     /(?:upadan|উপাদান|toiri|তৈরি|উপাদানগুলো|বানানো)/i.test(trimmedClean);
 
