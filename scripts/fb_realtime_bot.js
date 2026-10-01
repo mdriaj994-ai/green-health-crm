@@ -3280,11 +3280,20 @@ function splitTextIntoVoiceChunks(text, maxChars = 800) {
   return chunks.length > 0 ? chunks : [text];
 }
 
+let cartesiaCreditsExhausted = false;
+let lastCartesiaCheckTime = 0;
+const CARTESIA_COOLDOWN_MS = 5 * 60 * 1000; // 5 min cooldown
+
 async function sendSingleFacebookVoiceNote(recipientId, text, pageAccessToken = PAGE_TOKEN) {
   const CARTESIA_API_KEY = process.env.CARTESIA_API_KEY || "sk_car_us2GDcmgZpkWk1c5hSkv6v";
   const CARTESIA_VOICE_ID = process.env.CARTESIA_VOICE_ID || "2e100707-bb62-40fb-90b6-9d79da563828";
 
   if (!CARTESIA_API_KEY) return null;
+
+  // Circuit breaker: skip immediately if credits were recently exhausted
+  if (cartesiaCreditsExhausted && (Date.now() - lastCartesiaCheckTime < CARTESIA_COOLDOWN_MS)) {
+    return null;
+  }
 
   try {
     const cleanText = prepareBangladeshiTTSAudioText(text);
@@ -3310,40 +3319,28 @@ async function sendSingleFacebookVoiceNote(recipientId, text, pageAccessToken = 
           sample_rate: 44100
         },
         language: "bn"
-      })
+      }),
+      signal: AbortSignal.timeout(5000)
+    }).catch(e => {
+      console.warn("[FB_BOT_VOICE_TIMEOUT]", e.message);
+      return null;
     });
 
-    if (!ttsRes.ok) {
-      console.warn("[FB_BOT_VOICE_RETRY] Retrying with sonic-3.5");
-      ttsRes = await fetch(ttsUrl, {
-        method: "POST",
-        headers: {
-          "X-API-Key": CARTESIA_API_KEY,
-          "Cartesia-Version": "2024-06-10",
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model_id: "sonic-3.5",
-          transcript: cleanText,
-          voice: {
-            mode: "id",
-            id: CARTESIA_VOICE_ID
-          },
-          output_format: {
-            container: "mp3",
-            bit_rate: 128000,
-            sample_rate: 44100
-          },
-          language: "bn"
-        })
-      });
-    }
+    if (!ttsRes) return null;
 
-    if (!ttsRes.ok) {
-      console.warn("[FB_BOT_VOICE_FAIL]", await ttsRes.text());
+    if (ttsRes.status === 402 || ttsRes.status === 401) {
+      console.warn(`[FB_BOT_VOICE_ALERT] ⚠️ Cartesia API returned ${ttsRes.status} (Credits exhausted/Unauthorized). Circuit breaker enabled for 5 mins; immediate text fallback.`);
+      cartesiaCreditsExhausted = true;
+      lastCartesiaCheckTime = Date.now();
       return null;
     }
 
+    if (!ttsRes.ok) {
+      console.warn("[FB_BOT_VOICE_FAIL]", await ttsRes.text().catch(() => ""));
+      return null;
+    }
+
+    cartesiaCreditsExhausted = false;
     const audioBytes = Buffer.from(await ttsRes.arrayBuffer());
 
     const uploadUrl = `https://graph.facebook.com/v19.0/me/message_attachments?access_token=${pageAccessToken}`;
@@ -3356,7 +3353,7 @@ async function sendSingleFacebookVoiceNote(recipientId, text, pageAccessToken = 
     }));
     form.append("filedata", new Blob([audioBytes], { type: "audio/mp3" }), "doctor_voice.mp3");
 
-    const upRes = await fetch(uploadUrl, { method: "POST", body: form });
+    const upRes = await fetch(uploadUrl, { method: "POST", body: form, signal: AbortSignal.timeout(6000) });
     const upData = await upRes.json().catch(() => null);
 
     if (upData?.attachment_id) {
@@ -3375,7 +3372,8 @@ async function sendSingleFacebookVoiceNote(recipientId, text, pageAccessToken = 
             }
           },
           messaging_type: "RESPONSE"
-        })
+        }),
+        signal: AbortSignal.timeout(6000)
       });
       if (sendRes.ok) {
         const sendData = await sendRes.json().catch(() => null);
@@ -3391,6 +3389,9 @@ async function sendSingleFacebookVoiceNote(recipientId, text, pageAccessToken = 
 }
 
 async function sendFacebookVoiceNote(recipientId, text, pageAccessToken = PAGE_TOKEN) {
+  if (cartesiaCreditsExhausted && (Date.now() - lastCartesiaCheckTime < CARTESIA_COOLDOWN_MS)) {
+    return null;
+  }
   const chunks = splitTextIntoVoiceChunks(text, 800);
   if (chunks.length > 1) {
     console.log(`[VOICE_CHUNK] Long voice response (${text.length} chars) split into ${chunks.length} parts for ${recipientId}`);
@@ -3400,8 +3401,12 @@ async function sendFacebookVoiceNote(recipientId, text, pageAccessToken = PAGE_T
   for (let i = 0; i < chunks.length; i++) {
     const chunkText = chunks[i];
     lastId = await sendSingleFacebookVoiceNote(recipientId, chunkText, pageAccessToken);
+    if (!lastId) {
+      console.warn(`[FB_BOT_VOICE] Chunk ${i + 1}/${chunks.length} failed. Aborting remaining voice chunks.`);
+      return null;
+    }
     if (i < chunks.length - 1) {
-      await new Promise((r) => setTimeout(r, 1200));
+      await new Promise((r) => setTimeout(r, 600));
     }
   }
   return lastId;
@@ -3442,76 +3447,65 @@ function recordOutgoingBotMessageInDb(senderId, replyText, isVoice = false) {
   }
 }
 
-// ── Main Multi-Page Polling Loop ─────────────────────────────────────────────
-let isPolling = false;
+// ── Main Multi-Page Polling Loop (Parallel Concurrent Execution) ─────────────
+const pagePollingMap = new Map();
 
-async function pollOnce() {
-  if (isPolling) return;
-  isPolling = true;
+async function pollPage(page) {
+  if (!page.aiAutoReply) return;
+  if (pagePollingMap.get(page.pageId)) return;
+  pagePollingMap.set(page.pageId, true);
 
   try {
-    const activePages = getActivePages();
-    try {
-      const hbPath = path.join(process.cwd(), "data", "bot_heartbeat.json");
-      fs.writeFileSync(hbPath, JSON.stringify({
-        lastPoll: new Date().toISOString(),
-        pid: process.pid,
-        activePages: activePages.map(p => ({ id: p.pageId, name: p.pageName }))
-      }), "utf8");
-    } catch {}
-    for (const page of activePages) {
-      if (!page.aiAutoReply) continue;
+    const convs = await fetchConversations(page.pageId, page.accessToken);
+    for (const conv of convs) {
+      const unrepliedCustomerMsgs = [];
       try {
-        const convs = await fetchConversations(page.pageId, page.accessToken);
-        for (const conv of convs) {
-          const unrepliedCustomerMsgs = [];
-          try {
-            const msgs = conv.messages?.data || [];
-            if (msgs.length === 0) continue;
+        const msgs = conv.messages?.data || [];
+        if (msgs.length === 0) continue;
 
-            // 1. Collect ALL unprocessed customer messages from this thread.
-            // msgs is sorted newest-first.
-            // If customer sent another message while bot was replying or right before,
-            // we must NOT drop it just because a bot reply was posted!
-            for (const m of msgs) {
-              const isFromCustomer = m.from?.id && String(m.from.id) !== String(page.pageId);
-              if (isFromCustomer) {
-              if (isProcessedId(m.id)) {
-                // Reached a customer message that was already processed & replied to!
-                break;
-              }
-              unrepliedCustomerMsgs.push(m);
-            } else {
-              // This message is from the Page.
-              // If it's Facebook's automated ad message or greeting, ignore it and continue checking customer messages!
-              if (isFacebookAutomatedMessage(m)) {
-                continue;
-              }
-              // If it's from a HUMAN AGENT (not sent by our bot), stop checking — human took over!
-              if (!isBotSentMessage(m)) {
-                break;
-              }
-              // If it WAS sent by our bot, do NOT break!
-              // The bot may have replied to an older message while this customer sent a new message,
-              // so keep inspecting older messages in the list to collect any unreplied customer message!
-            }
+        // 1. Collect ALL unprocessed customer messages from this thread.
+        // msgs is sorted newest-first.
+        // If customer sent another message while bot was replying or right before,
+        // we must NOT drop it just because a bot reply was posted!
+        for (const m of msgs) {
+          const isFromCustomer = m.from?.id && String(m.from.id) !== String(page.pageId);
+          if (isFromCustomer) {
+          if (isProcessedId(m.id)) {
+            // Reached a customer message that was already processed & replied to!
+            break;
           }
-
-          if (unrepliedCustomerMsgs.length === 0) continue;
-
-          // 2. Rapid typing buffer (merge consecutive messages sent within 4 seconds)
-          const newestMsg = unrepliedCustomerMsgs[0];
-          const newestAge = Date.now() - new Date(newestMsg.created_time).getTime();
-          const senderId = newestMsg.from?.id ? String(newestMsg.from.id) : null;
-          if (!senderId) continue;
-
-          // If the customer just sent this message less than 4 seconds ago,
-          // mark as seen & start typing dots immediately, but wait 4s to let them finish sending follow-up messages!
-          if (newestAge < 4000) {
-            await sendSenderAction(senderId, "mark_seen", page.accessToken);
-            await sendSenderAction(senderId, "typing_on", page.accessToken);
+          unrepliedCustomerMsgs.push(m);
+        } else {
+          // This message is from the Page.
+          // If it's Facebook's automated ad message or greeting, ignore it and continue checking customer messages!
+          if (isFacebookAutomatedMessage(m)) {
             continue;
           }
+          // If it's from a HUMAN AGENT (not sent by our bot), stop checking — human took over!
+          if (!isBotSentMessage(m)) {
+            break;
+          }
+          // If it WAS sent by our bot, do NOT break!
+          // The bot may have replied to an older message while this customer sent a new message,
+          // so keep inspecting older messages in the list to collect any unreplied customer message!
+        }
+      }
+
+      if (unrepliedCustomerMsgs.length === 0) continue;
+
+      // 2. Rapid typing buffer (merge consecutive messages sent within 2 seconds)
+      const newestMsg = unrepliedCustomerMsgs[0];
+      const newestAge = Date.now() - new Date(newestMsg.created_time).getTime();
+      const senderId = newestMsg.from?.id ? String(newestMsg.from.id) : null;
+      if (!senderId) continue;
+
+      // If the customer just sent this message less than 2 seconds ago,
+      // mark as seen & start typing dots immediately, but wait 2s to let them finish sending follow-up messages!
+      if (newestAge < 2000) {
+        await sendSenderAction(senderId, "mark_seen", page.accessToken);
+        await sendSenderAction(senderId, "typing_on", page.accessToken);
+        continue;
+      }
 
           // Track in-flight message IDs so parallel poll ticks don't duplicate
           for (const m of unrepliedCustomerMsgs) {
@@ -3686,7 +3680,6 @@ async function pollOnce() {
 
             // ── VOICE / TEXT ROUTING LOGIC FOR BATCH ──
             const userPrefersText = isTextModeRequested(fullBatchText);
-            const isLongReply = itemReply && itemReply.length >= 200;
             const anyAudio = resolvedItems.some(i => i.hasAudio);
             const isVoiceConversation = !userPrefersText && (
               isVoiceMode(senderId) ||
@@ -3694,7 +3687,7 @@ async function pollOnce() {
               isVoiceRequested(fullBatchText) ||
               isOnlyVoiceRequest(fullBatchText)
             );
-            const wantsVoice = !userPrefersText && (isVoiceConversation || isLongReply);
+            const wantsVoice = !userPrefersText && isVoiceConversation;
             const hasOrderFormOrPhone = containsOrderFormOrPhone(fullBatchText, itemReply);
 
             let sentVoice = false;
@@ -3716,7 +3709,7 @@ async function pollOnce() {
             if (shouldSendText) {
               const delay = calculateHumanTypingDelay(itemReply);
               await sendSenderAction(senderId, "typing_on", page.accessToken);
-              await sleep(Math.min(delay, 1500));
+              await sleep(Math.min(delay, 800));
               const sendRes = await sendFacebookMessage(senderId, itemReply, page.accessToken, newestMsg.id);
               console.log(`[FB_BOT] Replied to batch of ${resolvedItems.length} msgs (Status: ${sendRes.status}): "${itemReply.slice(0, 60)}..."`);
               recordOutgoingBotMessageInDb(senderId, itemReply, false);
@@ -4214,7 +4207,6 @@ ${paymentLine}
             // Rule 4: Normal text mode -> Text as usual.
             // Rule 5: Fallback to text if voice sending fails.
             const userPrefersText = isTextModeRequested(messageText);
-            const isLongReply = replyText && replyText.length >= 200;
             const isVoiceConversation = !userPrefersText && (
               isVoiceMode(senderId) ||
               isVoiceReq ||
@@ -4222,16 +4214,13 @@ ${paymentLine}
               isOnlyVoiceRequest(messageText) ||
               isVoiceRequested(messageText)
             );
-            const wantsVoice = !userPrefersText && (isVoiceConversation || isLongReply);
+            const wantsVoice = !userPrefersText && isVoiceConversation;
             const hasOrderFormOrPhone = containsOrderFormOrPhone(messageText, replyText);
 
             let sentVoice = false;
-            // 1. Send Voice Note first if in voice mode or auto-voice
+            // 1. Send Voice Note first if in voice mode or customer requested voice
             if (wantsVoice) {
-              const voiceReason = isLongReply && !isVoiceConversation
-                ? "AUTO (long reply " + replyText.length + " chars)"
-                : "VOICE_CONVERSATION";
-              console.log(`[FB_BOT] 🎙️ [${voiceReason}] Sending voice note to ${senderId}...`);
+              console.log(`[FB_BOT] 🎙️ [VOICE_CONVERSATION] Sending voice note to ${senderId}...`);
               try {
                 await sendSenderAction(senderId, "typing_on", page.accessToken);
                 sentVoice = await sendFacebookVoiceNote(senderId, replyText, page.accessToken);
@@ -4253,7 +4242,7 @@ ${paymentLine}
             if (shouldSendText) {
               const delay = calculateHumanTypingDelay(replyText);
               await sendSenderAction(senderId, "typing_on", page.accessToken);
-              await sleep(Math.min(delay, 1500));
+              await sleep(Math.min(delay, 800));
               const sendResult = await sendFacebookMessage(senderId, replyText, page.accessToken, lastMsg.id);
               console.log(`[FB_BOT] 🚀 [${page.pageName}] TEXT SENT [${sendResult.status}]:`, sendResult.data?.message_id || sendResult.data);
               recordOutgoingBotMessageInDb(senderId, replyText, false);
@@ -4270,12 +4259,27 @@ ${paymentLine}
         }
       } catch (pageErr) {
         console.error(`[FB_BOT] Error polling ${page.pageName}:`, pageErr.message);
+      } finally {
+        pagePollingMap.set(page.pageId, false);
       }
     }
+
+async function pollOnce() {
+  try {
+    const activePages = getActivePages().filter(p => p.aiAutoReply);
+    try {
+      const hbPath = path.join(process.cwd(), "data", "bot_heartbeat.json");
+      fs.writeFileSync(hbPath, JSON.stringify({
+        lastPoll: new Date().toISOString(),
+        pid: process.pid,
+        activePages: activePages.map(p => ({ id: p.pageId, name: p.pageName }))
+      }), "utf8");
+    } catch {}
+
+    // Parallel multi-page polling: both Facebook pages run concurrently
+    await Promise.allSettled(activePages.map(page => pollPage(page)));
   } catch (err) {
     // Network hiccup - ignore and keep polling
-  } finally {
-    isPolling = false;
   }
 }
 

@@ -1690,11 +1690,19 @@ function splitTextIntoVoiceChunks(text: string, maxChars: number = 800): string[
   return chunks.length > 0 ? chunks : [text];
 }
 
+let webhookCartesiaCreditsExhausted = false;
+let webhookLastCartesiaCheckTime = 0;
+const WEBHOOK_CARTESIA_COOLDOWN_MS = 5 * 60 * 1000;
+
 async function sendSingleVoiceNote(recipientId: string, text: string, accessToken: string): Promise<string | null> {
   const CARTESIA_API_KEY = process.env.CARTESIA_API_KEY || "sk_car_us2GDcmgZpkWk1c5hSkv6v";
   const CARTESIA_VOICE_ID = process.env.CARTESIA_VOICE_ID || "2e100707-bb62-40fb-90b6-9d79da563828";
 
   if (!CARTESIA_API_KEY) return null;
+
+  if (webhookCartesiaCreditsExhausted && (Date.now() - webhookLastCartesiaCheckTime < WEBHOOK_CARTESIA_COOLDOWN_MS)) {
+    return null;
+  }
 
   try {
     const cleanText = prepareBangladeshiTTSAudioText(text);
@@ -1721,40 +1729,28 @@ async function sendSingleVoiceNote(recipientId: string, text: string, accessToke
           sample_rate: 44100
         },
         language: "bn"
-      })
+      }),
+      signal: AbortSignal.timeout(5000)
+    }).catch(e => {
+      console.warn("[FB_VOICE_NOTE_TIMEOUT]", e.message);
+      return null;
     });
 
-    if (!ttsRes.ok) {
-      console.warn("[VOICE_NOTE_CARTESIA_RETRY] Retrying with sonic-3.5");
-      ttsRes = await fetch(ttsUrl, {
-        method: "POST",
-        headers: {
-          "X-API-Key": CARTESIA_API_KEY,
-          "Cartesia-Version": "2024-06-10",
-          "Content-Type": "application/json"
-        },
-        body: JSON.stringify({
-          model_id: "sonic-3.5",
-          transcript: cleanText,
-          voice: {
-            mode: "id",
-            id: CARTESIA_VOICE_ID
-          },
-          output_format: {
-            container: "mp3",
-            bit_rate: 128000,
-            sample_rate: 44100
-          },
-          language: "bn"
-        })
-      });
-    }
+    if (!ttsRes) return null;
 
-    if (!ttsRes.ok) {
-      console.warn("[VOICE_NOTE_CARTESIA_FAIL]", await ttsRes.text());
+    if (ttsRes.status === 402 || ttsRes.status === 401) {
+      console.warn(`[FB_VOICE_NOTE_ALERT] ⚠️ Cartesia API returned status ${ttsRes.status}. Disabling TTS for 5 mins.`);
+      webhookCartesiaCreditsExhausted = true;
+      webhookLastCartesiaCheckTime = Date.now();
       return null;
     }
 
+    if (!ttsRes.ok) {
+      console.warn("[VOICE_NOTE_CARTESIA_FAIL]", await ttsRes.text().catch(() => ""));
+      return null;
+    }
+
+    webhookCartesiaCreditsExhausted = false;
     const audioBytes = Buffer.from(await ttsRes.arrayBuffer());
 
     // 2. Upload to Facebook message_attachments
@@ -1768,7 +1764,7 @@ async function sendSingleVoiceNote(recipientId: string, text: string, accessToke
     }));
     form.append("filedata", new Blob([audioBytes], { type: "audio/mp3" }), "doctor_voice.mp3");
 
-    const upRes = await fetch(uploadUrl, { method: "POST", body: form });
+    const upRes = await fetch(uploadUrl, { method: "POST", body: form, signal: AbortSignal.timeout(6000) });
     const upData = await upRes.json().catch(() => null);
 
     if (upData?.attachment_id) {
@@ -1788,7 +1784,8 @@ async function sendSingleVoiceNote(recipientId: string, text: string, accessToke
             }
           },
           messaging_type: "RESPONSE"
-        })
+        }),
+        signal: AbortSignal.timeout(6000)
       });
       const sendData = await sendRes.json().catch(() => null);
       if (sendRes.ok) {
@@ -1807,6 +1804,9 @@ async function sendSingleVoiceNote(recipientId: string, text: string, accessToke
 }
 
 async function sendMessengerVoiceNote(recipientId: string, text: string, accessToken: string): Promise<string | null> {
+  if (webhookCartesiaCreditsExhausted && (Date.now() - webhookLastCartesiaCheckTime < WEBHOOK_CARTESIA_COOLDOWN_MS)) {
+    return null;
+  }
   const chunks = splitTextIntoVoiceChunks(text, 800);
   if (chunks.length > 1) {
     console.log(`[VOICE_CHUNK] Long voice response (${text.length} chars) split into ${chunks.length} parts for ${recipientId}`);
@@ -1816,8 +1816,12 @@ async function sendMessengerVoiceNote(recipientId: string, text: string, accessT
   for (let i = 0; i < chunks.length; i++) {
     const chunkText = chunks[i];
     lastId = await sendSingleVoiceNote(recipientId, chunkText, accessToken);
+    if (!lastId) {
+      console.warn(`[FB_VOICE_NOTE] Chunk ${i + 1}/${chunks.length} failed. Aborting remaining voice chunks.`);
+      return null;
+    }
     if (i < chunks.length - 1) {
-      await new Promise((r) => setTimeout(r, 1200));
+      await new Promise((r) => setTimeout(r, 600));
     }
   }
   return lastId;
