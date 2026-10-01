@@ -490,6 +490,7 @@ function isProcessedId(id) {
 
 function saveProcessedId(id) {
   if (!id) return;
+  inFlightMsgIds.delete(id);
   processedIds.add(id);
   try {
     const dir = path.join(process.cwd(), "data");
@@ -3493,28 +3494,18 @@ async function pollPage(page) {
 
       if (unrepliedCustomerMsgs.length === 0) continue;
 
-      // 2. Rapid typing buffer (merge consecutive messages sent within 2 seconds)
       const newestMsg = unrepliedCustomerMsgs[0];
-      const newestAge = Date.now() - new Date(newestMsg.created_time).getTime();
       const senderId = newestMsg.from?.id ? String(newestMsg.from.id) : null;
       if (!senderId) continue;
 
-      // If the customer just sent this message less than 2 seconds ago,
-      // mark as seen & start typing dots immediately, but wait 2s to let them finish sending follow-up messages!
-      if (newestAge < 2000) {
-        await sendSenderAction(senderId, "mark_seen", page.accessToken);
-        await sendSenderAction(senderId, "typing_on", page.accessToken);
-        continue;
+      // Track in-flight message IDs so parallel poll ticks don't duplicate
+      for (const m of unrepliedCustomerMsgs) {
+        inFlightMsgIds.add(m.id);
       }
 
-          // Track in-flight message IDs so parallel poll ticks don't duplicate
-          for (const m of unrepliedCustomerMsgs) {
-            inFlightMsgIds.add(m.id);
-          }
-
-          // ── HUMAN BEHAVIOR: Instantly mark message as SEEN (blue tick) ──────
-          await sendSenderAction(senderId, "mark_seen", page.accessToken);
-          await sendSenderAction(senderId, "typing_on", page.accessToken);
+      // ── HUMAN BEHAVIOR: Instantly mark message as SEEN & show typing dots ──
+      await sendSenderAction(senderId, "mark_seen", page.accessToken);
+      await sendSenderAction(senderId, "typing_on", page.accessToken);
 
           // Use only name customer told us — NEVER use Facebook profile name for addressing
           const _fbProfile = newestMsg.from?.name || "";
@@ -3704,8 +3695,9 @@ async function pollPage(page) {
               }
             }
 
-            // In voice mode: send text ONLY if it contains phone number or order form, OR if voice failed
-            const shouldSendText = !isVoiceConversation || hasOrderFormOrPhone || !sentVoice;
+            // Always send text if customer sent text, OR if order form/phone is present, OR if voice failed
+            const customerSentAudio = resolvedItems.some(i => i.hasAudio);
+            const shouldSendText = !customerSentAudio || hasOrderFormOrPhone || !sentVoice;
             if (shouldSendText) {
               const delay = calculateHumanTypingDelay(itemReply);
               await sendSenderAction(senderId, "typing_on", page.accessToken);
@@ -3861,6 +3853,7 @@ async function pollPage(page) {
               if (sentVoice) {
                 recordOutgoingBotMessageInDb(senderId, voiceText, true);
                 customerMemory.appendChatMessage(senderId, "model", voiceText, true);
+                await sendFacebookMessage(senderId, voiceText, page.accessToken);
               } else {
                 // Fallback to text only if voice note failed
                 await sendFacebookMessage(senderId, voiceText, page.accessToken);
@@ -4234,10 +4227,9 @@ ${paymentLine}
               }
             }
 
-            // 2. Decide whether to send text message:
-            // - If not voice conversation: always send text
-            // - If voice conversation: send text ONLY if order form/phone is present, OR if voice failed
-            const shouldSendText = !isVoiceConversation || hasOrderFormOrPhone || !sentVoice;
+            // 2. Always send text message if customer sent text, or order form/phone, or if voice failed
+            const customerSentAudio = Boolean(audioAttach);
+            const shouldSendText = !customerSentAudio || hasOrderFormOrPhone || !sentVoice;
 
             if (shouldSendText) {
               const delay = calculateHumanTypingDelay(replyText);
