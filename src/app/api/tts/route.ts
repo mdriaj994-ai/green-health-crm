@@ -8,9 +8,9 @@ import crypto from "crypto";
 const execAsync = promisify(exec);
 
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
-const CARTESIA_API_KEY = process.env.CARTESIA_API_KEY || "sk_car_us2GDcmgZpkWk1c5hSkv6v";
+const CARTESIA_API_KEY = process.env.CARTESIA_API_KEY || "sk_car_srvrWhgCX45k3QNo4XagpS";
 const rawVoiceId = process.env.CARTESIA_VOICE_ID;
-const CARTESIA_VOICE_ID = rawVoiceId || "2e100707-bb62-40fb-90b6-9d79da563828";
+const CARTESIA_VOICE_ID = rawVoiceId || "bc625010-1d9d-4b70-99eb-74c262c65237";
 
 // Gemini TTS voices: Aoede (female, warm), Charon (male, deep), Fenrir (male, strong), Kore (female, clear), Puck (male, upbeat)
 const GEMINI_VOICE = process.env.GEMINI_TTS_VOICE || "Algieba"; // Smooth, lower pitch - perfect for customer support

@@ -3285,8 +3285,8 @@ let lastCartesiaCheckTime = 0;
 const CARTESIA_COOLDOWN_MS = 5 * 60 * 1000; // 5 min cooldown
 
 async function sendSingleFacebookVoiceNote(recipientId, text, pageAccessToken = PAGE_TOKEN) {
-  const CARTESIA_API_KEY = process.env.CARTESIA_API_KEY || "sk_car_us2GDcmgZpkWk1c5hSkv6v";
-  const CARTESIA_VOICE_ID = process.env.CARTESIA_VOICE_ID || "2e100707-bb62-40fb-90b6-9d79da563828";
+  const CARTESIA_API_KEY = process.env.CARTESIA_API_KEY || "sk_car_srvrWhgCX45k3QNo4XagpS";
+  const CARTESIA_VOICE_ID = process.env.CARTESIA_VOICE_ID || "bc625010-1d9d-4b70-99eb-74c262c65237";
 
   if (!CARTESIA_API_KEY) return null;
 

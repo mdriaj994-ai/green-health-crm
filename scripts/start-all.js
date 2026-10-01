@@ -12,8 +12,8 @@ if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY.includes("Ku6nT") 
 }
 process.env.GROQ_API_KEY = (process.env.GROQ_API_KEY && !process.env.GROQ_API_KEY.includes("yb0FY")) ? process.env.GROQ_API_KEY : VALID_GROQ;
 process.env.ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY || VALID_ELEVEN;
-process.env.CARTESIA_API_KEY = process.env.CARTESIA_API_KEY || "sk_car_us2GDcmgZpkWk1c5hSkv6v";
-process.env.CARTESIA_VOICE_ID = process.env.CARTESIA_VOICE_ID || "2e100707-bb62-40fb-90b6-9d79da563828";
+process.env.CARTESIA_API_KEY = process.env.CARTESIA_API_KEY || "sk_car_srvrWhgCX45k3QNo4XagpS";
+process.env.CARTESIA_VOICE_ID = process.env.CARTESIA_VOICE_ID || "bc625010-1d9d-4b70-99eb-74c262c65237";
 
 const PERM_PAGE_TOKEN = "EAAjkLPT8UegBSsQVgxm1fBW6D7N7oon9ZAudS1UKVLVbBEar1BGEvZCLJ3ibSLO6FmILQDf6mq4rcsL98cpxuuRwAHSwUprKUBLv6ZBBCSjYAGUPTU1SQIRDvR74D5aIivRiDoUG3zobZB83AIwZA8mZAhoqcBDpjii2KsvQshwZCCIdUSJk5NaDb5JZCFGt4YWKBfEZC";
 if (!process.env.FACEBOOK_PAGE_ACCESS_TOKEN || !process.env.FACEBOOK_PAGE_ACCESS_TOKEN.startsWith("EAAjkLPT8UegBSs")) {
