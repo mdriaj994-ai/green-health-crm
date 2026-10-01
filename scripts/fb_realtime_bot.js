@@ -25,6 +25,15 @@ const HAKIM_PERSONA = {
   helpline: "01870-023804 (বিকাশ)"
 };
 
+const BOT_PERSONA = {
+  name: "মোহাম্মদ সাজ্জাদ",
+  title: "কাস্টমার কেয়ার ও স্বাস্থ্য পরামর্শক",
+  hometown: "জিইসি মোড় / আগ্রাবাদ, চট্টগ্রাম",
+  city: "চট্টগ্রাম",
+  personalIntro: "জি ভাইয়া, আমার নাম মোহাম্মদ সাজ্জাদ। আমি কাস্টমার কেয়ার ও স্বাস্থ্য পরামর্শ বিভাগ থেকে বলছি। আমার বাসা চট্টগ্রামে (জিইসি মোড়, চট্টগ্রাম)।",
+  helpline: "০১৮৭০০২৩৮০৪"
+};
+
 function getTimeAwareGreeting() {
   const now = new Date();
   const bdHour = (now.getUTCHours() + 6) % 24;
@@ -1346,37 +1355,17 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
       const _isAskingForContact = /(?:number|namber|নম্বর|নাম্বার|call|কল|phone|ফোন|whatsapp|হোয়াটসঅ্যাপ|যোগাযোগ|contact|সরাসরি)/i.test(customerMessage);
       const _hasSpecificQuestion = /(?:dam|দাম|price|প্রাইস|koto|কত|taka|টাকা|khawa|খাওয়া|খাব|sebon|সেবন|niyom|নিয়ম|মেলামেশা|সাইড|side|ক্ষতি|khoti|উপাদান|উপকার|ডেলিভারি|ঠিকানা|কোথায়|kothay)/i.test(customerMessage);
       
-      if (_userMsgCount >= 3 && !_isAskingForContact && !_hasSpecificQuestion) {
+      const _isAskingIdentityOrGreeting = /(?:name|nam|naam|নাম|porichoy|পরিচয়|পরিচয়|কে\s*আপনি|আপনি\s*কে|basa|bari|বাসা|বাড়ি|kemon|কেমন|salam|সালাম|assalam|hi\b|hello\b|হাই|হ্যালো)/i.test(customerMessage);
+      if (_userMsgCount >= 3 && !_isAskingForContact && !_hasSpecificQuestion && !_isAskingIdentityOrGreeting) {
         const sName = (_ctaProf && _ctaProf.name && _ctaProf.name !== 'Customer' && _ctaProf.name !== 'কাস্টমার') ? _ctaProf.name + ' ভাইয়া' : 'ভাইয়া';
         const symptomStr = (_ctaProf.symptoms && _ctaProf.symptoms.length > 0) ? _ctaProf.symptoms.slice(0, 2).join(' ও ') : '';
-        const contextMention = symptomStr ? `আপনার এই ${symptomStr}-এর বিষয়টি` : 'আপনার শারীরিক সমস্যাটির বিষয়ে';
+        const contextMention = symptomStr ? `আপনার এই ${symptomStr}-এর সমস্যাটি` : 'আপনার শারীরিক সমস্যাটির লক্ষণগুলো';
 
-        const _ctaReplies = [
-          `জি ${sName}, আপনার সাথে কথা বলে ${contextMention} ভালোভাবে জানতে পারলাম। একটা কথা ভাই হিসেবে আন্তরিকভাবে বলি—এই ধরণের গোপন শারীরিক রোগ বেশিদিন পুষে রাখা একদমই ঠিক না। সময়মতো সঠিক চিকিৎসা না নিলে ভেতরের নার্ভগুলো দিন দিন আরও দুর্বল হয়ে পড়ে এবং সমস্যাটি আরও জটিল আকার ধারণ করে।
+        const _ctaReply = `জি ${sName}, আপনার সব লক্ষণ ও ${contextMention} বিস্তারিত শুনে বুঝলাম আপনার রোগটা আসলে একটু জটিল। তবে ভাই হিসেবে আপনাকে বলছি, আপনি একদম দুশ্চিন্তা করবেন না।\n\nআপনাকে আপন ভাই মনে করে আমি একটা বিশেষ ব্যবস্থা করে দিচ্ছি—সরাসরি আমাদের প্রধান হাকিম সাহেবের সাথে আপনি কথা বলুন।\n\nযদিও হাকিম সাহেব কাউকে সরাসরি ওনার ব্যক্তিগত নম্বর দিতে কঠোরভাবে বারণ করেছেন, তবুও আপনার সমস্যার গুরুত্ব বুঝে আপনাকে ভাই মনে করে আমি নম্বরটি দিচ্ছি। আমি অলরেডি হাকিম সাহেবকে আপনার জটিল সমস্যার কথা বলেছি, উনি আপনার রোগ অনুযায়ী স্পেশালভাবে কাঁচা পাহাড়ি ভেষজ দিয়ে ঔষধ তৈরি করে দিবেন ইনশাআল্লাহ। এছাড়া আপনার আরও বিস্তারিত যা যা জানার ওনার থেকেই সরাসরি জানতে পারবেন।\n\nআপনি ওনাকে কল দিয়ে বলবেন, 'সাজ্জাদ ভাই আপনার সাথে কথা বলতে বলেছে'—তাহলে উনি আপনাকে সর্বোচ্চ প্রাধান্য দিয়ে স্পেশাল মেডিসিন প্রস্তুত করে দিবেন।\n\n📞 প্রধান হাকিম সাহেবের সরাসরি নম্বর (কল ও WhatsApp): ০১৮৭০০২৩৮০৪`;
 
-ভাই, এই বিষয়ে আরও যা যা জানার আছে বা আপনার মনের সব দ্বিধা দূর করতে আপনি সরাসরি আমাদের প্রধান হাকীম সাহেবের সাথে কথা বলতে পারেন:
-📞 সরাসরি কল বা WhatsApp: 01870-023804
-
-হাকীম সাহেব নিজে ল্যাবে থেকে প্রতিটি রোগীর শারীরিক অবস্থা ও রোগের লক্ষণ পুঙ্খানুপুঙ্খ শুনে নিজ হাতে ফ্রেশ পাহাড়ি ভেষজ দিয়ে স্পেশালভাবে ওষুধ তৈরি করে দেন, যা ইনশাআল্লাহ ১০০% কার্যকরী হয়। আমাদের প্রধান হাকীম সাহেবের ব্যক্তিগত নম্বর সাধারণত সবাইকে দেওয়া হয় না, আপনাকে আপন ভাই মনে করেই দিলাম—যাতে আপনি সঠিক সময়ে সঠিক পরামর্শ পেয়ে স্থায়ীভাবে সুস্থ হতে পারেন। আপনি কি হাকীম সাহেবের সাথে সরাসরি কথা বলে একবার পরামর্শ নিতে চান ভাইয়া?`,
-
-          `ভাইয়া, আপনার সাথে কথা বলে আমার মনে হলো আপনি সত্যিই এই সমস্যার একটি স্থায়ী সমাধান চান। তবে ${contextMention} নিয়ে অবহেলা করলে রোগটি দিনে দিনে আরও বাড়ে বই কমে না, যা পরবর্তীতে দাম্পত্য জীবনেও অশান্তি তৈরি করে।
-
-মেসেজে সব কথা বিস্তারিত খুলে বলা বা বোঝানো অনেক সময় কঠিন হয়ে পড়ে। তাই আপনার সুবিধার জন্য বলছি—আপনি সরাসরি আমাদের প্রধান হাকীম সাহেবের সাথে কথা বলতে পারেন:
-📞 সরাসরি কল অথবা WhatsApp করুন: 01870-023804
-
-হাকীম সাহেব নিজে ল্যাবে গবেষণা করে রোগীর শরীরের ঘাটতি অনুযায়ী কাস্টমাইজড করে স্পেশাল ওষুধ তৈরি করে দেন, যা ১০০% ফলদায়ক। প্রধান হাকীমের নম্বর সবাইকে সহজে দেওয়া হয় না, তবে আপনার সমস্যার গুরুত্ব বুঝতে পেরে আপনাকে দিলাম ভাই মনে করে। আপনি চাইলে এখনই একটি সরাসরি কল দিতে পারেন বা হোয়াটসঅ্যাপে মেসেজ করতে পারেন ভাইয়া।`,
-
-          `${sName}, আপনার সার্বিক শারীরিক অবস্থা নিয়ে আমি সত্যিই ভাবছি। পুরুষের এই ধরণের অভ্যন্তরীণ দুর্বলতা যত দিন ফেলে রাখবেন, ভেতরের টেস্টোস্টেরন হরমোন ও নার্ভ তত নিস্তেজ হয়ে পড়ে। তাই কালক্ষেপণ না করে দ্রুত সঠিক পদক্ষেপ নেওয়া দরকার।
-
-আপনার আরও যা যা পরামর্শের প্রয়োজন, সব সমস্যা মন খুলে জানাতে সরাসরি আমাদের প্রধান হাকীম সাহেবের সাথে ফোনে কথা বলুন:
-📞 সরাসরি যোগাযোগ (ফোন ও WhatsApp): 01870-023804
-
-হাকীম সাহেব নিজে ল্যাবে বসে দুর্লভ প্রাকৃতিক উপাদান দিয়ে আপনার শরীরের ধরন অনুযায়ী বিশেষ ওষুধ প্রস্তুত করে দেবেন, যা ১০০% কার্যকারিতা নিশ্চিত করে। আমাদের প্রধান হাকীমের নম্বর সাধারণ রোগীদের সচরাচর দেওয়া হয় না, আপনাকে ভাই ভেবেই দিলাম যাতে সঠিক সময়ে সঠিক চিকিৎসা পান। ভাইয়া, হাকীম সাহেবের সাথে কি একটু কথা বলবেন?`
-        ];
-        const _ctaReply = _ctaReplies[Math.floor(Math.random() * _ctaReplies.length)];
         customerMemory.updateCustomerProfile(senderId, { directCtaSent: true });
         customerMemory.appendChatMessage(senderId, 'model', _ctaReply, isVoiceMode);
-        console.log('[DIRECT_CTA] Triggered personalized CTA for sender: ' + senderId);
+        console.log('[DIRECT_CTA_SAJJAD] Triggered Sajjad impressed Hakim CTA for sender: ' + senderId);
         return _ctaReply;
       }
     }
@@ -1408,19 +1397,33 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     return reply;
   }
 
-  // Instant interceptor for Hakim / Doctor / Creator identity inquiry ("আপনার নাম কি", "হাকীমের নাম কি", "কে তৈরি করেছে", "ডাক্তার কে")
-  const isAskingDoctorName = /(?:apnar|আপনার|apnn|আপনন|doctor|ডাক্তার|hakim|হাকিম|হাকীম|hake)s*(?:name|nam|naam|নাম)s*(?:ki|কী|konta|বলেন|bolen|bolun|জানতে)?/i.test(trimmedClean) ||
-                             /(?:name|nam|naam|নাম)s*(?:ki|কী)s*(?:apnar|আপনার|doctor|ডাক্তার|hakim|হাকিম|হাকীম)/i.test(trimmedClean) ||
-                             /(?:ke|কে)s*(?:toiri|তৈরি|ketos*eri|কেটোs*এরি|banay|বানায়|banise|বানিয়েছে)/i.test(trimmedClean) ||
-                             /(?:apnars*porichoy|আপনারs*পরিচয়|পরিচয়s*কি|apnis*ke|আপনিs*কে)/i.test(trimmedClean);
-  if (isAskingDoctorName) {
-    const reply = `জি ভাইয়া, আমি হাকীম মো: আব্দুল করিম বলছি। আমি স্বাস্থ্য মন্ত্রণালয় বাংলাদেশ ইউনানী বোর্ডের ক্যাটাগরি-এ নিবন্ধিত চিকিৎসক (রেজি নং: ৫৮৪২/২০১৮), জনতা ইউনানী চিকিৎসালয়, আলীকদম, বান্দরবান। আমাদের ${pageProductName} ১০০% প্রাকৃতিক ভেষজ উপাদানে আমার নিজস্ব ফর্মুলায় প্রস্তুত করা। বলুন ভাইয়া, আপনাকে কীভাবে সাহায্য করতে পারি?`;
+  // Instant interceptor for Personal Identity inquiry ("আপনার নাম কি", "আপনি কে", "আপনার বাসা কোথায়", "বাড়ি কই")
+  const isAskingMyNameOrIntro =
+    /(?:apnar|আপনার|apnn|আপনন)\s*(?:name|nam|naam|নাম)\s*(?:ki|কী|konta|বলেন|bolen|bolun|জানতে)?/i.test(trimmedClean) ||
+    /(?:name|nam|naam|নাম)\s*(?:ki|কী)\s*(?:apnar|আপনার)/i.test(trimmedClean) ||
+    /(?:apnar\s*porichoy|আপনার\s*পরিচয়|পরিচয়\s*কি|apni\s*ke|আপনি\s*কে|কে\s*বলছেন|ke\s*bolchen|কার\s*সাথে\s*কথা\s*বলছি)/i.test(trimmedClean) ||
+    /(?:apnar|আপনার)\s*(?:basa|bari|বাসা|বাড়ি)\s*(?:kothay|কোথায়|kothai|কই)/i.test(trimmedClean);
+
+  if (isAskingMyNameOrIntro) {
+    const reply = "জি ভাইয়া, আমার নাম মোহাম্মদ সাজ্জাদ। আমি আমাদের কাস্টমার কেয়ার ও স্বাস্থ্য পরামর্শ বিভাগ থেকে বলছি। আমার বাসা চট্টগ্রামে (জিইসি মোড়, চট্টগ্রাম)। বলুন ভাইয়া, আপনাকে কীভাবে সাহায্য করতে পারি?";
     if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", reply, false);
     return reply;
   }
 
+  // Instant interceptor for Chief Hakim / Doctor inquiry ("হাকিম সাহেবের নাম কি", "ডাক্তার কে")
+  const isAskingChiefDoctorName =
+    /(?:hakim|হাকিম|হাকীম|doctor|ডাক্তার|kobiraj|কবিরাজ)\s*(?:er)?\s*(?:name|nam|naam|নাম)/i.test(trimmedClean) ||
+    /(?:ke|কে)\s*(?:toiri|তৈরি|banay|বানায়|baniese|বানিয়েছে|formula|ফর্মুলা)/i.test(trimmedClean);
+  if (isAskingChiefDoctorName) {
+    const docReply = isNaturalHerbal
+      ? `জি ভাইয়া, আমাদের প্রধান চিকিৎসক হলেন কবিরাজ মোহাম্মদ আরিফ (রাঙ্গামাটি রিজার্ভ বাজার)। আর আমি কাস্টমার কেয়ার থেকে মোহাম্মদ সাজ্জাদ বলছি। আপনার শারীরিক সমস্যার বিষয়ে আমি সার্বিক সহযোগিতা করছি ভাইয়া। বলুন, কী সমস্যা হচ্ছে?`
+      : `জি ভাইয়া, আমাদের প্রধান চিকিৎসক হলেন হাকীম মো: আব্দুল করিম (স্বাস্থ্য মন্ত্রণালয় অনুমোদিত ক্যাটাগরি-এ রেজিস্টার্ড হাকীম, রেজি: ৫৮৪২/২০১৮), জনতা ইউনানী চিকিৎসালয়, আলীকদম, বান্দরবান। আর আমি কাস্টমার কেয়ার থেকে সাজ্জাদ বলছি। আপনার পরামর্শ ও ওষুধের বিষয়ে আমি সহযোগিতা করছি ভাইয়া। বলুন, কী জানতে চাচ্ছেন?`;
+    if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", docReply, false);
+    return docReply;
+  }
+
   // Instant interceptor for customer asking about THEIR OWN name ("আমার নাম কি", "আমার নাম জানো", "amar name jano")
-  const isAskingCustomerName = !isAskingDoctorName && (
+  const isAskingCustomerName = !isAskingMyNameOrIntro && !isAskingChiefDoctorName && (
     /(?:amar|amr|আমার)s+(?:name|nam|naam|নাম)s*(?:ki|কী|konta|jano|jaano|janen|bolen|bolo|bolun|mone|ase|ache|জান|জানো|জানেন|বলেন|বলো|বলুন|মনে|আছে)/i.test(trimmedClean) ||
     /(?:jano|jaano|janen|জান|জানো|জানেন)s+(?:amar|amr|আমার)s+(?:name|nam|naam|নাম)/i.test(trimmedClean)
   );
@@ -1966,9 +1969,37 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     /(?:নাম্বার|নম্বর|phone|number)\s*(?:টা|টি)?\s*(?:দেন|দিন|দাও|বলেন|বলুন)/i.test(trimmedClean);
 
   if (isHelplineOrPhoneQuery) {
-    const textNumberReply = `জি ভাইয়া, আমাদের অফিসিয়াল হেল্পলাইন ও সরাসরি যোগাযোগের নম্বর:\n📞 01870-023804 (বিকাশ)\n\nআপনি সরাসরি কল দিয়ে কথা বলতে পারেন অথবা যেকোনো প্রয়োজনে যোগাযোগ করতে পারেন ভাইয়া।`;
-    if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", textNumberReply, isVoiceMode);
-    return textNumberReply;
+    // Check if customer is asking about bKash number to send advance payment
+    const isBkashPaymentQuery = /(?:bkash|বিকাশ|টাকা|পাঠাব|পাঠাতে|পাঠাবো|advance|অগ্রিম|পেমেন্ট|payment)/i.test(trimmedClean);
+    if (isBkashPaymentQuery) {
+      const bkashReply = `জি ভাইয়া, পার্সেল বুকিং নিশ্চিত করতে ২০০ টাকা অগ্রিম পাঠানোর জন্য আমাদের অফিসিয়াল বিকাশ হেল্পলাইন নম্বর:\n📱 বিকাশ পার্সোনাল: 01870-023804\n\nটাকা পাঠিয়ে লাস্ট ২/৩ ডিজিট ও আপনার ডেলিভারি ঠিকানা দিলে সাথে সাথে আপনার পার্সেলটি বুকিং করে দেওয়া হবে ভাইয়া।`;
+      if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", bkashReply, isVoiceMode);
+      return bkashReply;
+    }
+
+    const _prof = senderId ? customerMemory.getCustomerProfile(senderId) : null;
+    const _chatLog = _prof ? (_prof.chatLog || []) : [];
+    const _userMsgCount = _chatLog.filter(m => m.role === 'user').length;
+    const _hasHealthDetails = Boolean(_prof && (
+      (_prof.symptoms && _prof.symptoms.length > 0) ||
+      _prof.duration ||
+      _prof.maritalStatus ||
+      _prof.bloodGroup ||
+      _prof.marriageDuration
+    ));
+
+    // GUARD: Never give Hakim number initially! First gather health facts & symptoms!
+    if (!_hasHealthDetails || _userMsgCount < 3) {
+      const earlyNumberReply = `জি ভাইয়া, আমি আমাদের কাস্টমার কেয়ার ও স্বাস্থ্য পরামর্শ বিভাগ থেকে মোহাম্মদ সাজ্জাদ বলছি। অবশ্যই আমাদের প্রধান হাকিম সাহেবের সাথে আপনার সরাসরি কথা বলিয়ে দেব। তবে তার আগে আপনার রোগের ধরন, সমস্যাটি কতদিন ধরে, কতদিন আগে বিয়ে করেছেন এবং আপনার রক্তের গ্রুপ কী—এগুলো বিস্তারিত জানা দরকার, যাতে আমি হাকিম সাহেবকে আপনার ফাইলটি বুঝিয়ে দিতে পারি। ভাইয়া, একটু বলুন তো আপনার ঠিক কী কী সমস্যা হচ্ছে এবং কতদিন ধরে?`;
+      if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", earlyNumberReply, isVoiceMode);
+      return earlyNumberReply;
+    }
+
+    // Health details ARE gathered! Deliver the special impressed Hakim referral message from Sajjad!
+    const specialHakimReply = `ভাইয়া, আপনার সমস্যা ও লক্ষণগুলো বিস্তারিত শুনে বুঝলাম আপনার রোগটা আসলে একটু জটিল। তবে ভাই হিসেবে বলছি, আপনি একদম চিন্তা করবেন না। আপনাকে আপন ভাই মনে করে আমি একটা বিশেষ ব্যবস্থা করে দিচ্ছি—সরাসরি আমাদের প্রধান হাকিম সাহেবের সাথে আপনি কথা বলুন।\n\nযদিও হাকিম সাহেব কাউকে সরাসরি ওনার ব্যক্তিগত নম্বর দিতে কঠোরভাবে বারণ করেছেন, তবুও আপনার সমস্যার গুরুত্ব বুঝে আপনাকে ভাই মনে করে আমি নম্বরটি দিচ্ছি। আমি অলরেডি হাকিম সাহেবকে আপনার জটিল সমস্যার কথা বলেছি, উনি আপনার রোগ অনুযায়ী স্পেশালভাবে কাঁচা পাহাড়ি ভেষজ দিয়ে ঔষধ তৈরি করে দিবেন ইনশাআল্লাহ। এছাড়া আপনার আরও বিস্তারিত যা যা জানার ওনার থেকেই সরাসরি জানতে পারবেন।\n\nআপনি ওনাকে কল দিয়ে বলবেন, 'সাজ্জাদ ভাই আপনার সাথে কথা বলতে বলেছে'—তাহলে উনি আপনাকে সর্বোচ্চ গুরুত্ব দিয়ে স্পেশাল মেডিসিন তৈরি করে দিবেন।\n\n📞 প্রধান হাকিম সাহেবের সরাসরি নম্বর (কল ও WhatsApp): ০১৮৭০০২৩৮০৪`;
+
+    if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", specialHakimReply, isVoiceMode);
+    return specialHakimReply;
   }
 
   // 9. Chamber / Direct Visit / Where to meet (চেম্বার কোথায় / আপনাদের সাথে কীভাবে দেখা করব / সরাসরি এসে নিতে পারব কি)
@@ -2106,18 +2137,35 @@ HAKIM & ADDRESS INQUIRY RULES:
 CRITICAL RULES FOR GEMINI FLASH BACKEND:
 
 ══════════════════════════════════════════════════════════
-RULE 1 — FIXED PERSONAL IDENTITY BACKSTORY LOCK (পরিচয় লক — হ্যালুসিনেশন নিষিদ্ধ)
-You are: ${HAKIM_PERSONA.fullName} (${HAKIM_PERSONA.fullNameEnglish}) — ${HAKIM_PERSONA.title}
-Specialization: ${HAKIM_PERSONA.specialization}
+RULE 1 — YOUR FIXED IDENTITY & PERSONA: MOHAMMAD SAJJAD (মোহাম্মদ সাজ্জাদ)
+You are: মোহাম্মদ সাজ্জাদ (Mohammad Sajjad) — কাস্টমার কেয়ার ও স্বাস্থ্য পরামর্শক (Customer Care Representative & Health Consultant).
+You are NOT the Hakim himself! You are the caring, trustworthy brother & Health Consultant working under our Chief Hakim.
+When asked about your personal identity (আপনার নাম কি, বাসা কোথায়, বাড়ি কই, আপনি কে, কার সাথে কথা বলছি):
+- নাম: মোহাম্মদ সাজ্জাদ
+- পদবী: কাস্টমার কেয়ার ও স্বাস্থ্য পরামর্শক
+- বাসা / বাড়ি: চট্টগ্রাম (জিইসি মোড়, চট্টগ্রাম)
+Reply format: "জি ভাইয়া, আমার নাম মোহাম্মদ সাজ্জাদ। আমি আমাদের কাস্টমার কেয়ার ও স্বাস্থ্য পরামর্শ বিভাগ থেকে বলছি। আমার বাসা চট্টগ্রামে (জিইসি মোড়, চট্টগ্রাম)। বলুন ভাইয়া, কীভাবে সাহায্য করতে পারি?"
 
-When asked ANY personal question (বাড়ি, বাসা, চেম্বার, ঠিকানা, পড়াশোনা, অভিজ্ঞতা, বয়স, পরিবার), answer ONLY using these FIXED facts — NEVER deviate, NEVER hallucinate alternative details:
-- আমার বাড়ি / এলাকা / বাসা: "${HAKIM_PERSONA.localityDetail}" → Reply: "জি ভাইয়া, আমার বাড়ি বান্দরবানের আলীকদমে। ${HAKIM_PERSONA.personalNote}"
-- পড়াশোনা / শিক্ষা: "${HAKIM_PERSONA.educationSummary}" → Reply: "${HAKIM_PERSONA.educationSummary}"
-- চেম্বার / কাজের জায়গা: "${HAKIM_PERSONA.chamber}"
-- অভিজ্ঞতা: "১৮ বছরেরও বেশি সময় ধরে ইউনানী চিকিৎসা করছি।"
-- পরিচয় দিতে হলে: "আমি হাকীম মো: আব্দুল করিম বলছি।" (NEVER say "রেজাউল", "AI", "Bot", or any other name)
+RULE 2 — SYSTEMATIC SCIENTIFIC CONSULTATION PROTOCOL (ধাপে ধাপে বৈজ্ঞানিক তথ্য সংগ্রহ):
+When a customer discusses their sexual or physical problems, DO NOT hurry to sell medicine or give phone numbers! First, show genuine brotherly empathy and systematically gather the customer's clinical background:
+1. রোগের ধরন ও লক্ষণ (Exact symptoms: দ্রুত বীর্যপাত, লিঙ্গের শিথিলতা বা নরম ভাব, পাতলা বীর্য, স্বপ্নদোষ ইত্যাদি)
+2. সমস্যাটি কতদিন ধরে (Duration: কত মাস বা কত বছর ধরে)
+3. বিয়ে করেছেন কিনা এবং কতদিন আগে বিয়ে করেছেন (Marital status & how long ago married)
+4. রক্তের গ্রুপ কী (Blood Group: যেমন A+, B+, O+, AB+ ইত্যাদি)
+5. বয়স কত এবং অন্য কোনো শারীরিক সমস্যা (ডায়াবেটিস / উচ্চ রক্তচাপ) আছে কিনা
+Ask these questions politely, warmly, and naturally so the customer feels scientifically diagnosed.
 
-IMPORTANT: After answering personal questions, simply stop. Do NOT push health topics. Wait for the customer to ask their next question naturally. Only discuss health/products if the customer THEMSELVES brings it up.
+RULE 3 — THE SPECIAL HAKIM REFERRAL HOOK (হাকিম সাহেবের স্পেশাল নম্বর দেওয়ার বিশেষ নিয়ম):
+CRITICAL RULE: শুরুতে কখনোই হাকিম সাহেবের নম্বর দেওয়া যাবে না!
+Only AFTER understanding the customer's health facts (রোগের ধরন, কতদিনের সমস্যা, বিয়ে, রক্তের গ্রুপ ইত্যাদি), Sajjad will impress the customer, treat them like a real brother, and say:
+"ভাইয়া, আপনার সব লক্ষণ ও শারীরিক অবস্থা বিস্তারিত শুনে বুঝলাম আপনার রোগটা আসলে একটু জটিল। তবে ভাই হিসেবে বলছি, আপনি একদম চিন্তা করবেন না। আপনাকে আপন ভাই মনে করে আমি একটা বিশেষ ব্যবস্থা করে দিচ্ছি—সরাসরি আমাদের প্রধান হাকিম সাহেবের সাথে আপনি কথা বলুন। 
+
+যদিও হাকিম সাহেব কাউকে সরাসরি ওনার ব্যক্তিগত নম্বর দিতে কঠোরভাবে বারণ করেছেন, তবুও আপনার সমস্যার গুরুত্ব বুঝে আপনাকে ভাই মনে করে আমি নম্বরটি দিচ্ছি। আমি অলরেডি হাকিম সাহেবকে আপনার জটিল সমস্যার কথা বলেছি, উনি আপনার রোগ অনুযায়ী স্পেশালভাবে কাঁচা পাহাড়ি ভেষজ দিয়ে ঔষধ তৈরি করে দিবেন ইনশাআল্লাহ। এছাড়া আপনার আরও বিস্তারিত যা যা জানার ওনার থেকেই সরাসরি জানতে পারবেন। 
+
+আপনি ওনাকে কল দিয়ে বলবেন, 'সাজ্জাদ ভাই আপনার সাথে কথা বলতে বলেছে'—তাহলে উনি আপনাকে সর্বোচ্চ প্রাধান্য দিয়ে স্পেশাল মেডিসিন তৈরি করে দিবেন।
+
+📞 প্রধান হাকিম সাহেবের সরাসরি নম্বর (কল ও WhatsApp): ০১৮৭০০২৩৮০৪"
+This rule applies to BOTH pages ("ন্যাচারাল হারবাল" and "হেলথ কেয়ার")!
 ══════════════════════════════════════════════════════════
 
 ══════════════════════════════════════════════════════════
@@ -3812,7 +3860,7 @@ async function pollOnce() {
               setVoiceMode(senderId, true);
               const isNaturalHerbal = String(page.pageId) === "133420039845881" || (page.pageName && page.pageName.includes("ন্যাচারাল"));
               const docName = isNaturalHerbal ? "কবিরাজ মোহাম্মদ আরিফ" : "হাকিম রিয়াজুল করিম";
-              const voiceText = `জি ভাইয়া, অবশ্যই! আমি ডাক্তার ${docName} বলছি। কোনো সমস্যা নেই ভাইয়া, আপনি আর পড়তে হবে না—আমি আপনার সাথে মুখে কথা বলছি। আপনার কী সমস্যা হচ্ছে বা কী জানতে চাচ্ছেন, আমাকে নির্দ্বিধায় মুখে বলুন বা লিখে জানান, আমি আপনাকে ভয়েসেই সবকিছু বুঝিয়ে বলছি।`;
+              const voiceText = `জি ভাইয়া, অবশ্যই! আমি কাস্টমার কেয়ার থেকে মোহাম্মদ সাজ্জাদ বলছি। কোনো সমস্যা নেই ভাইয়া, আপনার পড়তে হবে না—আমি আপনার সাথে মুখে কথা বলছি। আপনার কী কী শারীরিক সমস্যা হচ্ছে বা কতদিন ধরে সমস্যা, আমাকে নির্দ্বিধায় মুখে বলুন বা লিখে জানান, আমি আপনাকে ভয়েসেই সবকিছু বুঝিয়ে বলছি।`;
 
               console.log(`[FB_BOT] Customer asked for voice consultation. Sending voice note to ${senderId}`);
               await sendSenderAction(senderId, "typing_on", page.accessToken);

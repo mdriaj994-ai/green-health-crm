@@ -401,8 +401,9 @@ export function extractCustomerFacts(senderId: string, text: string, senderName?
     }
   }
   if (!profile.marriageDuration) {
-    const mdm = clean.match(/বিয়ে\s*(?:হয়েছে|করছি|হইছে)?\s*([০-৯0-9]+)\s*(?:বছর|মাস|bochor|year|mash|month)/i) ||
-                clean.match(/([০-৯0-9]+)\s*(?:বছর|মাস|bochor|year|mash)\s*(?:হলো\s*বিয়ে|ধরে\s*বিয়ে|হয়েছে\s*বিয়ে)/i);
+    const mdm = clean.match(/(?:বিয়ে|বিয়ে)\s*(?:হয়েছে|করছি|হইছে|করেছি)?\s*([০-৯0-9]+\s*(?:বছর|মাস|দিন|bochor|year|mash|month))/i) ||
+                clean.match(/([০-৯0-9]+\s*(?:বছর|মাস|bochor|year|mash))\s*(?:আগে|ধরে)?\s*(?:বিয়ে|বিয়ে)/i) ||
+                clean.match(/([০-৯0-9]+\s*(?:বছর|মাস|bochor|year|mash))\s*(?:হলো|ধরে|হয়েছে)\s*(?:বিয়ে|বিয়ে)/i);
     if (mdm) profile.marriageDuration = mdm[0].trim();
   }
 
@@ -671,6 +672,8 @@ export function buildCustomerMemoryPrompt(senderId: string, fallbackName?: strin
     "Name: " + (profile.name || fallbackName || "à¦­à¦¾à¦‡à¦¯à¦¼à¦¾"),
     "Age: " + (profile.age ? profile.age + " bochor" : "not known"),
     "Marital: " + (profile.maritalStatus || "not known"),
+    "Marriage duration: " + (profile.marriageDuration || "not known"),
+    "Blood group: " + (profile.bloodGroup || "not known"),
     "Profession: " + (profile.profession || "not known"),
     "Location: " + (locStr || addressStr || "not known"),
     "Full address: " + (addressStr || "not given"),
@@ -693,7 +696,7 @@ export function buildCustomerMemoryPrompt(senderId: string, fallbackName?: strin
     "CRITICAL MEMORY MANDATES FOR THIS REPLY:",
     "1. ABSOLUTE BAN ON RE-ASKING: Do NOT ask for age (" + (profile.age || "none") + "), marital status (" + (profile.maritalStatus || "none") + "), or symptoms (" + symptomStr + ") if already listed above!",
     "2. CUSTOMER NAME RECALL: The customer's real name is: '" + (profile.name || fallbackName || "") + "'. If the customer asks 'amar name ki?', 'à¦†à¦®à¦¾à¦° à¦¨à¦¾à¦® à¦•à¦¿ à¦œà¦¾à¦¨à§‹?' -> State their real name with full confidence: 'à¦œà¦¿ à¦­à¦¾à¦‡à§Ÿà¦¾, à¦†à¦ªà¦¨à¦¾à¦° à¦¨à¦¾à¦® " + (profile.name || fallbackName || "à¦­à¦¾à¦‡à¦¯à¦¼à¦¾") + "à¥¤'",
-    "3. PERSONAL CONTINUITY: Talk as their dedicated personal doctor who remembers their entire medical history and previous chats.",
+    "3. PERSONAL CONTINUITY: You are Mohammad Sajjad (মোহাম্মদ সাজ্জাদ) from Customer Care & Health Consultation (বাসা চট্টগ্রাম). Remember their medical history and previous chats.",
     "4. AUTHENTIC BANGLADESHI TONE: Speak in natural, respectful Bangladeshi male tone ('à¦œà¦¿ à¦­à¦¾à¦‡à§Ÿà¦¾', 'à¦†à¦¸à¦¸à¦¾à¦²à¦¾à¦®à§ à¦†à¦²à¦¾à¦‡à¦•à§à¦®'). NEVER use Kolkata or Indian Bengali words ('à¦œà¦²', 'à¦¦à¦¾à¦¦à¦¾')."
   );
 
@@ -704,7 +707,7 @@ export function getRecentChatHistory(senderId: string, limit: number = 15): stri
   const profile = getCustomerProfile(senderId);
   if (!profile.chatLog || profile.chatLog.length === 0) return [];
   return profile.chatLog.slice(-limit).map((entry) => {
-    const author = entry.role === "user" ? (profile.name || "Customer") : "à¦¹à¦¾à¦•à¦¿à¦® à¦°à¦¿à¦¯à¦¼à¦¾à¦œà§à¦² à¦•à¦°à¦¿à¦® (Doctor)";
+    const author = entry.role === "user" ? (profile.name || "Customer") : "মোহাম্মদ সাজ্জাদ (কাস্টমার কেয়ার)";
     const tag = entry.isVoice ? " [Voice Note]" : "";
     return `${author}${tag}: "${entry.text}"`;
   });

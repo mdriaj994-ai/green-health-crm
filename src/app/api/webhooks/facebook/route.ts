@@ -625,7 +625,7 @@ ${text}
       setVoiceMode(senderId, true);
       const isNaturalHerbal = String(pageId) === "133420039845881";
       const docName = isNaturalHerbal ? "কবিরাজ মোহাম্মদ আরিফ" : "হাকিম রিয়াজুল করিম";
-      const voiceText = `জি ভাইয়া, অবশ্যই! আমি ডাক্তার ${docName} বলছি। কোনো সমস্যা নেই ভাইয়া, আপনি আর পড়তে হবে না—আমি আপনার সাথে মুখে কথা বলছি। আপনার কী সমস্যা হচ্ছে বা কী জানতে চাচ্ছেন, আমাকে নির্দ্বিধায় মুখে বলুন বা লিখে জানান, আমি আপনাকে ভয়েসেই সবকিছু বুঝিয়ে বলছি।`;
+      const voiceText = `জি ভাইয়া, অবশ্যই! আমি কাস্টমার কেয়ার থেকে মোহাম্মদ সাজ্জাদ বলছি। কোনো সমস্যা নেই ভাইয়া, আপনার পড়তে হবে না—আমি আপনার সাথে মুখে কথা বলছি। আপনার কী কী শারীরিক সমস্যা হচ্ছে বা কতদিন ধরে সমস্যা, আমাকে নির্দ্বিধায় মুখে বলুন বা লিখে জানান, আমি আপনাকে ভয়েসেই সবকিছু বুঝিয়ে বলছি।`;
 
       console.log(`[EXPLICIT_VOICE_REQUEST] Customer asked for voice consultation. Sending voice note to ${senderId}: "${voiceText.substring(0, 60)}..."`);
       await sendSenderAction(senderId, "typing_on", effectiveToken);
