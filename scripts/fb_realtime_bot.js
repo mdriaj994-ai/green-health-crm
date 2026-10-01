@@ -207,8 +207,23 @@ const VOICE_USERS_FILE = path.join(process.cwd(), "data", "voice_users.json");
 const SCHEDULED_REMINDERS_FILE = path.join(process.cwd(), "data", "scheduled_reminders.json");
 const processedIds = new Set();
 const inFlightMsgIds = new Set();
+const msgFailCounts = new Map();
 const threadMemory = new Map();
 const voiceUsers = new Set();
+
+function logBotActivity(msg) {
+  try {
+    const dir = path.join(process.cwd(), "data");
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const logPath = path.join(dir, "bot_exec.log");
+    const timestamp = new Date().toISOString();
+    fs.appendFileSync(logPath, `[${timestamp}] ${msg}\n`, "utf8");
+    if (fs.existsSync(logPath) && fs.statSync(logPath).size > 400000) {
+      const data = fs.readFileSync(logPath, "utf8");
+      fs.writeFileSync(logPath, data.slice(-200000), "utf8");
+    }
+  } catch {}
+}
 
 // ── BOT SENT MESSAGES TRACKER ────────────────────────────────────────────────
 // Used to distinguish between bot-generated replies and human admin replies in inbox
@@ -435,6 +450,11 @@ function isOrderInfoRequest(text, replyText) {
       return true;
     }
 
+  }
+
+  return false;
+}
+
 function containsOrderFormOrPhone(text, replyText) {
   if (isPhoneNumberRequest(text, replyText)) return true;
   if (isOrderInfoRequest(text, replyText)) return true;
@@ -459,10 +479,6 @@ function containsOrderFormOrPhone(text, replyText) {
   return false;
 }
 
-  }
-
-  return false;
-}
 
 // Preload processed IDs from file if exists
 try {
@@ -2583,8 +2599,9 @@ ${voiceModeInstruction}
 }
 
 
-// ── Send Sender Action (typing_on, mark_seen) via Facebook Graph API ───────────
+// ── Send Sender Action (typing_on, mark_seen, typing_off) via Facebook Graph API ───────────
 async function sendSenderAction(recipientId, action = "typing_on", pageAccessToken = PAGE_TOKEN) {
+  if (!recipientId || !pageAccessToken) return;
   try {
     const url = `https://graph.facebook.com/v19.0/me/messages?access_token=${pageAccessToken}`;
     await fetch(url, {
@@ -2593,7 +2610,8 @@ async function sendSenderAction(recipientId, action = "typing_on", pageAccessTok
       body: JSON.stringify({
         recipient: { id: recipientId },
         sender_action: action
-      })
+      }),
+      signal: AbortSignal.timeout(4000)
     });
   } catch (err) {}
 }
@@ -2616,6 +2634,7 @@ const sleep = (ms) => new Promise(resolve => setTimeout(resolve, ms));
 
 // ── Send Message via Facebook Graph API ──────────────────────────────────────
 async function sendFacebookMessage(recipientId, text, pageAccessToken = PAGE_TOKEN, replyToMid = null, messageTag = null) {
+  if (!recipientId || !text || !pageAccessToken) return { status: 400, error: "Missing required parameters" };
   const url = `https://graph.facebook.com/v19.0/me/messages?access_token=${pageAccessToken}`;
   const payload = {
     recipient: { id: recipientId },
@@ -2629,46 +2648,54 @@ async function sendFacebookMessage(recipientId, text, pageAccessToken = PAGE_TOK
     payload.reply_to = { mid: replyToMid };
   }
 
-  let res = await fetch(url, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload)
-  });
-  let data = await res.json().catch(() => null);
-
-  // If outside 24-hour messaging window (FB error code 10), retry with MESSAGE_TAG
-  if (!res.ok && data?.error?.code === 10 && !messageTag) {
-    console.log(`[FB_SEND_TAG_RETRY] Customer ${recipientId} is outside 24h window. Retrying with MESSAGE_TAG CONFIRMED_EVENT_UPDATE...`);
-    payload.messaging_type = "MESSAGE_TAG";
-    payload.tag = "CONFIRMED_EVENT_UPDATE";
-    delete payload.reply_to;
-    res = await fetch(url, {
+  try {
+    let res = await fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(10000)
     });
-    data = await res.json().catch(() => null);
-  }
+    let data = await res.json().catch(() => null);
 
-  // If Facebook rejects reply_to parameter, fall back automatically to standard send
-  if (!res.ok && replyToMid && data?.error) {
-    console.warn(`[FB_SEND_REPLY_TO_WARN] Error with reply_to (${replyToMid}):`, data.error.message, "- Falling back to standard send without reply_to");
-    delete payload.reply_to;
-    res = await fetch(url, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(payload)
-    });
-    data = await res.json().catch(() => null);
-  }
+    // If outside 24-hour messaging window (FB error code 10), retry with MESSAGE_TAG
+    if (!res.ok && data?.error?.code === 10 && !messageTag) {
+      console.log(`[FB_SEND_TAG_RETRY] Customer ${recipientId} is outside 24h window. Retrying with MESSAGE_TAG CONFIRMED_EVENT_UPDATE...`);
+      payload.messaging_type = "MESSAGE_TAG";
+      payload.tag = "CONFIRMED_EVENT_UPDATE";
+      delete payload.reply_to;
+      res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(10000)
+      });
+      data = await res.json().catch(() => null);
+    }
 
-  if (data?.message_id) {
-    recordBotSentMessage(data.message_id, text);
-  } else if (text) {
-    recordBotSentMessage(null, text);
-  }
+    // If Facebook rejects reply_to parameter, fall back automatically to standard send
+    if (!res.ok && replyToMid && data?.error) {
+      console.warn(`[FB_SEND_REPLY_TO_WARN] Error with reply_to (${replyToMid}):`, data.error.message, "- Falling back to standard send without reply_to");
+      delete payload.reply_to;
+      res = await fetch(url, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(10000)
+      });
+      data = await res.json().catch(() => null);
+    }
 
-  return { status: res.status, data };
+    if (data?.message_id) {
+      recordBotSentMessage(data.message_id, text);
+    } else if (text) {
+      recordBotSentMessage(null, text);
+    }
+
+    return { status: res.status, data };
+  } catch (err) {
+    console.error(`[FB_SEND_NET_ERR] Network error sending message to ${recipientId}:`, err.message);
+    return { status: 500, error: err.message };
+  }
 }
 
 // Send Product Video via Facebook
@@ -3211,7 +3238,7 @@ async function analyzeImageWithGemini(imageUrl, pageAccessToken = PAGE_TOKEN, pa
 ধাপ ৩: ২-৩ লাইনের সংক্ষিপ্ত ও আন্তরিক বাংলায় উত্তর দিন। কোনো ** বা markdown নয়।`;
 
     // Use direct REST API (SDK inlineData has issues with this key type)
-    const visionModels = ["gemini-2.5-flash", "gemini-flash-latest", "gemini-2.5-flash-lite", "gemini-3.1-flash-lite"];
+    const visionModels = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
     for (const m of visionModels) {
       try {
         const apiKey = process.env.GEMINI_API_KEY || GEMINI_API_KEY || "";
@@ -3460,6 +3487,8 @@ async function pollPage(page) {
     const convs = await fetchConversations(page.pageId, page.accessToken);
     for (const conv of convs) {
       const unrepliedCustomerMsgs = [];
+      let senderId = null;
+      let newestMsg = null;
       try {
         const msgs = conv.messages?.data || [];
         if (msgs.length === 0) continue;
@@ -3471,93 +3500,94 @@ async function pollPage(page) {
         for (const m of msgs) {
           const isFromCustomer = m.from?.id && String(m.from.id) !== String(page.pageId);
           if (isFromCustomer) {
-          if (isProcessedId(m.id)) {
-            // Reached a customer message that was already processed & replied to!
+            if (isProcessedId(m.id)) {
+              // Reached a customer message that was already processed & replied to!
+              break;
+            }
+            unrepliedCustomerMsgs.push(m);
+          } else {
+            // This message is from the Page.
+            // If it's Facebook's automated ad message or greeting, ignore it and continue checking customer messages!
+            if (isFacebookAutomatedMessage(m)) {
+              continue;
+            }
+            // If it's a real message from our Page (bot or human agent), everything older has already been addressed!
             break;
           }
-          unrepliedCustomerMsgs.push(m);
-        } else {
-          // This message is from the Page.
-          // If it's Facebook's automated ad message or greeting, ignore it and continue checking customer messages!
-          if (isFacebookAutomatedMessage(m)) {
-            continue;
-          }
-          // If it's from a HUMAN AGENT (not sent by our bot), stop checking — human took over!
-          if (!isBotSentMessage(m)) {
-            break;
-          }
-          // If it WAS sent by our bot, do NOT break!
-          // The bot may have replied to an older message while this customer sent a new message,
-          // so keep inspecting older messages in the list to collect any unreplied customer message!
         }
-      }
 
-      if (unrepliedCustomerMsgs.length === 0) continue;
+        if (unrepliedCustomerMsgs.length === 0) continue;
 
-      const newestMsg = unrepliedCustomerMsgs[0];
-      const senderId = newestMsg.from?.id ? String(newestMsg.from.id) : null;
-      if (!senderId) continue;
+        newestMsg = unrepliedCustomerMsgs[0];
+        senderId = newestMsg.from?.id ? String(newestMsg.from.id) : null;
+        if (!senderId) continue;
 
-      // Track in-flight message IDs so parallel poll ticks don't duplicate
-      for (const m of unrepliedCustomerMsgs) {
-        inFlightMsgIds.add(m.id);
-      }
+        // Track in-flight message IDs so parallel poll ticks don't duplicate
+        for (const m of unrepliedCustomerMsgs) {
+          inFlightMsgIds.add(m.id);
+        }
 
-      // ── HUMAN BEHAVIOR: Instantly mark message as SEEN & show typing dots ──
-      await sendSenderAction(senderId, "mark_seen", page.accessToken);
-      await sendSenderAction(senderId, "typing_on", page.accessToken);
+        // ── HUMAN BEHAVIOR: Instantly mark message as SEEN & show typing dots ──
+        await sendSenderAction(senderId, "mark_seen", page.accessToken);
+        await sendSenderAction(senderId, "typing_on", page.accessToken);
 
-          // Use only name customer told us — NEVER use Facebook profile name for addressing
-          const _fbProfile = newestMsg.from?.name || "";
-          const _memProf = senderId ? customerMemory.getCustomerProfile(senderId) : null;
+        // Use only name customer told us — NEVER use Facebook profile name for addressing
+        const _fbProfile = newestMsg.from?.name || "";
+        const _memProf = senderId ? customerMemory.getCustomerProfile(senderId) : null;
 
-          if (_fbProfile && _memProf && !_memProf.facebookName) {
-            customerMemory.updateCustomerProfile(String(newestMsg.from.id), { facebookName: _fbProfile });
+        if (_fbProfile && _memProf && !_memProf.facebookName) {
+          customerMemory.updateCustomerProfile(String(newestMsg.from.id), { facebookName: _fbProfile });
+        }
+
+        const _memName = _memProf?.name || "";
+        const _isRealName = _memName && !["ভাইয়া","Customer","কাস্টমার","NOT PROVIDED YET","customer","vaiya",""].includes(_memName.trim().toLowerCase());
+        const customerName = _isRealName ? _memName : "ভাইয়া";
+
+        // Sort batch into chronological order; limit to at most 3 latest messages to prevent massive stalls
+        const customerBatch = [...unrepliedCustomerMsgs].reverse().slice(-3);
+
+        // Resolve text and transcribe voice notes for each message in the batch
+        const resolvedItems = [];
+        for (const item of customerBatch) {
+          let itemText = (item.message || "").trim();
+          const audioAttach = item.attachments?.data?.find(a => a.mime_type?.includes("audio") || a.type === "audio");
+          if (!itemText && audioAttach?.file_url) {
+            console.log(`[FB_BOT] Transcribing customer voice note from ${customerName} (${senderId})...`);
+            const transcribed = await transcribeAudioWithGemini(audioAttach.file_url, page.accessToken);
+            itemText = transcribed || "[Customer sent a voice message]";
+            setVoiceMode(senderId, true);
           }
-
-          const _memName = _memProf?.name || "";
-          const _isRealName = _memName && !["ভাইয়া","Customer","কাস্টমার","NOT PROVIDED YET","customer","vaiya",""].includes(_memName.trim().toLowerCase());
-          const customerName = _isRealName ? _memName : "ভাইয়া";
-
-          // Sort batch into chronological order (oldest unreplied first, newest last)
-          const customerBatch = [...unrepliedCustomerMsgs].reverse();
-
-          // Resolve text and transcribe voice notes for each message in the batch
-          const resolvedItems = [];
-          for (const item of customerBatch) {
-            let itemText = (item.message || "").trim();
-            const audioAttach = item.attachments?.data?.find(a => a.mime_type?.includes("audio") || a.type === "audio");
-            if (!itemText && audioAttach?.file_url) {
-              console.log(`[FB_BOT] Transcribing customer voice note from ${customerName} (${senderId})...`);
-              const transcribed = await transcribeAudioWithGemini(audioAttach.file_url, page.accessToken);
-              itemText = transcribed || "[Customer sent a voice message]";
-              setVoiceMode(senderId, true);
-            }
-            const imageAttach = item.attachments?.data?.find(a => a.image_data || a.type === "image" || a.mime_type?.includes("image"));
-            let imageUrl = imageAttach?.image_data?.url || imageAttach?.file_url || imageAttach?.payload?.url || imageAttach?.image_data?.preview_url || "";
-            if (!imageUrl && imageAttach?.id) {
-              try {
-                const attRes = await fetch(`https://graph.facebook.com/v19.0/${imageAttach.id}?fields=image_data,file_url,payload&access_token=${page.accessToken}`, { signal: AbortSignal.timeout(4000) });
-                if (attRes.ok) {
-                  const attData = await attRes.json();
-                  imageUrl = attData?.image_data?.url || attData?.file_url || attData?.payload?.url || "";
-                }
-              } catch (e) {}
-            }
-            if (itemText || item.attachments?.data?.length > 0) {
-              resolvedItems.push({
-                id: item.id,
-                text: itemText,
-                created_time: item.created_time,
-                hasAudio: Boolean(audioAttach),
-                hasImage: Boolean(imageAttach),
-                imageUrl: imageUrl,
-                rawItem: item,
-              });
-            }
+          const imageAttach = item.attachments?.data?.find(a => a.image_data || a.type === "image" || a.mime_type?.includes("image"));
+          let imageUrl = imageAttach?.image_data?.url || imageAttach?.file_url || imageAttach?.payload?.url || imageAttach?.image_data?.preview_url || "";
+          if (!imageUrl && imageAttach?.id) {
+            try {
+              const attRes = await fetch(`https://graph.facebook.com/v19.0/${imageAttach.id}?fields=image_data,file_url,payload&access_token=${page.accessToken}`, { signal: AbortSignal.timeout(2500) });
+              if (attRes.ok) {
+                const attData = await attRes.json();
+                imageUrl = attData?.image_data?.url || attData?.file_url || attData?.payload?.url || "";
+              }
+            } catch (e) {}
           }
+          if (itemText || item.attachments?.data?.length > 0) {
+            resolvedItems.push({
+              id: item.id,
+              text: itemText,
+              created_time: item.created_time,
+              hasAudio: Boolean(audioAttach),
+              hasImage: Boolean(imageAttach),
+              imageUrl: imageUrl,
+              rawItem: item,
+            });
+          }
+        }
 
-          if (resolvedItems.length === 0) continue;
+        if (resolvedItems.length === 0) {
+          console.log(`[FB_BOT] No text or supported attachments found in thread ${conv.id}. Marking processed.`);
+          for (const m of unrepliedCustomerMsgs) {
+            saveProcessedId(m.id);
+          }
+          continue;
+        }
 
           // Format recent messages for multi-turn dialogue context (excluding current unreplied messages)
           const unrepliedIds = new Set(unrepliedCustomerMsgs.map(m => m.id));
@@ -4242,10 +4272,27 @@ ${paymentLine}
             }
 
             saveProcessedId(lastMsg.id); // Persist to file once successfully attempted
+            logBotActivity(`[REPLY_OK] [${page.pageName}] Replied to ${customerName} (${senderId})`);
           } catch (convErr) {
             console.error(`[FB_BOT_CONV_ERR] [${page.pageName}] Error processing thread ${conv.id}:`, convErr.message);
-            for (const m of unrepliedCustomerMsgs) {
-              inFlightMsgIds.delete(m.id);
+            logBotActivity(`[CONV_ERR] [${page.pageName}] thread ${conv.id}: ${convErr.message}`);
+            const failCount = (msgFailCounts.get(newestMsg.id) || 0) + 1;
+            msgFailCounts.set(newestMsg.id, failCount);
+            if (failCount >= 2) {
+              console.warn(`[FB_BOT_FAIL_LIMIT] Message ${newestMsg.id} failed ${failCount} times. Sending emergency text fallback and marking processed.`);
+              const fallbackText = "জি ভাইয়া, বলুন — কীভাবে সাহায্য করতে পারি? আপনার শারীরিক কোনো সমস্যা বা ওষুধের বিষয়ে পরামর্শ লাগলে জানান।";
+              await sendFacebookMessage(senderId, fallbackText, page.accessToken).catch(() => {});
+              for (const m of unrepliedCustomerMsgs) {
+                saveProcessedId(m.id);
+              }
+            } else {
+              for (const m of unrepliedCustomerMsgs) {
+                inFlightMsgIds.delete(m.id);
+              }
+            }
+          } finally {
+            if (senderId) {
+              await sendSenderAction(senderId, "typing_off", page.accessToken).catch(() => {});
             }
           }
         }
@@ -4718,7 +4765,9 @@ if (require.main === module) {
     isVoiceMode,
     recordOutgoingBotMessageInDb,
     saveProcessedId,
-    fetchConversations
+    fetchConversations,
+    pollOnce,
+    pollPage
   };
 }
 
