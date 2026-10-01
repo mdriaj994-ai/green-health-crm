@@ -173,3 +173,27 @@ export function isPhoneNumberRequest(text: string, replyText?: string): boolean 
 
   return false;
 }
+
+export function containsOrderFormOrPhone(text?: string, replyText?: string): boolean {
+  if (isPhoneNumberRequest(text || "", replyText)) return true;
+  if (isOrderInfoRequest(text || "", replyText)) return true;
+
+  if (replyText) {
+    // 1. Check for BD phone numbers or known numbers (Bangla or English digits)
+    if (/(?:01[3-9]\d{8}|০১[৩-৯][০-৯]{8}|০১৮৭০০২৩৮০৪|01870-023804|০১৮৭০০-২৩৮০৪|০১৮৭|0187)/.test(replyText)) {
+      return true;
+    }
+    // 2. Check for form field markers like নাম:, ঠিকানা:, জেলা:, ইত্যাদি
+    if (/(?:নাম|ঠিকানা|জেলা|থানা|মোবাইল|ফোন|নম্বর|বিকাশ)\s*[:=]/i.test(replyText)) {
+      return true;
+    }
+    // 3. Check for order confirmation / advance delivery instructions
+    if (/(?:অর্ডার\s*(?:কনফার্ম|করতে|দিন|করার\s*নিয়ম)|অগ্রিম|এডভান্স|ক্যাশ\s*অন\s*ডেলিভারি)/i.test(replyText)) {
+      if (/(?:নাম|ঠিকানা|জেলা|নম্বর|টাকা)/i.test(replyText)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}

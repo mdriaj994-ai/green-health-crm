@@ -565,7 +565,7 @@ ${text}
     }
 
     // ── Voice Mode & Voice Request Logic ──
-    const { isVoiceMode, setVoiceMode, isOnlyVoiceRequest, isVoiceRequested, isTextModeRequested, isOrderInfoRequest, isPhoneNumberRequest } = await import("@/lib/voice-mode");
+    const { isVoiceMode, setVoiceMode, isOnlyVoiceRequest, isVoiceRequested, isTextModeRequested, isOrderInfoRequest, isPhoneNumberRequest, containsOrderFormOrPhone } = await import("@/lib/voice-mode");
     const { getCustomerProfile, updateCustomerProfile } = await import("@/lib/customer-memory");
 
     const custProfile = getCustomerProfile(senderId);
@@ -627,13 +627,13 @@ ${text}
       const docName = isNaturalHerbal ? "কবিরাজ মোহাম্মদ আরিফ" : "হাকিম রিয়াজুল করিম";
       const voiceText = `জি ভাইয়া, অবশ্যই! আমি ডাক্তার ${docName} বলছি। কোনো সমস্যা নেই ভাইয়া, আপনি আর পড়তে হবে না—আমি আপনার সাথে মুখে কথা বলছি। আপনার কী সমস্যা হচ্ছে বা কী জানতে চাচ্ছেন, আমাকে নির্দ্বিধায় মুখে বলুন বা লিখে জানান, আমি আপনাকে ভয়েসেই সবকিছু বুঝিয়ে বলছি।`;
 
-      console.log(`[EXPLICIT_VOICE_REQUEST] Customer asked for voice consultation. Sending text + voice note to ${senderId}: "${voiceText.substring(0, 60)}..."`);
-      // 1. Send text
+      console.log(`[EXPLICIT_VOICE_REQUEST] Customer asked for voice consultation. Sending voice note to ${senderId}: "${voiceText.substring(0, 60)}..."`);
       await sendSenderAction(senderId, "typing_on", effectiveToken);
-      await sendMessengerReply(pageId, senderId, voiceText, effectiveToken);
-
-      // 2. Also send voice note
       const sentVoice = await sendMessengerVoiceNote(senderId, voiceText, effectiveToken);
+      if (!sentVoice) {
+        // Fallback to text if voice note generation failed
+        await sendMessengerReply(pageId, senderId, voiceText, effectiveToken);
+      }
 
       // Save bot voice reply to DB
       try {
@@ -837,31 +837,45 @@ ${text}
 
     const userPrefersText = isTextModeRequested(text);
     const isLongReply = replyText && replyText.length >= 200;
-    const shouldSendVoice = !userPrefersText && (userInVoiceMode || isVoiceRequested(text) || Boolean(audioUrl) || isLongReply);
+    const isVoiceConversation = !userPrefersText && (userInVoiceMode || isVoiceRequested(text) || Boolean(audioUrl));
+    const shouldSendVoice = !userPrefersText && (isVoiceConversation || isLongReply);
+    const hasOrderFormOrPhone = containsOrderFormOrPhone(text, replyText);
 
     if (replyText && effectiveToken) {
-      // 1. ALWAYS SEND TEXT FIRST (Instant 1s response)
-      await sendSenderAction(senderId, "typing_on", effectiveToken);
-      await new Promise(r => setTimeout(r, 800));
-      await sendMessengerReply(pageId, senderId, replyText, effectiveToken, items[items.length - 1].mid || null);
-      console.log(`[AUTO_REPLY_SENT] Text to: ${senderId} | Reply: "${replyText.substring(0, 80)}..."`);
-      try {
-        const { appendChatMessage } = await import("@/lib/customer-memory");
-        appendChatMessage(senderId, "model", replyText, false);
-      } catch {}
+      let sentVoice = false;
 
-      // 2. ALSO SEND VOICE NOTE IF REQUESTED
+      // 1. SEND VOICE NOTE IF IN VOICE MODE OR REQUESTED
       if (shouldSendVoice) {
-        console.log(`[VOICE_MODE_ACTIVE] Also sending voice note to ${senderId}: "${replyText.substring(0, 80)}..."`);
+        console.log(`[VOICE_MODE_ACTIVE] Sending voice note to ${senderId}: "${replyText.substring(0, 80)}..."`);
         try {
           await sendSenderAction(senderId, "typing_on", effectiveToken);
-          const sentVoice = await sendMessengerVoiceNote(senderId, replyText, effectiveToken);
+          sentVoice = Boolean(await sendMessengerVoiceNote(senderId, replyText, effectiveToken));
           if (sentVoice) {
             console.log(`[VOICE_NOTE_SENT] Voice delivered to ${senderId}`);
+            try {
+              const { appendChatMessage } = await import("@/lib/customer-memory");
+              appendChatMessage(senderId, "model", replyText, true);
+            } catch {}
           }
         } catch (vErr: any) {
           console.warn("[VOICE_SEND_ERR]", vErr.message);
         }
+      }
+
+      // 2. DECIDE WHETHER TO SEND TEXT
+      // - If not voice conversation: always send text
+      // - If voice conversation: ONLY send text if order form/phone is present, OR if voice failed
+      const shouldSendText = !isVoiceConversation || hasOrderFormOrPhone || !sentVoice;
+
+      if (shouldSendText) {
+        await sendSenderAction(senderId, "typing_on", effectiveToken);
+        await new Promise(r => setTimeout(r, 800));
+        await sendMessengerReply(pageId, senderId, replyText, effectiveToken, items[items.length - 1].mid || null);
+        console.log(`[AUTO_REPLY_SENT] Text to: ${senderId} | Reply: "${replyText.substring(0, 80)}..."`);
+        try {
+          const { appendChatMessage } = await import("@/lib/customer-memory");
+          appendChatMessage(senderId, "model", replyText, false);
+        } catch {}
       }
 
       // ── ORDER DETECTION & SAVE ─────────────────────────────────────────────

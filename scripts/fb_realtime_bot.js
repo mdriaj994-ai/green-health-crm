@@ -425,6 +425,31 @@ function isOrderInfoRequest(text, replyText) {
         /(?:নাম|ঠিকানা|নাম্বার|নম্বর)\s*[:=]/i.test(replyText)) {
       return true;
     }
+
+function containsOrderFormOrPhone(text, replyText) {
+  if (isPhoneNumberRequest(text, replyText)) return true;
+  if (isOrderInfoRequest(text, replyText)) return true;
+
+  if (replyText) {
+    // 1. Check for BD phone numbers or known numbers (Bangla or English digits)
+    if (/(?:01[3-9]\d{8}|০১[৩-৯][০-৯]{8}|০১৮৭০০২৩৮০৪|01870-023804|০১৮৭০০-২৩৮০৪|০১৮৭|0187)/.test(replyText)) {
+      return true;
+    }
+    // 2. Check for form field markers like নাম:, ঠিকানা:, জেলা:, ইত্যাদি
+    if (/(?:নাম|ঠিকানা|জেলা|থানা|মোবাইল|ফোন|নম্বর|বিকাশ)\s*[:=]/i.test(replyText)) {
+      return true;
+    }
+    // 3. Check for order confirmation / advance delivery instructions
+    if (/(?:অর্ডার\s*(?:কনফার্ম|করতে|দিন|করার\s*নিয়ম)|অগ্রিম|এডভান্স|ক্যাশ\s*অন\s*ডেলিভারি)/i.test(replyText)) {
+      if (/(?:নাম|ঠিকানা|জেলা|নম্বর|টাকা)/i.test(replyText)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
   }
 
   return false;
@@ -3611,35 +3636,43 @@ async function pollOnce() {
               }
             }
 
-            // 3. Send text reply immediately
-            const delay = calculateHumanTypingDelay(itemReply);
-            await sendSenderAction(senderId, "typing_on", page.accessToken);
-            await sleep(Math.min(delay, 1500));
-            const sendRes = await sendFacebookMessage(senderId, itemReply, page.accessToken, newestMsg.id);
-            console.log(`[FB_BOT] Replied to batch of ${resolvedItems.length} msgs (Status: ${sendRes.status}): "${itemReply.slice(0, 60)}..."`);
-            recordOutgoingBotMessageInDb(senderId, itemReply, false);
-            customerMemory.appendChatMessage(senderId, "model", itemReply, false);
-
-            // 4. Voice note: If voice mode, or if reply is long (200+ chars), also send voice
+            // ── VOICE / TEXT ROUTING LOGIC FOR BATCH ──
             const userPrefersText = isTextModeRequested(fullBatchText);
             const isLongReply = itemReply && itemReply.length >= 200;
             const anyAudio = resolvedItems.some(i => i.hasAudio);
-            const wantsVoice = !userPrefersText && (
+            const isVoiceConversation = !userPrefersText && (
               isVoiceMode(senderId) ||
               anyAudio ||
               isVoiceRequested(fullBatchText) ||
-              isLongReply
+              isOnlyVoiceRequest(fullBatchText)
             );
+            const wantsVoice = !userPrefersText && (isVoiceConversation || isLongReply);
+            const hasOrderFormOrPhone = containsOrderFormOrPhone(fullBatchText, itemReply);
+
+            let sentVoice = false;
             if (wantsVoice) {
               try {
                 await sendSenderAction(senderId, "typing_on", page.accessToken);
-                const sentVoice = await sendFacebookVoiceNote(senderId, itemReply, page.accessToken);
+                sentVoice = await sendFacebookVoiceNote(senderId, itemReply, page.accessToken);
                 if (sentVoice) {
                   recordOutgoingBotMessageInDb(senderId, itemReply, true);
+                  customerMemory.appendChatMessage(senderId, "model", itemReply, true);
                 }
               } catch (vErr) {
                 console.warn("[FB_BOT_MULTI_VOICE_ERR]", vErr.message);
               }
+            }
+
+            // In voice mode: send text ONLY if it contains phone number or order form, OR if voice failed
+            const shouldSendText = !isVoiceConversation || hasOrderFormOrPhone || !sentVoice;
+            if (shouldSendText) {
+              const delay = calculateHumanTypingDelay(itemReply);
+              await sendSenderAction(senderId, "typing_on", page.accessToken);
+              await sleep(Math.min(delay, 1500));
+              const sendRes = await sendFacebookMessage(senderId, itemReply, page.accessToken, newestMsg.id);
+              console.log(`[FB_BOT] Replied to batch of ${resolvedItems.length} msgs (Status: ${sendRes.status}): "${itemReply.slice(0, 60)}..."`);
+              recordOutgoingBotMessageInDb(senderId, itemReply, false);
+              customerMemory.appendChatMessage(senderId, "model", itemReply, false);
             }
 
             // 5. Mark ALL messages in the batch as processed
@@ -3781,17 +3814,17 @@ async function pollOnce() {
               const docName = isNaturalHerbal ? "কবিরাজ মোহাম্মদ আরিফ" : "হাকিম রিয়াজুল করিম";
               const voiceText = `জি ভাইয়া, অবশ্যই! আমি ডাক্তার ${docName} বলছি। কোনো সমস্যা নেই ভাইয়া, আপনি আর পড়তে হবে না—আমি আপনার সাথে মুখে কথা বলছি। আপনার কী সমস্যা হচ্ছে বা কী জানতে চাচ্ছেন, আমাকে নির্দ্বিধায় মুখে বলুন বা লিখে জানান, আমি আপনাকে ভয়েসেই সবকিছু বুঝিয়ে বলছি।`;
 
-              console.log(`[FB_BOT] Customer asked for voice consultation. Sending text + fresh doctor voice note to ${senderId}`);
-              // 1. Send text reply immediately
+              console.log(`[FB_BOT] Customer asked for voice consultation. Sending voice note to ${senderId}`);
               await sendSenderAction(senderId, "typing_on", page.accessToken);
-              await sendFacebookMessage(senderId, voiceText, page.accessToken);
-              customerMemory.appendChatMessage(senderId, "model", voiceText, false);
-              recordOutgoingBotMessageInDb(senderId, voiceText, false);
-
-              // 2. Also send voice note
               const sentVoice = await sendFacebookVoiceNote(senderId, voiceText, page.accessToken);
               if (sentVoice) {
                 recordOutgoingBotMessageInDb(senderId, voiceText, true);
+                customerMemory.appendChatMessage(senderId, "model", voiceText, true);
+              } else {
+                // Fallback to text only if voice note failed
+                await sendFacebookMessage(senderId, voiceText, page.accessToken);
+                customerMemory.appendChatMessage(senderId, "model", voiceText, false);
+                recordOutgoingBotMessageInDb(senderId, voiceText, false);
               }
               saveProcessedId(lastMsg.id);
               continue;
@@ -4126,43 +4159,57 @@ ${paymentLine}
             }
             console.log(`[FB_BOT] 🤖 [${page.pageName}] REPLY: "${replyText.slice(0, 70)}..."`);
 
-            // ── 1. ALWAYS SEND TEXT REPLY IMMEDIATELY ────────────────────────────
-            // Send text first so customer instantly sees the human answer (within 1-2s)
-            const delay = calculateHumanTypingDelay(replyText);
-            await sendSenderAction(senderId, "typing_on", page.accessToken);
-            await sleep(Math.min(delay, 1500));
-            const sendResult = await sendFacebookMessage(senderId, replyText, page.accessToken, lastMsg.id);
-            console.log(`[FB_BOT] 🚀 [${page.pageName}] TEXT SENT [${sendResult.status}]:`, sendResult.data?.message_id || sendResult.data);
-            recordOutgoingBotMessageInDb(senderId, replyText, false);
-            customerMemory.appendChatMessage(senderId, "model", replyText, false);
-
-            // ── 2. ALSO SEND VOICE NOTE IF IN VOICE MODE OR REQUESTED ────────────
+            // ── VOICE / TEXT ROUTING LOGIC ──────────────────────────────────────
+            // Rule 1: Customer sends voice -> Voice reply.
+            // Rule 2: Message contains phone number or order form -> Voice AND Text.
+            // Rule 3: Normal consultation in voice mode -> Voice ONLY.
+            // Rule 4: Normal text mode -> Text as usual.
+            // Rule 5: Fallback to text if voice sending fails.
             const userPrefersText = isTextModeRequested(messageText);
-            // Auto-voice: if reply is long (200+ chars), automatically send voice alongside text
             const isLongReply = replyText && replyText.length >= 200;
-            const wantsVoice = !userPrefersText && (
+            const isVoiceConversation = !userPrefersText && (
               isVoiceMode(senderId) ||
               isVoiceReq ||
               Boolean(audioAttach) ||
               isOnlyVoiceRequest(messageText) ||
-              isVoiceRequested(messageText) ||
-              isLongReply   // ← AUTO-VOICE for long messages
+              isVoiceRequested(messageText)
             );
+            const wantsVoice = !userPrefersText && (isVoiceConversation || isLongReply);
+            const hasOrderFormOrPhone = containsOrderFormOrPhone(messageText, replyText);
+
+            let sentVoice = false;
+            // 1. Send Voice Note first if in voice mode or auto-voice
             if (wantsVoice) {
-              const voiceReason = isLongReply && !isVoiceMode(senderId) && !isVoiceReq
+              const voiceReason = isLongReply && !isVoiceConversation
                 ? "AUTO (long reply " + replyText.length + " chars)"
-                : "VOICE_MODE/REQUESTED";
-              console.log(`[FB_BOT] 🎙️ [${voiceReason}] Also sending voice note to ${senderId}...`);
+                : "VOICE_CONVERSATION";
+              console.log(`[FB_BOT] 🎙️ [${voiceReason}] Sending voice note to ${senderId}...`);
               try {
                 await sendSenderAction(senderId, "typing_on", page.accessToken);
-                const sentVoice = await sendFacebookVoiceNote(senderId, replyText, page.accessToken);
+                sentVoice = await sendFacebookVoiceNote(senderId, replyText, page.accessToken);
                 if (sentVoice) {
                   recordOutgoingBotMessageInDb(senderId, replyText, true);
+                  customerMemory.appendChatMessage(senderId, "model", replyText, true);
                   console.log(`[FB_BOT] 🎙️ Voice note delivered to ${senderId}`);
                 }
               } catch (vErr) {
                 console.warn("[FB_BOT_VOICE_ERR]", vErr.message);
               }
+            }
+
+            // 2. Decide whether to send text message:
+            // - If not voice conversation: always send text
+            // - If voice conversation: send text ONLY if order form/phone is present, OR if voice failed
+            const shouldSendText = !isVoiceConversation || hasOrderFormOrPhone || !sentVoice;
+
+            if (shouldSendText) {
+              const delay = calculateHumanTypingDelay(replyText);
+              await sendSenderAction(senderId, "typing_on", page.accessToken);
+              await sleep(Math.min(delay, 1500));
+              const sendResult = await sendFacebookMessage(senderId, replyText, page.accessToken, lastMsg.id);
+              console.log(`[FB_BOT] 🚀 [${page.pageName}] TEXT SENT [${sendResult.status}]:`, sendResult.data?.message_id || sendResult.data);
+              recordOutgoingBotMessageInDb(senderId, replyText, false);
+              customerMemory.appendChatMessage(senderId, "model", replyText, false);
             }
 
             saveProcessedId(lastMsg.id); // Persist to file once successfully attempted
