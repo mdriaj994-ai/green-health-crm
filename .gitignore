@@ -47,6 +47,7 @@ cloudflared.exe
 .chat_history.json
 .processed_msg_ids.json
 data/webhook_hits.log
+data/bot_exec.log
 n8n-workflows/
 scripts/test_*
 scripts/deploy_*
@@ -65,4 +66,5 @@ scratch/
 *.mp3
 prisma/*.db-shm
 prisma/*.db-wal
+prisma/dev.db
 data/customers/

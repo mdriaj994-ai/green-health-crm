@@ -50,7 +50,7 @@ export async function GET() {
     info.dataError = e.message;
   }
 
-  // 4. Check webhook log
+  // 4. Check webhook log and bot execution log
   try {
     const logFile = path.join(process.cwd(), "data", "webhook_hits.log");
     if (fs.existsSync(logFile)) {
@@ -61,6 +61,17 @@ export async function GET() {
     }
   } catch (e: any) {
     info.webhookLogError = e.message;
+  }
+
+  try {
+    const botLogFile = path.join(process.cwd(), "data", "bot_exec.log");
+    if (fs.existsSync(botLogFile)) {
+      info.botRecentLogs = fs.readFileSync(botLogFile, "utf-8").slice(-3000);
+    } else {
+      info.botRecentLogs = "No bot_exec.log yet";
+    }
+  } catch (e: any) {
+    info.botLogError = e.message;
   }
 
   // 5. Test & Auto-Repair better-sqlite3
