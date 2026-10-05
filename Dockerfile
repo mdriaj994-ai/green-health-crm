@@ -1,11 +1,12 @@
 FROM node:22-slim
 WORKDIR /app
 
-# Fix debconf frontend errors during apt-get (non-interactive mode for Docker builds)
-ARG DEBIAN_FRONTEND=noninteractive
+# Non-interactive mode for Debian package manager
+ENV DEBIAN_FRONTEND=noninteractive
 
-# Install required build and runtime dependencies (OpenSSL for Prisma, build tools for native addons)
-RUN apt-get update -y && apt-get install -y --no-install-recommends openssl python3 make g++ && rm -rf /var/lib/apt/lists/*
+# Install required runtime dependencies (OpenSSL for Prisma engine, ca-certificates for HTTPS)
+# Note: better-sqlite3 v13 bundles pre-compiled linux-x64 binaries, so python3/make/g++ are NOT needed.
+RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency manifests
 COPY package*.json ./
@@ -21,10 +22,8 @@ COPY . .
 RUN npx prisma generate
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_OPTIONS="--max-old-space-size=2048"
+ENV NODE_OPTIONS="--max-old-space-size=1536"
 RUN npm run build
-
-# Note: build tools (python3, make, g++) are kept — purge step removed as it caused exit code 255 crash
 
 # Configure runtime environment (switch to production after build)
 ENV NODE_ENV=production
