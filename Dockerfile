@@ -4,9 +4,8 @@ WORKDIR /app
 # Non-interactive mode for Debian package manager
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install required runtime dependencies (OpenSSL for Prisma engine, ca-certificates for HTTPS)
-# Note: better-sqlite3 v13 bundles pre-compiled linux-x64 binaries, so python3/make/g++ are NOT needed.
-RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends openssl ca-certificates && rm -rf /var/lib/apt/lists/*
+# Install required build and runtime dependencies (OpenSSL for Prisma, Python/C++ compiler for better-sqlite3 native addon)
+RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends openssl ca-certificates python3 make g++ && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency manifests
 COPY package*.json ./
