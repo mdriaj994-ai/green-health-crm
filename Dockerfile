@@ -1,8 +1,11 @@
 FROM node:22-slim
 WORKDIR /app
 
+# Fix debconf frontend errors during apt-get (non-interactive mode for Docker builds)
+ARG DEBIAN_FRONTEND=noninteractive
+
 # Install required build and runtime dependencies (OpenSSL for Prisma, build tools for native addons)
-RUN apt-get update -y && apt-get install -y openssl python3 make g++ && rm -rf /var/lib/apt/lists/*
+RUN apt-get update -y && apt-get install -y --no-install-recommends openssl python3 make g++ && rm -rf /var/lib/apt/lists/*
 
 # Copy dependency manifests
 COPY package*.json ./
@@ -38,8 +41,8 @@ ENV FACEBOOK_PAGE_ACCESS_TOKEN="EAAjkLPT8UegBSsQVgxm1fBW6D7N7oon9ZAudS1UKVLVbBEa
 ENV FACEBOOK_PAGE_ID_2="133420039845881"
 ENV FACEBOOK_PAGE_ACCESS_TOKEN_2="EAAjkLPT8UegBSlZChn7c91QtGtts7mXORj9ZAXOjehsii5WQoVrbmZCDwmqoovyJ10M3056RDjnnvPgsPYCbU7yZCzFvX88tpbOIzJO0fr6vOMZB3EMBY3yPkkNs8QFMK2COwmBlr0VBwVlXIiKRJpGjDwE4HIOrUFkd51Vz7OenjmH2jewNaUUcRSAOhl8ZAoUEEZD"
 ENV FACEBOOK_WEBHOOK_VERIFY_TOKEN="social_inbox_verify_token"
-ENV CARTESIA_API_KEY="sk_car_us2GDcmgZpkWk1c5hSkv6v"
-ENV CARTESIA_VOICE_ID="2e100707-bb62-40fb-90b6-9d79da563828"
+ENV CARTESIA_API_KEY="sk_car_srvrWhgCX45k3QNo4XagpS"
+ENV CARTESIA_VOICE_ID="bc625010-1d9d-4b70-99eb-74c262c65237"
 ENV TELEGRAM_ADMIN_CHAT_ID="8279465535"
 
 EXPOSE 3000
