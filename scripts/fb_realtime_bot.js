@@ -1272,7 +1272,16 @@ function handleNaturalHerbalConsultation(senderId, senderName, customerMessage, 
     /(?:proshno|প্রশ্ন).*(?:keno|aro|koto|bad|বন্ধ|থাক|থাম)/i.test(clean) ||
     /(?:keno\s*bolbo|কেন\s*বলব|বলব\s*না|bolbo\s*na|bolte\s*parbo\s*na|বলতে\s*পারব\s*না)/i.test(clean) ||
     /(?:shob\s*bolte|সব\s*বলতে|shob\s*kisu|সবকিছু).*(?:hobe|হবে|lage|লাগে|keno|কেন)/i.test(clean) ||
-    /(?:ato\s*kiso|eto\s*kisu|eto\s*kichu|এত\s*কিছু)/i.test(clean);
+    /(?:ato\s*kiso|eto\s*kisu|eto\s*kichu|এত\s*কিছু)/i.test(clean) ||
+    // "ami ki boli apni ki bolen" — confused/embarrassed/annoyed pushback
+    /ami\s*ki\s*b(?:oli|olbo|olba|olben)/i.test(clean) ||
+    /apni\s*ki\s*bolen/i.test(clean) ||
+    /(?:আমি\s*কী?\s*ব(?:লব|লি|লব|লেন)|আপনি\s*কী?\s*বলেন)/i.test(clean) ||
+    // General confusion/embarrassment signals
+    /(?:ki\s*jiggesh\s*koren|eta\s*ki\s*kotha|ki\s*bolchen\s*apni)/i.test(clean) ||
+    /(?:lojja\s*diben\s*na|bolte\s*lojja|লজ্জা\s*দেবেন\s*না|বলতে\s*লজ্জা)/i.test(clean) ||
+    // Very short confused/flustered single-word reply specifically on the penile structure step (step 5)
+    (lastAskedStep === 5 && /^(?:ki|কি|kii|hmm+|hm+|uff|আহ|bhai|ভাই|vai|ki\s*bolbo|ki\s*boli|ki\s*bhai|eta\s*ki)$/i.test(clean.trim()));
 
   if (isCustomerReluctantOrAnnoyed) {
     const sName = (prof?.name && customerMemory.isValidPersonName(prof.name)) ? `${prof.name} ভাইয়া` : "ভাইয়া";

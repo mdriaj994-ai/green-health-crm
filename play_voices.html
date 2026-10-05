@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="bn">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cartesia.ai ভয়েস স্যাম্পল প্লেয়ার - হাকিম ভয়েস</title>
+  <link href="https://fonts.googleapis.com/css2?family=Hind+Siliguri:wght@400;600;700&display=swap" rel="stylesheet">
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      font-family: 'Hind Siliguri', sans-serif;
+    }
+    body {
+      background: #0f172a;
+      color: #f8fafc;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 24px;
+    }
+    .container {
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 16px;
+      padding: 32px;
+      max-width: 680px;
+      width: 100%;
+      box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.5), 0 8px 10px -6px rgba(0, 0, 0, 0.5);
+    }
+    .badge {
+      display: inline-block;
+      background: #059669;
+      color: #ecfdf5;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 12px;
+    }
+    h1 {
+      font-size: 24px;
+      font-weight: 700;
+      color: #38bdf8;
+      margin-bottom: 8px;
+    }
+    .meta {
+      font-size: 13px;
+      color: #94a3b8;
+      margin-bottom: 24px;
+      line-height: 1.6;
+      background: #0f172a;
+      padding: 12px 16px;
+      border-radius: 8px;
+      border-left: 3px solid #38bdf8;
+    }
+    .card {
+      background: #0f172a;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 18px 20px;
+      margin-bottom: 18px;
+      transition: border-color 0.2s;
+    }
+    .card-highlight {
+      border: 2px solid #10b981;
+      background: #064e3b22;
+    }
+    .card:hover {
+      border-color: #38bdf8;
+    }
+    .card-title {
+      font-size: 16px;
+      font-weight: 600;
+      color: #e2e8f0;
+      margin-bottom: 6px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .transcript {
+      font-size: 14px;
+      color: #cbd5e1;
+      margin-bottom: 12px;
+      line-height: 1.6;
+      background: #1e293b;
+      padding: 10px 14px;
+      border-radius: 8px;
+    }
+    audio {
+      width: 100%;
+      height: 40px;
+      border-radius: 8px;
+    }
+    .footer {
+      text-align: center;
+      font-size: 13px;
+      color: #64748b;
+      margin-top: 16px;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="container">
+    <span class="badge">✓ সংখ্যা উচ্চারণ ফিক্সড (৩৫০ -> তিনশত পঞ্চাশ)</span>
+    <h1>🔊 হাকিম ভয়েস টেস্ট (Cartesia.ai)</h1>
+    <div class="meta">
+      <strong>Voice ID:</strong> <code>2e100707-bb62-40fb-90b6-9d79da563828</code><br>
+      <strong>Model:</strong> <code>sonic-3.6</code> | <strong>Language:</strong> Bengali (<code>bn</code>)
+    </div>
+
+    <!-- Highlighted Fixed Sample -->
+    <div class="card card-highlight">
+      <div class="card-title">⭐ নতুন ফিক্সড ভয়েস (৩৫০ গ্রাম, ২,০০০ টাকা, ১ চামচ)</div>
+      <div class="transcript">
+        "আসসালামু আলাইকুম ভাই, আমাদের <strong>এক ফাইল</strong> বাজীকরণ হালুয়ার ওজন <strong>তিনশত পঞ্চাশ গ্রাম</strong> এবং অফার মূল্য মাত্র <strong>দুই হাজার টাকা</strong>। ডেলিভারি চার্জ সম্পূর্ণ ফ্রি। রাতে ঘুমানোর আগে <strong>এক চামচ</strong> খাবেন।"
+      </div>
+      <audio controls autoplay src="sample_fixed_numbers.mp3"></audio>
+    </div>
+
+    <!-- Sample 1 -->
+    <div class="card">
+      <div class="card-title">১. পরিচয় ও বাজীকরণ হালুয়া পরিচিতি</div>
+      <div class="transcript">
+        "আসসালামু আলাইকুম ভাই, আমি কবিরাজ মোহাম্মদ আরিফ বলছি। আমাদের বাজীকরণ হালুয়া সম্পূর্ণ প্রাকৃতিক ও খাঁটি ভেষজ উপাদান দিয়ে প্রস্তুত করা হয়েছে।"
+      </div>
+      <audio controls src="sample1_intro.mp3"></audio>
+    </div>
+
+    <!-- Sample 2 -->
+    <div class="card">
+      <div class="card-title">২. মূল্য ও ডেলিভারি তথ্য</div>
+      <div class="transcript">
+        "ভাই, আমাদের বাজীকরণ হালুয়ার ৩৫০ গ্রাম ফাইলের নিয়মিত অফার মূল্য মাত্র ২,০০০ টাকা। সারা বাংলাদেশে ক্যাশ অন ডেলিভারিতে নিতে পারবেন।"
+      </div>
+      <audio controls src="sample2_price.mp3"></audio>
+    </div>
+
+    <div class="footer">
+      উপরের প্রথম অডিওটি প্লে করে শুনুন—৩৫০ কে এখন নিখুঁতভাবে "তিনশত পঞ্চাশ" এবং ২,০০০ কে "দুই হাজার" উচ্চারণ করছে।
+    </div>
+  </div>
+
+</body>
+</html>
