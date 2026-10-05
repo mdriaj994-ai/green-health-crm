@@ -1431,6 +1431,8 @@ function handleNaturalHerbalConsultation(senderId, senderName, customerMessage, 
 }
 
 async function generateReply(customerMessage, senderName, senderId = null, recentHistory = [], pageName = "গ্রীন হেলথ ইউনানী ফার্মেসী", isVoiceMode = false, pageId = null) {
+  // Flag to enable dynamic AI replies and prevent rigid hardcoded template loops:
+  const ENABLE_DYNAMIC_AI_REPLIES = true;
   // Extract and persist permanent customer facts
   if (senderId) {
     customerMemory.extractCustomerFacts(senderId, customerMessage, senderName);
@@ -1512,12 +1514,13 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
   // ── NATURAL HERBAL PAGE: Run structured 5-step Bajikaran consultation ───────
   // This MUST run before generic AI flow so the step-by-step doctor consultation works
   if (isNaturalHerbal && senderId) {
-    const _nhReply = handleNaturalHerbalConsultation(senderId, senderName, customerMessage, isVoiceMode);
-    if (_nhReply) {
-      // appendChatMessage already called inside handleNaturalHerbalConsultation
-      console.log(`[NH_CONSULT] Natural Herbal 5-step reply for ${senderId}: "${_nhReply.slice(0, 60)}..."`);
-      return _nhReply;
+    // Extract customer facts into memory, but do NOT block conversation with static fixed questionnaire
+    try {
+      handleNaturalHerbalConsultation(senderId, senderName, customerMessage, isVoiceMode);
+    } catch (e) {
+      console.warn("[NH_CONSULT_FACTS_WARN]:", e.message);
     }
+    // Bypassed for Dynamic AI: Gemini will handle the consultation warmly, intelligently, and contextually!
   }
   // ── END NATURAL HERBAL CONSULTATION ────────────────────────────────────────
 
@@ -1607,7 +1610,7 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
   // ── Instant interceptor for Financial Constraints / Money Shortage ("টাকা নেই", "বাজেট নেই", "টাকা নাই") ──
   const isMoneyConstraintIntent =
     /(?:টাকা\s*নাই|টাকা\s*নেই|টাকার\s*সমস্যা|টাকা\s*হলে|টাকা\s*পয়সা\s*নাই|টাকা\s*পয়সা\s*নেই|টাকা\s*জোগাড়|বাজেট\s*নাই|বাজেট\s*নেই|বাজেট\s*কম|দাম\s*বেশি\s*নেব\s*না|টাকা\s*শর্ট|টাকা\s*কম|অর্থের\s*সমস্যা|অর্থনৈতিক\s*সমস্যা|এতো\s*টাকা\s*নেই|এত\s*টাকা\s*নাই|এত\s*টাকা\s*নেই|এতো\s*টাকা\s*নাই|টাকা\s*ম্যানেজ|taka\s*nai|taka\s*nei|takar\s*problem|taka\s*short|budget\s*nai|budget\s*nei|eto\s*taka\s*nai|eto\s*taka\s*nei|samortho\s*nai|সামর্থ্য\s*নাই|সামর্থ্য\s*নেই)/i.test(trimmedClean);
-  if (isMoneyConstraintIntent) {
+  if (!ENABLE_DYNAMIC_AI_REPLIES && isMoneyConstraintIntent) {
     const moneyConstraintReplies = [
       `জি ভাইয়া, আমি একদম বুঝতে পেরেছি। টাকা-পয়সা সব সময় মানুষের একরকম থাকে না, এটা খুবই স্বাভাবিক বিষয় ভাইয়া। টাকা নেই বলে যে কষ্ট করে এখনই ওষুধ নিতে হবে বা কোনো চাপ নিতে হবে এমন কোনো কথা নেই। টাকা-পয়সার চেয়ে আপনার মানসিক শান্তি আর পরিবার নিয়ে সুস্থ থাকাটাই আসল। ইনশাআল্লাহ সামনে যখন আপনার আর্থিক অবস্থা সুবিধাজনক হবে বা হাত ফ্রি হবে, তখন যদি প্রয়োজন মনে করেন আমাকে জানাবেন। আর ওষুধ ছাড়াও যেকোনো স্বাস্থ্য পরামর্শে এই ভাইকে পাশে পাবেন। আল্লাহ আপনার উপার্জনে বরকত দিন এবং সবসময় ভালো রাখুন ভাইয়া।`,
       `ঠিক আছে ভাইয়া, কোনো চিন্তা করবেন না। মানুষের জীবনে আর্থিক ওঠানামা আসতেই পারে, এটা নিয়ে বিন্দুমাত্র সংকোচ বা খারাপ লাগার কিছু নেই। এখন টাকা শর্ট থাকলে ওষুধ নেওয়ার কোনো তাড়াহুড়ো বা চাপ নেই ভাইয়া। যখন আপনার সুবিধা হবে বা সামর্থ্য হবে, তখন দরকার মনে হলে আমাকে জানাবেন। একজন শুভাকাঙ্ক্ষী ও বড় ভাই হিসেবে সবসময় আপনার পাশে আছি। আল্লাহ আপনার রিজিক বাড়িয়ে দিন এবং আপনাকে পরিবারসহ সুস্থ ও ভালো রাখুন ভাইয়া।`,
@@ -1620,7 +1623,7 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
 
   // Instant interceptor for time/schedule delay objections ("বিকেলে জানাবো", "পরে বলব", "রাতে জানাব")
   const isDelayIntent = /(?:বিকেলে\s*জানাব|বিকেলে\s*বলব|বিকেলে\s*নেব|পরে\s*জানাব|পরে\s*বলব|পরে\s*নেব|পরে\s*নিব|রাতে\s*জানাব|রাতে\s*বলব|কাজের\s*শেষে|ফ্রি\s*হয়ে|bikel.*janabo|pore.*janabo|pore.*nibo|free.*hoye)/i.test(trimmedClean);
-  if (isDelayIntent) {
+  if (!ENABLE_DYNAMIC_AI_REPLIES && isDelayIntent) {
     const delayReplies = [
       `জি ভাইয়া, অবশ্যই! কোনো সমস্যা নেই। আপনি কাজের ফাঁকে বিকেলে বা রাতে যখনই একটু ফ্রি হবেন, আমাকে এখানে নক দিয়েন। নিজের শরীর ও সুস্থতা আগে, তাই আপনি স্বস্তিমতো সময়েই কথা বলুন। আর যেকোনো প্রয়োজনে তো আমি আছিই। ভালো থাকবেন ভাইয়া, আল্লাহ আপনাকে সুস্থ রাখুন।`,
       `ঠিক আছে ভাইয়া, একদম কোনো তাড়াহুড়ো নেই। আপনি কাজের শেষে অবসর মতো সুবিধাজনক সময়ে মেসেজ দিয়েন। নিজের শরীরের যত্ন নেবেন। যেকোনো স্বাস্থ্য পরামর্শ বা সহযোগিতার প্রয়োজনে এই ভাইকে পাশে পাবেন। সুস্থ থাকুন ভাইয়া।`,
@@ -1638,7 +1641,7 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     /(?:parisilam|parini|parchi\s*na|পারিনি|পারছি\s*না|পারছিলাম|হয়নি|hoyni)/i.test(customerMessage) ||
     /(?:kalke|kal|goto\s*kal|গতকাল|আগে|age|আগেই|আগের).*(?:order|অর্ডার|নিতে|kinbo|কিনতে).*(?:chaisilam|chaisilem|চাইছিলাম|চেয়েছিলাম|parisilam|পারিনি)/i.test(customerMessage);
 
-  if (isPastUnfulfilledIntent) {
+  if (!ENABLE_DYNAMIC_AI_REPLIES && isPastUnfulfilledIntent) {
     const pastIntentReplies = [
       `আরে ভাইয়া, কোনো সমস্যা নেই! কালকে কী হয়েছিল বলুন — কোনো অসুবিধা হয়েছিল? আমি এখন আপনার জন্য সব ঠিক করে দিতে পারব। আপনি কি এখন নিতে চান?`,
       `আচ্ছা ভাইয়া, কালকে কোনো সমস্যা হয়েছিল? কোনো চিন্তা নেই, এখনো সুযোগ আছে। বলুন কী হয়েছিল — আমি সাহায্য করব।`,
@@ -1670,7 +1673,7 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     !_hasHealthData &&
     _earlyUserMsgCount <= 4;
 
-  if (_isEarlyOrderIntent) {
+  if (!ENABLE_DYNAMIC_AI_REPLIES && _isEarlyOrderIntent) {
     const sName = (_earlyProf && _earlyProf.name && _earlyProf.name !== 'Customer' && _earlyProf.name !== 'কাস্টমার') ? _earlyProf.name + ' ভাইয়া' : 'ভাইয়া';
     const earlyOrderReplies = [
       `জি ${sName}, আলহামদুলিল্লাহ — আপনার আগ্রহ দেখে সত্যিই ভালো লাগছে! তবে ভাইয়া, আমাদের ওষুধ কোনো সাধারণ বাজারের রেডিমেড ওষুধ নয় — এটি প্রতিটি রোগীর শারীরিক অবস্থা ও সমস্যার ধরন অনুযায়ী বিশেষভাবে প্রস্তুত করা হয়। তাই আগে আপনার সমস্যা কি কি সবকিছু বিস্তারিত জানা জরুরি, তারপর আপনি নিশ্চিত হয়ে অর্ডার করতে পারবেন।
@@ -1705,7 +1708,7 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     /(?:na\s*ami|না\s*আমি).*(?:aivabe|এইভাবে|advance|অগ্রিম|cod|নিয়মে)/i.test(customerMessage) ||
     /(?:advance|অগ্রিম|এডভান্স)\s*(?:charai?|ছাড়া|ছাড়াই|হবে\s*না|hobe\s*na|dibo\s*na|দিব\s*না|nai|নাই)/i.test(customerMessage);
 
-  if (isAdvanceOrCodInquiry) {
+  if (!ENABLE_DYNAMIC_AI_REPLIES && isAdvanceOrCodInquiry) {
     const advanceExplanationReplies = [
       `ভাইয়া, আপনার সংশয় আমি সম্পূর্ণ বুঝতে পারছি—অনলাইনে না দেখে অগ্রিম টাকা দিতে যে কারোই দ্বিধা লাগা স্বাভাবিক। তবে আসল কারণটা বলি ভাইয়া:
 
@@ -1747,7 +1750,7 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     /(?:ভেবে\s*দেখি|ভেবে\s*দেখব|ভেবে\s*জানাব|চিন্তা\s*করে\s*জানাব|চিন্তা\s*করি|bhebe\s*dekhi|bhebe\s*dekhbo|bhebe\s*janabo|chinta\s*kore\s*janabo|chinta\s*kori)/i.test(trimmedClean) ||
     /(?:নিশ্চয়তা|নিশ্চয়তা|গ্যারান্টি|guarantee\s*ki|garanti\s*ase)/i.test(customerMessage);
 
-  if (isHesitationOrDoubtIntent) {
+  if (!ENABLE_DYNAMIC_AI_REPLIES && isHesitationOrDoubtIntent) {
     const hesitationReplies = [
       `ভাইয়া, আমার মনে হয় আপনি এখনো অনেক দ্বিধা বা সংশয়ে আছেন। দেখুন ভাইয়া, অতীতে হয়তো অনলাইনে ভুল বা নিম্নমানের ওষুধ নিয়ে প্রতারিত হয়েছেন বা কাঙ্ক্ষিত ফল পাননি, তাই এমন সংশয় হওয়াটা খুবই স্বাভাবিক।
 
@@ -1789,7 +1792,7 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     /(?:ami\s*)?(?:nibo\s*na|নিব\s*না|নিবো\s*না|kinbo\s*na|কিনব\s*না|কিনবো\s*না|lagbe\s*na|লাগবে\s*না)/i.test(customerMessage) ||
     /^(?:na|না|thak|থাক|lagbe\s*na|লাগবে\s*না|cancel|ক্যান্সেল|বাদ\s*দেন|bad\s*den)$/i.test(trimmedClean);
 
-  if (isNegativeOrderIntent) {
+  if (!ENABLE_DYNAMIC_AI_REPLIES && isNegativeOrderIntent) {
     const negativeReplies = [
       `জি ভাইয়া, কোনো সমস্যা নেই। ওষুধ নেওয়া বা না নেওয়া সম্পূর্ণ আপনার ব্যক্তিগত সিদ্ধান্ত। তবে ভাইয়া, একজন শুভাকাঙ্ক্ষী হিসেবে শুধু এতটুকু বলব—গোপন শারীরিক সমস্যা যত দিন পুষে রাখবেন, ভেতরের নার্ভ ও টেস্টোস্টেরন হরমোন তত দুর্বল হয়ে পড়ে, যা পরবর্তীতে চিকিৎসা করা আরও কঠিন করে তোলে। আপনি যখনই সঠিক ও খাঁটি চিকিৎসায় সুস্থ হতে চাইবেন, আমরা আপনার পাশে আছি। ভালো থাকবেন ভাইয়া।`,
       `ঠিক আছে ভাইয়া, কোনো অসুবিধা নেই। আপনার সিদ্ধান্তই চূড়ান্ত। তবে এই ধরনের সমস্যা ফেলে রাখলে দিনে দিনে জটিলতা আরও বাড়ে। ভবিষ্যতে যেকোনো পরামর্শের জন্য নির্দ্বিধায় নক দিতে পারেন। আল্লাহ আপনাকে সুস্থ রাখুন।`,
@@ -1816,7 +1819,7 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     /(?:nite|নিতে|kinbo|কিনবো|nibo|নিবো)\s*(?:chai|চাই|chacchi|চাচ্ছি)/i.test(customerMessage)
   );
 
-  if (isOrderProcessQuestion) {
+  if (!ENABLE_DYNAMIC_AI_REPLIES && isOrderProcessQuestion) {
     const _prof = senderId ? customerMemory.getCustomerProfile(senderId) : null;
     const _chatLog = _prof ? (_prof.chatLog || []) : [];
     const _userMsgCount = _chatLog.filter(m => m.role === 'user').length;
@@ -1976,7 +1979,7 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     /(?:kothay|কোথায়|kothai).*(?:achen|আছেন|thakena|থাকেন|pabo|পাব|pawa|পাওয়া)/i.test(customerMessage) ||
     /(?:বাসা|বাড়ি|চেম্বার|দোকান|chamber)\s*(?:কোথায়|কই|kothay|kothai)/i.test(trimmedClean);
 
-  if (isAddressQuestion) {
+  if (!ENABLE_DYNAMIC_AI_REPLIES && isAddressQuestion) {
     const addressReply = isNaturalHerbal
       ? `জি ভাইয়া, আমাদের চেম্বার ও দোকানের ঠিকানা:
 
@@ -2009,7 +2012,7 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
 
   // If customer asked a multi-part question (e.g. price + usage + side effect):
   // Generate a complete, combined response answering EVERY asked question!
-  if (isMultiDomainQuestion) {
+  if (!ENABLE_DYNAMIC_AI_REPLIES && isMultiDomainQuestion) {
     console.log(`[MULTI_QUESTION_DETECTED] Customer asked multiple questions across domains: price=${hasPriceCheck}, usage=${hasUsageCheck}, sideEffects=${hasSideEffectCheck}, ingredients=${hasIngredientCheck}, address=${hasAddressCheck}`);
     const answers = [];
     if (hasPriceCheck) {
@@ -2042,7 +2045,7 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
   const isBargainQuery = /(?:kom|কম|komano|কমানো|komale|কমালে|discount|ডিসকাউন্ট|char|ছাড়|rakha\s*jabe|রাখা\s*যাবে|rakhben|রাখবেন|হবে\s*কি|কমান|একদাম)/i.test(trimmedClean) &&
     /(?:kom|কম|discount|ডিসকাউন্ট|char|ছাড়|daam|দাম|taka|টাকা|price|প্রাইস|rakha|রাখা)/i.test(trimmedClean);
 
-  if (isBargainQuery) {
+  if (!ENABLE_DYNAMIC_AI_REPLIES && isBargainQuery) {
     const bReply = isNaturalHerbal
       ? "জি ভাইয়া, আপনার আন্তরিকতার বিষয়টি আমি অবশ্যই বুঝতে পারছি। তবে আমাদের 'বাজীকরণ হালুয়া' (৩৫০ গ্রাম) আসল পাহাড়ি কাঁচা ভেষজ দিয়ে সম্পূর্ণ অর্গানিক পদ্ধতিতে তৈরি, যার কাঁচামালের খরচই অনেক বেশি। ওষুধের সর্বোচ্চ মান ও কাঙ্ক্ষিত ফল নিশ্চিত করতে এর অফার মূল্য মাত্র ২,০০০ টাকা সম্পূর্ণ নির্ধারিত রাখা হয়েছে ভাইয়া (২০০ টাকা অগ্রিম বিকাশ, বাকি ১,৮০০ টাকা ক্যাশ অন ডেলিভারি)। ইনশাআল্লাহ এটি নিয়মিত সেবনে আপনি স্থায়ী ফলাফল পাবেন। আপনি কি অর্ডারটি কনফার্ম করতে চাচ্ছেন ভাইয়া?"
       : "জি ভাইয়া, আপনার আন্তরিকতা ও বাজেটের বিষয়টি আমি বুঝতে পারছি। কিন্তু আমাদের এই কস্তুরী পাউডারটি খাঁটি মৃগনাভি কস্তুরী, কোরিয়ান রেড জিনসেং ও হিমালয়ের বন্য শিলাজিৎসহ ৬টি দুর্লভ প্রাকৃতিক উপাদানে প্রস্তুত করা হয়। ওষুধের সর্বোচ্চ গুণমান বজায় রেখে রোগীর স্থায়ী সুস্থতা নিশ্চিত করতে ২,৮০০ টাকার এই অফার মূল্যটি সম্পূর্ণ নির্ধারিত, এর চেয়ে কমানো সম্ভব নয় ভাইয়া। আপনি নিয়মিত ব্যবহারে স্থায়ী ফলাফল পাবেন ইনশাআল্লাহ। আপনি কি অর্ডারটি কনফার্ম করতে চাচ্ছেন?";
@@ -2055,7 +2058,7 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     /(?:dam|দাম|price|প্রাইস|koto|কত|taka|টাকা)\s*(?:koto|কত|hobe|হবে|bhai|ভাই|plz)?/i.test(trimmedClean) &&
     /(?:dam|দাম|price|প্রাইস|koto|কত|taka|টাকা|খরচ|khoroch)/i.test(trimmedClean);
 
-  if (isPriceQuery && !isMultiDomainQuestion && !/(?:samprotik|somosya|সমস্যা|durbol|দুর্বল)/i.test(trimmedClean)) {
+  if (!ENABLE_DYNAMIC_AI_REPLIES && isPriceQuery && !isMultiDomainQuestion && !/(?:samprotik|somosya|সমস্যা|durbol|দুর্বল)/i.test(trimmedClean)) {
     if (/(?:joubon|যৌবন|raja|রাজা)/i.test(trimmedClean)) {
       if (isNaturalHerbal) {
         const pReply = "জি ভাইয়া, আমাদের 'যৌবনের রাজা (১০০% প্রাকৃতিক ও ভেষজ)'-এর মূল্য মাত্র ৩,০০০ টাকা। অর্ডার কনফার্ম করতে বিকাশের মাধ্যমে মাত্র ২০০ টাকা অগ্রিম (এডভান্স) করতে হবে এবং বাকি ২,৮০০ টাকা ক্যাশ অন ডেলিভারিতে দিতে হবে। যোগাযোগের নম্বর: ০১৮৭০০২৩৮০৪ (কল, হোয়াটসঅ্যাপ, ইমো ও মেসেঞ্জার সাপোর্ট)। ভাইয়া, আপনি কি এটি নিতে চাচ্ছেন?";
@@ -2103,7 +2106,7 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
   const isUsageQuery = /(?:khawar|খাওয়ার|sebon|সেবন|khabo|খাব|kivabe\s*khabo|কিভাবে\s*খাব|niyom|নিয়ম|dosage|ডোজ)\s*(?:ki|কী|kivabe|কীভাবে|bolen|বলেন)?/i.test(trimmedClean) &&
     /(?:khawa|খাওয়া|sebon|সেবন|khabo|খাব|niyom|নিয়ম)/i.test(trimmedClean);
 
-  if (isUsageQuery) {
+  if (!ENABLE_DYNAMIC_AI_REPLIES && isUsageQuery) {
     const usageReply = isNaturalHerbal
       ? `জি ভাইয়া, সেবনবিধি খুবই সহজ:
 
@@ -2123,7 +2126,7 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
   const isJoubonerRajaIng = /(?:joubon|যৌবন|raja|রাজা)/i.test(trimmedClean);
   const isHowItWorksOrIng = /(?:upadan|উপাদান|ki\s*diye|কী\s*দিয়ে|ingredients|ki\s*ki\s*ache|কী\s*কী\s*আছে|kivabe\s*kaj|কীভাবে\s*কাজ|কিভাবে\s*কাজ|kaj\s*kore\s*kivabe|কাজ\s*করে\s*কীভাবে|কাজ\s*কী|কাজ\s*কি|উপকারিতা|upokarita|keno\s*alada|কেন\s*আলাদা|কেন\s*সবার\s*থেকে\s*আলাদা)/i.test(trimmedClean);
 
-  if (isHowItWorksOrIng && isJoubonerRajaIng) {
+  if (!ENABLE_DYNAMIC_AI_REPLIES && isHowItWorksOrIng && isJoubonerRajaIng) {
     if (!isNaturalHerbal) {
       const pReply = "জি ভাইয়া, 'যৌবনের রাজা' প্রোডাক্টটি আমাদের অপর পেজ 'ন্যাচারাল হারবাল'-এর ওষুধ। আমাদের 'হেলথ কেয়ার' পেজে হাকীম মো: আব্দুল করিমের তৈরি ১০০% খাঁটি 'কস্তুরী পাউডার' (২৫০ গ্রাম, মূল্য ২,৮০০ টাকা) এবং 'বাজীকরণ হালুয়া' (২,০০০ টাকা) রয়েছে, যা যেকোনো শারীরিক দুর্বলতার জন্য সবচেয়ে সেরা সমাধান। আপনি কি কস্তুরী পাউডার সম্পর্কে জানতে চাচ্ছেন ভাইয়া?";
       if (senderId) customerMemory.appendChatMessage(senderId, "model", pReply, isVoiceMode);
@@ -2147,7 +2150,7 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
   const isIngredientsQuery = /(?:upadan|উপাদান|ki\s*diye|কী\s*দিয়ে|ingredients|ki\s*ki\s*ache|কী\s*কী\s*আছে)/i.test(trimmedClean) &&
     /(?:upadan|উপাদান|toiri|তৈরি|উপাদানগুলো|বানানো)/i.test(trimmedClean);
 
-  if (isIngredientsQuery) {
+  if (!ENABLE_DYNAMIC_AI_REPLIES && isIngredientsQuery) {
     const ingReply = isNaturalHerbal
       ? `জি ভাইয়া, আমাদের খাঁটি বাজীকরণ হালুয়া প্রস্তুত করা হয় সম্পূর্ণ প্রাকৃতিক ও পাহাড়ি ভেষজ উপাদানে:
 
@@ -2173,7 +2176,7 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
 
   // ── 6. SIDE EFFECTS INTERCEPTOR ───────────────────────────────────────────
   const isSideEffectsQuery = /(?:parsho|পার্শ্ব|side\s*effect|ক্ষতি|khoti|problem\s*hobe|সমস্যা\s*হবে|side\s*effects)/i.test(trimmedClean);
-  if (isSideEffectsQuery && !/(?:amar|আমার|problem|সমস্যা\s*আছে)/i.test(trimmedClean)) {
+  if (!ENABLE_DYNAMIC_AI_REPLIES && isSideEffectsQuery && !/(?:amar|আমার|problem|সমস্যা\s*আছে)/i.test(trimmedClean)) {
     const seReply = "জি না ভাইয়া, আলহামদুলিল্লাহ কোনো প্রকার পার্শ্বপ্রতিক্রিয়া নেই। এটি সম্পূর্ণ প্রাকৃতিক ও ভেষজ উপাদানে স্বাস্থ্য মন্ত্রণালয়ের নিবন্ধিত চিকিৎসকের ফর্মুলায় তৈরি ১০০% কেমিক্যালমুক্ত চিকিৎসা।";
     if (senderId) customerMemory.appendChatMessage(senderId, "model", seReply, isVoiceMode);
     return seReply;
@@ -2181,7 +2184,7 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
 
   // ── 7. AVAILABLE PRODUCTS CATALOG INTERCEPTOR ──────────────────────────────
   const isCatalogQuery = /(?:ki\s*ki|কি\s*কি|কী\s*কী)\s*(?:product|প্রোডাক্ট|পণ্য|item|আইটেম|osudh|ওষুধ|মেডিসিন|medicine|course|কোর্স|আছে|paoya\s*jay|পাওয়া\s*যায়)/i.test(trimmedClean) || /(?:প্রোডাক্ট|পণ্য|ওষুধ|কোর্স|প্রডাক্ট)\s*(?:কি\s*কি|কী\s*কী|আছে|পাওয়া\s*যায়)/i.test(trimmedClean);
-  if (isCatalogQuery) {
+  if (!ENABLE_DYNAMIC_AI_REPLIES && isCatalogQuery) {
     const catReply = isNaturalHerbal
       ? `জি ভাইয়া, আমাদের ন্যাচারাল হারবাল পেজে প্রধান দুটি ১০০% প্রাকৃতিক ও ভেষজ কোর্স রয়েছে:
 
@@ -2206,7 +2209,7 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
   const isHealthSymptomComplaint =
     /(?:বীর্য\s*পাতলা|birjo\s*patla|দ্রুত\s*বীর্যপাত|druto\s*birjopat|টাইমিং\s*কম|timing\s*kom|নার্ভ\s*দুর্বল|শক্ত\s*হয়\s*না|নরম\s*হয়ে\s*যায়|আঠালো\s*পানি|কামরস|স্বপ্নদোষ|হস্তমৈথুন|লিঙ্গ\s*ছোট|উত্থান\s*হয়\s*না|সহবাসে\s*দুর্বল)/i.test(trimmedClean);
 
-  if (isHealthSymptomComplaint) {
+  if (!ENABLE_DYNAMIC_AI_REPLIES && isHealthSymptomComplaint) {
     const consultReply = getClinicalConsultationReply(
       senderId || '',
       senderName || '',
@@ -2230,7 +2233,7 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
   const isNagadSpecificQuery = /(?:নগদ|nagad)/i.test(trimmedClean) && 
     /(?:number|namber|nombor|নম্বর|নাম্বার|phone|টাকা|পাঠাব|পাঠাতে|দিব|দিতে|হবে|আছে|হবে\s*কি|parbo|deya\s*jabe|account|একাউন্ট|নাই|নেই|দাও|দেন|দিন)/i.test(trimmedClean);
 
-  if (isNagadSpecificQuery) {
+  if (!ENABLE_DYNAMIC_AI_REPLIES && isNagadSpecificQuery) {
     if (isVoiceMode) {
       const voiceNagadReply = "জি ভাইয়া, আমাদের বর্তমানে কোনো নগদ একাউন্ট চালু নেই, শুধুমাত্র অফিসিয়াল বিকাশ নম্বর চালু রয়েছে। বুকিং কনফার্ম করতে দুইশত টাকা অগ্রিম আমাদের বিকাশ নম্বরে পাঠাতে হয়। আমাদের বিকাশ নম্বর হলো শূন্য এক আট সাত শূন্য, শূন্য দুই তিন আট শূন্য চার। আর বাকি দুই হাজার ছয়শত টাকা কুরিয়ারে পার্সেল হাতে পেয়ে দেখে পরিশোধ করবেন ভাইয়া।";
       if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", voiceNagadReply, true);
@@ -2252,7 +2255,7 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     /(?:bkash|নগদ|nagad|বিকাশ).*(?:number|নাম্বার|নম্বর|টাকা|পাঠাব)/i.test(trimmedClean) ||
     /(?:নাম্বার|নম্বর|phone|number)\s*(?:টা|টি)?\s*(?:দেন|দিন|দাও|বলেন|বলুন)/i.test(trimmedClean));
 
-  if (isHelplineOrPhoneQuery) {
+  if (!ENABLE_DYNAMIC_AI_REPLIES && isHelplineOrPhoneQuery) {
     // Check if customer is asking about bKash number to send advance payment
     const isBkashPaymentQuery = /(?:bkash|বিকাশ|টাকা|পাঠাব|পাঠাতে|পাঠাবো|advance|অগ্রিম|পেমেন্ট|payment)/i.test(trimmedClean);
     if (isBkashPaymentQuery) {
@@ -2698,7 +2701,7 @@ ${voiceModeInstruction}
   const prompt = `${historyText}Customer (${_displayName}): "${customerMessage}"\nReply:`;
 
   // 1. PRIMARY ENGINE: Google Gemini Premium (gemini-3.1-flash-lite, gemini-3.6-flash)
-  const geminiModels = ["gemini-3.1-flash-lite", "gemini-3.6-flash", "gemini-flash-latest"];
+  const geminiModels = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
   for (const activeKey of GEMINI_KEYS) {
     const keyGenAI = new GoogleGenerativeAI(activeKey);
     for (const m of geminiModels) {
