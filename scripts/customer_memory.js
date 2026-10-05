@@ -88,15 +88,14 @@ function isValidPersonName(n) {
   if (!n) return false;
   const s = String(n).trim();
   if (s.length < 2 || s.length > 30) return false;
-  if (/^(vai|bhai|vaiya|bhaiya|ভাই|ভাইয়া|ভাইয়া|ভায়া|customer|কাস্টমার|doctor|hakim|হাকিম|ডাক্তার|admin|এডমিন|ki|jano|jaano|janen|জান|জানো|জানেন|বলেন|bolo|bolun|boloto|mone|mon|ase|ache|konta|koto|কি|কী|বলুন|বলো|বলেন|মনে|আছে|ki\s*jano|e\s*ki\s*jano|unknown|অজ্ঞাত|facebook\s*user|facebook\s*customer|user|voice|boyes|audio|ভয়েস|ভয়েস|বয়েজ|বয়েস|অডিও)$/i.test(s)) {
+  if (/^(vai|bhai|vaiya|bhaiya|ভাই|ভাইয়া|ভাইয়া|ভায়া|customer|কাস্টমার|doctor|hakim|হাকিম|ডাক্তার|admin|এডমিন|ki|jano|jaano|janen|জান|জানো|জানেন|বলেন|bolo|bolun|boloto|mone|mon|ase|ache|konta|koto|কি|কী|বলুন|বলো|বলেন|মনে|আছে|ki\s*jano|e\s*ki\s*jano|unknown|অজ্ঞাত|facebook\s*user|facebook\s*customer|user|voice|boyes|boyosh|audio|ভয়েস|ভয়েস|বয়েজ|বয়েস|বয়েছ|বয়স|বয়স|অডিও|জি|ji|haa|হাঁ|হ্যাঁ|না|na|ok|done|thik|ঠিক|call|কল|phone|ফোন|number|নম্বর|নাম্বার)$/i.test(s)) {
     return false;
   }
   if (/চিকিৎসালয়|ফার্মেসী|হেলথ|health|pharmacy|herbal|ayurvedic|unani|মেডিসিন|ওষুধ|অর্ডার|order|price|দাম|ডেলিভারি|delivery/i.test(s)) {
     return false;
   }
   if (/^[\d\s]+$/.test(s)) return false;
-  if (/^(kemon|valo|kothai|koto|ki|konta|amra|apni|tumi|apnar|amar|আমি|তুমি|আপনি|কেমন|porte|পারিনা|পারি|চাই|chai|bole|বলতে)/i.test(s)) return false;
-  if (/(?:ki|jani|jano|to|bole|bolsi|bolchi|amar|amr|apnar|apni|tumi|shun|shuno|কী|কি|জানি|জানো|তো|বলে|বলছি|বলসি|আমার|আপনার|আপনি|তুমি|শুনুন|শোন)/i.test(s)) return false;
+  if (/(?:^|\s)(?:ki|কী|কি|jani|জানি|jano|জানো|to|তো|bole|বলে|bolsi|বলসি|bolchi|বলছি|amar|আমার|amr|apnar|আপনার|apni|আপনি|tumi|তুমি|shun|শুনুন|shuno|শোন)(?:\s|$)/i.test(s)) return false;
   return true;
 }
 
@@ -912,6 +911,18 @@ Write ONLY the Bengali message now:
 `.trim();
 }
 
+function getLastBotMessage(senderId) {
+  if (!isLoaded) loadMemory();
+  const prof = getCustomerProfile(senderId);
+  const log = prof?.chatLog || [];
+  for (let i = log.length - 1; i >= 0; i--) {
+    if (log[i].role === 'model' || log[i].role === 'bot') {
+      return log[i].text || "";
+    }
+  }
+  return "";
+}
+
 module.exports = {
   getCustomerProfile,
   updateCustomerProfile,
@@ -926,5 +937,6 @@ module.exports = {
   buildPersonalizedFollowUpPrompt,
   generateFallbackCaringFollowUp,
   isValidPersonName,
+  getLastBotMessage,
 };
 

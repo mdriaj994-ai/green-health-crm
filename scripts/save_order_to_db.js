@@ -177,18 +177,28 @@ function parseOrderFromMessage(text) {
     if (!isNaN(parsedQty) && parsedQty > 0) quantity = parsedQty;
   }
 
-  // If we have a phone number OR (name + address/district), consider it valid
+  // If we have neither phone nor (name + address/district), return null
   if (!phone && (!name || !rawDistrict)) return null;
 
+  // Clean rawAddress: do NOT treat pure phone messages as delivery address
+  let safeAddress = rawAddress;
+  if (!safeAddress && (text.includes("গ্রাম") || text.includes("রোড") || text.includes("রাস্তা") || text.includes("মহল্লা") || text.includes("বাড়ি") || text.includes("ফ্ল্যাট") || text.includes("থানা") || text.includes("জেলা") || text.includes("বাজার"))) {
+    safeAddress = text;
+  }
+  if (safeAddress) {
+    const stripped = safeAddress.replace(/(?:\+?880|0)?1[3-9][০-৯0-9\-\s]{8,12}/g, "").replace(/(?:আমার|ফোন|নম্বর|নাম্বার|মোবাইল|phone|number|mobile|হলো|হল|দাও|দিন|নেন)/gi, "").trim();
+    if (stripped.length < 3) safeAddress = "";
+  }
+
   // Smart address split
-  const addrParts = smartSplitAddress(rawAddress || text, rawDistrict, rawThana);
+  const addrParts = smartSplitAddress(safeAddress, rawDistrict, rawThana);
 
   return {
     name,
     phone,
     district: addrParts.district || rawDistrict,
     thana:    addrParts.thana    || rawThana,
-    address:  addrParts.address  || rawAddress,
+    address:  addrParts.address  || safeAddress,
     product:  product || "",
     quantity
   };

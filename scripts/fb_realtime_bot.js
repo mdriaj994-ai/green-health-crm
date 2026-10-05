@@ -72,7 +72,7 @@ function buildGroqSystemInstruction(senderName = "ভাইয়া", isVoiceMode 
 
 CLINICAL & PRODUCT KNOWLEDGE:
 - Main Formulation: খাঁটি কস্তুরী পাউডার (Kasturi Powder), 250g net weight, 1 month full course.
-- Offer Price: ২,৯০০ টাকা (2,900 BDT).
+- Offer Price: ২,৮০০ টাকা (2,800 BDT).
 - Advance Booking Rule (MANDATORY): ২০০ টাকা অগ্রিম বুকিং শুধুমাত্র আমাদের অফিসিয়াল বিকাশ হেল্পলাইন 01870-023804 নম্বরে পরিশোধ করতে হয়। বাকি ২,৬০০ টাকা কুরিয়ারে পার্সেল হাতে পেয়ে ক্যাশ অন ডেলিভারিতে দেখে পরিশোধ করবেন। (নগদ বা অন্য কোনো পেমেন্ট চালু নেই, শুধুমাত্র বিকাশ)।
 - Dosage: প্রতিদিন সকালে খালি পেটে ১ চামচ হালকা কুসুম গরম দুধ বা পানিতে মিশিয়ে সেবন করতে হয়।
 - 6 Rare Ingredients: খাঁটি মৃগনাভি কস্তুরী (Pure Musk Pods), হিমালয়ের বন্য শিলাজিৎ (Himalayan Shilajit), আসল কোরিয়ান রেড জিনসেং (Korean Red Ginseng), অশ্বগন্ধা, শ্বেত মুসলি ও কাশ্মীরি জাফরান, এবং তালমাখনা, সর্পগন্ধা ও জয়ফল-জয়ত্রী।
@@ -90,7 +90,7 @@ CONVERSATIONAL RULES (STRICT & ABSOLUTE):
    - If customer gives Salam — reply with "ওয়ালাইকুম আসসালাম ভাইয়া। বলুন, কীভাবে সাহায্য করতে পারি?".
    - If customer asks "কেমন আছেন" — reply "আলহামদুলিল্লাহ ভাইয়া, ভালো আছি। আপনি কেমন আছেন?".
    - If customer asks about shop/chamber address — give the exact Alikadam, Bandarban address.
-   - If customer asks about price — tell 2,900 BDT offer price clearly, but DO NOT push 200 advance or booking immediately! Instead, politely assess their problem: ask about their main issues (timing, erection, or weakness) and age to see if this medicine is right for them.
+   - If customer asks about price — tell 2,800 BDT offer price clearly, but DO NOT push 200 advance or booking immediately! Instead, politely assess their problem: ask about their main issues (timing, erection, or weakness) and age to see if this medicine is right for them.
    - If customer asks about delay ("পরে নেব", "টাকা নেই", "বিকেলে জানাবো") — "আচ্ছা ঠিক আছে ভাই, বিকেলে বা রাতে যখনই ফ্রি হন আমাকে জানাবেন। আমি আপনার জন্য একটি বয়াম স্টক হোল্ড করে রাখছি। আমাদের বিকাশ হেল্পলাইন: 01870-023804।"
 4. NO CANNED OR REPETITIVE TEMPLATES: Never send pre-saved rigid text blocks. Adapt every sentence dynamically to the customer's exact message and conversation context.
 5. STRICT BAN on markdown bolding or asterisks (NO ** or ## or *).
@@ -245,7 +245,7 @@ try {
   const dbPath = path.join(process.cwd(), "prisma", "social_inbox.db");
   if (fs.existsSync(dbPath)) {
     const db = new Database(dbPath);
-    const botRows = db.prepare(`SELECT content FROM "Message" WHERE "senderType" = 'BOT' ORDER BY "createdAt" DESC LIMIT 300`).all();
+    const botRows = db.prepare(`SELECT content FROM "Message" WHERE "senderType" = 'BOT' ORDER BY "createdAt" DESC LIMIT 1000`).all();
     for (const r of botRows) {
       if (r.content) {
         const clean = r.content.replace(/^\[ভয়েস মেসেজ\]\s*/, '').trim();
@@ -565,7 +565,7 @@ function normalizeStr(s) {
 
 // ── Order Data Validator — checks phone & address before saving ───────────────
 // Returns: { valid: true } or { valid: false, issues: [...] }
-function validateOrderDetails(phone, district, thana, address) {
+function validateOrderDetails(phone, district, thana, address, customerName = "") {
   const issues = [];
 
   // ── PHONE VALIDATION ──────────────────────────────────────────────────────
@@ -611,32 +611,34 @@ function validateOrderDetails(phone, district, thana, address) {
     "বরগুনা","barguna","পিরোজপুর","pirojpur","ভোলা","bhola"
   ];
 
-  // Check if district/address has any recognizable Bangladesh location
-  const combinedAddr = [district, thana, address].filter(Boolean).join(" ").toLowerCase();
+  // Check if address is merely phone number text
+  const cleanAddr = (address || "")
+    .replace(/(?:\+?880|0)?1[3-9]\d{8}/g, "")
+    .replace(/(?:আমার|ফোন|মোবাইল|নম্বর|নাম্বার|phone|mobile|number|হলো|হল|নেন|দাও|দিন)/gi, "")
+    .trim();
 
-  if (!combinedAddr.trim() || combinedAddr.trim().length < 4) {
-    issues.push({ field: "address", msg: "📍 আপনার ঠিকানা দেননি বা অসম্পূর্ণ দিয়েছেন। সঠিক ঠিকানা (জেলা, থানা, গ্রাম/রোড) দিন।" });
-  } else {
-    // Check meaninglessness — too many random/English chars or very short
-    const isMeaningless = !district && !thana && address && address.trim().length < 4;
-    const isGibberish = /^[a-z]{1,3}$/.test((address || "").trim().toLowerCase()) ||
-                        /^[0-9]+$/.test((address || "").trim()) ||
-                        /^(test|abc|xyz|aaa|bbb|111|000|dummy|fake|n\/a|none|null|xxx)$/i.test((district || address || "").trim());
+  const hasRealAddress = cleanAddr.length >= 4 && (district || thana || /(?:গ্রাম|রোড|রাস্তা|মহল্লা|এলাকা|ফ্ল্যাট|বাড়ি|বাড়ি|থানা|জেলা|বাজার|পোস্ট|ডাকঘর|সড়ক|উপজেলা)/i.test(address || ""));
 
-    if (isGibberish) {
-      issues.push({ field: "address", msg: "📍 ঠিকানাটি সঠিক মনে হচ্ছে না। সঠিক জেলা, থানা ও গ্রাম/রোড নম্বর দিন।" });
-    } else if (district) {
-      // Validate district against known BD districts
-      const districtLow = district.toLowerCase().trim();
-      const isValidDistrict = BD_DISTRICTS.some(d => districtLow.includes(d) || d.includes(districtLow));
-      if (!isValidDistrict && districtLow.length > 2) {
-        issues.push({ field: "address", msg: `📍 "${district}" বাংলাদেশের পরিচিত কোনো জেলা নয়। সঠিক জেলার নাম দিন (যেমন: ঢাকা, চট্টগ্রাম, সিলেট)।` });
-      }
+  if (!hasRealAddress) {
+    issues.push({ field: "address", msg: "📍 ডেলিভারির সম্পূর্ণ ঠিকানা দেননি। জেলা, থানা এবং গ্রাম/রোড নম্বর দিন।" });
+  } else if (district) {
+    const districtLow = district.toLowerCase().trim();
+    const isValidDistrict = BD_DISTRICTS.some(d => districtLow.includes(d) || d.includes(districtLow));
+    if (!isValidDistrict && districtLow.length > 2) {
+      issues.push({ field: "address", msg: `📍 "${district}" বাংলাদেশের পরিচিত কোনো জেলা নয়। সঠিক জেলার নাম দিন (যেমন: ঢাকা, চট্টগ্রাম, সিলেট)।` });
     }
   }
 
+  // Validate Name
+  const cleanName = (customerName || "").trim();
+  const isInvalidName = !cleanName || cleanName.length < 2 || ["জি", "ji", "customer", "কাস্টমার", "ভাইয়া", "ভাইয়া", "user"].includes(cleanName.toLowerCase()) || (customerMemory && !customerMemory.isValidPersonName(cleanName));
+  if (isInvalidName) {
+    issues.push({ field: "name", msg: "👤 আপনার পুরো নাম দেননি। সঠিক নাম দিন।" });
+  }
+
+  const isOnlyPhone = Boolean(validBdPhone && !hasRealAddress);
   if (issues.length === 0) return { valid: true };
-  return { valid: false, issues };
+  return { valid: false, issues, isOnlyPhone };
 }
 
 // ── Live Product Database Loader & Bilingual Matcher ────────────────────────
@@ -792,7 +794,7 @@ function getLiveProductInfo(query, senderId = null, recentHistory = [], pageName
       const sl = String(matched.SL);
       const edit = edits[sl] || {};
       const name = matched["ওষুধের নাম (Brand Name)"] || "প্রাকৃতিক ফর্মুলা";
-      const price = edit.discount_price || edit.custom_price || "২,৯০০";
+      const price = edit.discount_price || edit.custom_price || "২,৮০০";
       const regPrice = edit.custom_price || "৩,৫০০";
       const note = edit.custom_note || "ক্যাশ অন ডেলিভারি, সারা দেশে ফ্রি হোম ডেলিভারি।";
       const pitch = edit.custom_pitch || matched["১. কাস্টমারের আসল সমস্যা ও পেইন পয়েন্ট (Pain Point Mapping)"] || "";
@@ -842,7 +844,7 @@ function buildStoreCatalog(master, edits) {
     const sl = String(p.SL);
     const ed = edits[sl] || {};
     const name = p["ওষুধের নাম (Brand Name)"];
-    const price = ed.discount_price || ed.custom_price || "২,৯০০";
+    const price = ed.discount_price || ed.custom_price || "২,৮০০";
     const note = ed.custom_note || "ক্যাশ অন ডেলিভারি, সারা দেশে ফ্রি হোম ডেলিভারি।";
     return `#${sl} | ${name} | অফার মূল্য: ${price} টাকা | ডেলিভারি: ${note}`;
   }).join("\n");
@@ -1171,10 +1173,17 @@ function getClinicalConsultationReply(senderId = "", senderName = "", customerMe
   return `জি ${nameSalute}, আপনার সমস্যাটি বিস্তারিত বুঝতে পেরেছি। সঠিক পরামর্শের জন্য আপনার বয়স এবং সমস্যা কতদিন ধরে হচ্ছে একটু জানান ভাইয়া।`;
 }
 
-function getNaturalPriceReply(senderName = "", isVoiceMode = false) {
+function getNaturalPriceReply(senderName = "", isVoiceMode = false, isNaturalHerbal = false) {
   const nameSalute = (senderName && senderName !== "Customer" && senderName !== "কাস্টমার" && senderName !== "ভাইয়া")
     ? `${senderName} ভাইয়া`
     : "ভাইয়া";
+
+  if (isNaturalHerbal) {
+    if (isVoiceMode) {
+      return `জি ${nameSalute}, আমাদের ৩৫০ গ্রামের বাজীকরণ হালুয়ার বর্তমান অফার মূল্য মাত্র দুই হাজার টাকা। বুকিং করতে মাত্র দুইশত টাকা বিকাশে পাঠাতে হবে, বাকি এক হাজার আটশত টাকা ক্যাশ অন ডেলিভারিতে মাল হাতে পেয়ে পরিশোধ করবেন ভাইয়া। আপনার বয়স কত এবং মূল সমস্যাটা কী একটু জানাবেন কি?`;
+    }
+    return `জি ${nameSalute}, আমাদের ৩৫০ গ্রামের 'বাজীকরণ হালুয়া'-এর অফার মূল্য মাত্র ২,০০০ টাকা। বুকিং নিশ্চিত করতে মাত্র ২০০ টাকা বিকাশ অগ্রিম, বাকি ১,৮০০ টাকা ক্যাশ অন ডেলিভারিতে পরিশোধ করবেন।\n\nভাইয়া, ওষুধ নেওয়ার আগে আপনার সঠিক সমস্যা ও বয়স জানা প্রয়োজন। আপনার বয়স কত এবং কী সমস্যা ফেস করছেন একটু জানাবেন কি?`;
+  }
 
   if (isVoiceMode) {
     const voiceVariations = [
@@ -1218,7 +1227,7 @@ function handleNaturalHerbalConsultation(senderId, senderName, customerMessage, 
 চিকিৎসক: হাকীম মো: আব্দুল করিম (ক্যাটাগরি-এ রেজিস্টার্ড চিকিৎসক, রেজি: নং ৫৮৪২)
 ঠিকানা: দোকান নং- ৩৩, ৩য় তলা, আলীকদম কাঁচাবাজার, ডাকঘর ও থানা: আলীকদম, জেলা: বান্দরবান।
 ট্রেড লাইসেন্স: TRAD/ALIKADOM/0482/2026
-হেল্পলাইন: 01870-023804 (বিকাশ ও নগদ)। সারা দেশে কুরিয়ারে ক্যাশ অন ডেলিভারি দেওয়া হয় ভাইয়া।`;
+হেল্পলাইন: 01870-023804 (বিকাশ)। সারা দেশে কুরিয়ারে ক্যাশ অন ডেলিভারি দেওয়া হয় ভাইয়া।`;
   }
 
   // Extract facts into memory
@@ -1285,7 +1294,7 @@ function handleNaturalHerbalConsultation(senderId, senderName, customerMessage, 
     else if (hasStep1 && hasStep2 && hasStep3 && !hasStep4) nextQuestion = "শারীরিক অন্য কোনো বড় জটিলতা আছে কি না? (যেমন: ডায়াবেটিস, হাই প্রেসার, বা হেপাটাইটিস বি)।";
     else if (hasStep1 && hasStep2 && hasStep3 && hasStep4 && !hasStep5) nextQuestion = "লিঙ্গের গঠন কেমন? (আগা মোটা গোড়া চিকন, নাকি ডান/বাম দিকে বাঁকা)।";
 
-    const objectionReply = `ভাই, শুধু দাম জেনে তো লাভ নেই। ডিম আর আলুর মতো আপনার শরীরটাও কি বয়সের চাপে নরম হয়ে গেছে? আগে আপনার আসল সমস্যাটা কী, বয়স কত, আর শরীরের ভেতর কী অবস্থা তা না জানলে সঠিক চিকিৎসা দেওয়া সম্ভব নয়। আমাদের এখান থেকে সরকারি রেজিস্টার্ড হাকিমের তত্ত্বাবধানে ফাইল চেক করে চিকিৎসা দেওয়া হয়。\n\n${nextQuestion}`;
+    const objectionReply = `ভাই, শুধু দাম জেনে তো লাভ নেই। শরীর তো আর হাট-বাজারের সস্তা জিনিস নয় যে দাম শুনেই কিনে ফেলবেন। আগে আপনার আসল সমস্যাটা কী, বয়স কত, আর শারীরিক অবস্থা কেমন তা না জেনে ওষুধ নিলে কোনো কাজে আসবে না। আমাদের এখানে সরকারি রেজিস্টার্ড চিকিৎসকের তত্ত্বাবধানে লক্ষণ বিবেচনা করে সঠিক চিকিৎসা দেওয়া হয়।\n\n${nextQuestion}`;
     if (senderId) customerMemory.appendChatMessage(senderId, "model", objectionReply, isVoiceMode);
     return objectionReply;
   }
@@ -1318,7 +1327,7 @@ function handleNaturalHerbalConsultation(senderId, senderName, customerMessage, 
   }
 
   // FINAL STEP: All 5 collected -> Prescription & Closing terms
-  const closingReply = `এক রাতে ২-৩ বার করার ক্ষমতা এবং লোহার চেয়েও শক্ত করতে আজই ৩৫০ গ্রামের এক জার বাজীকরণ হালুয়া অর্ডার করুন। মূল্য মাত্র ২,০০০ টাকা। অর্ডার কনফার্ম করতে মাত্র ৫০০ টাকা বিকাশ বা নগদ এ অ্যাডভান্স করতে হবে, বাকি ১৫০০ টাকা মাল হাতে পেয়ে ক্যাশ অন ডেলিভারি (Cash on Delivery) দেবেন। আপনার নাম, পূর্ণ ঠিকানা ও মোবাইল নম্বর দিন, এখনই পার্সেলটি বুকিং করে দিচ্ছি!`;
+  const closingReply = `এক রাতে ২-৩ বার করার ক্ষমতা এবং লোহার চেয়েও শক্ত করতে আজই ৩৫০ গ্রামের এক জার বাজীকরণ হালুয়া অর্ডার করুন। মূল্য মাত্র ২,০০০ টাকা। অর্ডার কনফার্ম করতে মাত্র ২০০ টাকা বিকাশে অগ্রিম করতে হবে, বাকি ১,৮০০ টাকা মাল হাতে পেয়ে ক্যাশ অন ডেলিভারি (Cash on Delivery) দেবেন। আপনার নাম, পূর্ণ ঠিকানা ও মোবাইল নম্বর দিন, এখনই পার্সেলটি বুকিং করে দিচ্ছি!`;
   if (senderId) customerMemory.appendChatMessage(senderId, "model", closingReply, isVoiceMode);
   return closingReply;
 }
@@ -1373,7 +1382,20 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
       const _hasSpecificQuestion = /(?:dam|দাম|price|প্রাইস|koto|কত|taka|টাকা|khawa|খাওয়া|খাব|sebon|সেবন|niyom|নিয়ম|মেলামেশা|সাইড|side|ক্ষতি|khoti|উপাদান|উপকার|ডেলিভারি|ঠিকানা|কোথায়|kothay)/i.test(customerMessage);
       
       const _isAskingIdentityOrGreeting = /(?:name|nam|naam|নাম|porichoy|পরিচয়|পরিচয়|কে\s*আপনি|আপনি\s*কে|basa|bari|বাসা|বাড়ি|kemon|কেমন|salam|সালাম|assalam|hi\b|hello\b|হাই|হ্যালো)/i.test(customerMessage);
-      if (_userMsgCount >= 3 && !_isAskingForContact && !_hasSpecificQuestion && !_isAskingIdentityOrGreeting) {
+      
+      // Customer explicitly wants to chat in Messenger, NOT call or phone
+      const prefersChatInquiry = /(?:ekhanei\s*bol|এখানেই\s*বল|এখানে\s*বল|chat\s*e|চ্যাটে|ফোনে\s*না|call\s*na|কল\s*না|লিখুন|likhun|proshner\s*jobab|প্রশ্নের\s*উত্তর|প্রশ্নের\s*জবাব)/i.test(customerMessage);
+      if (prefersChatInquiry) {
+        customerMemory.updateCustomerProfile(senderId, { prefersChatOnly: true, directCtaSent: true });
+        const chatOkReply = "জি ভাইয়া, অবশ্যই! আপনার যা যা জানার বা শারীরিক কোনো জটিলতা থাকলে নিঃসঙ্কোচে এখানেই বলুন। আমি আপনাকে চ্যাটেই সব বুঝিয়ে বিস্তারিত পরামর্শ দিচ্ছি। বলুন ভাইয়া, আপনাকে কীভাবে সহযোগিতা করতে পারি?";
+        customerMemory.appendChatMessage(senderId, 'model', chatOkReply, isVoiceMode);
+        return chatOkReply;
+      }
+
+      // DO NOT fire Sajjad doctor CTA blindly on 3rd message!
+      // ONLY trigger if customer explicitly asks to call / contact doctor, and has given symptoms
+      const hasRealSymptoms = Boolean(_ctaProf.symptoms && _ctaProf.symptoms.length > 0);
+      if (_isAskingForContact && hasRealSymptoms && !_ctaProf.prefersChatOnly) {
         const sName = (_ctaProf && _ctaProf.name && _ctaProf.name !== 'Customer' && _ctaProf.name !== 'কাস্টমার') ? _ctaProf.name + ' ভাইয়া' : 'ভাইয়া';
         const symptomStr = (_ctaProf.symptoms && _ctaProf.symptoms.length > 0) ? _ctaProf.symptoms.slice(0, 2).join(' ও ') : '';
         const contextMention = symptomStr ? `আপনার এই ${symptomStr}-এর সমস্যাটি` : 'আপনার শারীরিক সমস্যাটির লক্ষণগুলো';
@@ -1389,7 +1411,19 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
   }
   // ── END DIRECT CONTACT CTA ─────────────────────────────────────────────────
 
-  // Instant interceptor for pure greetings (Salam, How are you, Hi/Hello)
+  // ── NATURAL HERBAL PAGE: Run structured 5-step Bajikaran consultation ───────
+  // This MUST run before generic AI flow so the step-by-step doctor consultation works
+  if (isNaturalHerbal && senderId) {
+    const _nhReply = handleNaturalHerbalConsultation(senderId, senderName, customerMessage, isVoiceMode);
+    if (_nhReply) {
+      // appendChatMessage already called inside handleNaturalHerbalConsultation
+      console.log(`[NH_CONSULT] Natural Herbal 5-step reply for ${senderId}: "${_nhReply.slice(0, 60)}..."`);
+      return _nhReply;
+    }
+  }
+  // ── END NATURAL HERBAL CONSULTATION ────────────────────────────────────────
+
+
   // Ensures 100% adherence to "ONLY answer what was asked — never add extra sales pitches"
   const trimmedClean = (customerMessage || "").trim().toLowerCase().replace(/[.,!?;:()\-]/g, "").replace(/\s+/g, " ");
 
@@ -1787,6 +1821,18 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
     return multiReply;
   }
 
+  // ── 2.5 BARGAINING / DISCOUNT / DAMADAMI INTERCEPTOR ─────────────────────
+  const isBargainQuery = /(?:kom|কম|komano|কমানো|komale|কমালে|discount|ডিসকাউন্ট|char|ছাড়|rakha\s*jabe|রাখা\s*যাবে|rakhben|রাখবেন|হবে\s*কি|কমান|একদাম)/i.test(trimmedClean) &&
+    /(?:kom|কম|discount|ডিসকাউন্ট|char|ছাড়|daam|দাম|taka|টাকা|price|প্রাইস|rakha|রাখা)/i.test(trimmedClean);
+
+  if (isBargainQuery) {
+    const bReply = isNaturalHerbal
+      ? "জি ভাইয়া, আপনার আন্তরিকতার বিষয়টি আমি অবশ্যই বুঝতে পারছি। তবে আমাদের 'বাজীকরণ হালুয়া' (৩৫০ গ্রাম) আসল পাহাড়ি কাঁচা ভেষজ দিয়ে সম্পূর্ণ অর্গানিক পদ্ধতিতে তৈরি, যার কাঁচামালের খরচই অনেক বেশি। ওষুধের সর্বোচ্চ মান ও কাঙ্ক্ষিত ফল নিশ্চিত করতে এর অফার মূল্য মাত্র ২,০০০ টাকা সম্পূর্ণ নির্ধারিত রাখা হয়েছে ভাইয়া (২০০ টাকা অগ্রিম বিকাশ, বাকি ১,৮০০ টাকা ক্যাশ অন ডেলিভারি)। ইনশাআল্লাহ এটি নিয়মিত সেবনে আপনি স্থায়ী ফলাফল পাবেন। আপনি কি অর্ডারটি কনফার্ম করতে চাচ্ছেন ভাইয়া?"
+      : "জি ভাইয়া, আপনার আন্তরিকতা ও বাজেটের বিষয়টি আমি বুঝতে পারছি। কিন্তু আমাদের এই কস্তুরী পাউডারটি খাঁটি মৃগনাভি কস্তুরী, কোরিয়ান রেড জিনসেং ও হিমালয়ের বন্য শিলাজিৎসহ ৬টি দুর্লভ প্রাকৃতিক উপাদানে প্রস্তুত করা হয়। ওষুধের সর্বোচ্চ গুণমান বজায় রেখে রোগীর স্থায়ী সুস্থতা নিশ্চিত করতে ২,৮০০ টাকার এই অফার মূল্যটি সম্পূর্ণ নির্ধারিত, এর চেয়ে কমানো সম্ভব নয় ভাইয়া। আপনি নিয়মিত ব্যবহারে স্থায়ী ফলাফল পাবেন ইনশাআল্লাহ। আপনি কি অর্ডারটি কনফার্ম করতে চাচ্ছেন?";
+    if (senderId) customerMemory.appendChatMessage(senderId, "model", bReply, isVoiceMode);
+    return bReply;
+  }
+
   // ── 3. PRICE / DAM INTERCEPTOR ────────────────────────────────────────────
   const isPriceQuery =
     /(?:dam|দাম|price|প্রাইস|koto|কত|taka|টাকা)\s*(?:koto|কত|hobe|হবে|bhai|ভাই|plz)?/i.test(trimmedClean) &&
@@ -1969,7 +2015,7 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
 
   if (isNagadSpecificQuery) {
     if (isVoiceMode) {
-      const voiceNagadReply = "জি ভাইয়া, আমাদের বর্তমানে কোনো নগদ একাউন্ট চালু নেই, শুধুমাত্র অফিসিয়াল বিকাশ নম্বর চালু রয়েছে। বুকিং কনফার্ম করতে দুইশত টাকা অগ্রিম আমাদের বিকাশ নম্বরে পাঠাতে হয়। আমাদের বিকাশ নম্বর হলো শূন্য এক আট সাত শূন্য, শূন্য দুই তিন আট শূন্য চার। আর বাকি দুই হাজার সাতশত টাকা কুরিয়ারে পার্সেল হাতে পেয়ে দেখে পরিশোধ করবেন ভাইয়া।";
+      const voiceNagadReply = "জি ভাইয়া, আমাদের বর্তমানে কোনো নগদ একাউন্ট চালু নেই, শুধুমাত্র অফিসিয়াল বিকাশ নম্বর চালু রয়েছে। বুকিং কনফার্ম করতে দুইশত টাকা অগ্রিম আমাদের বিকাশ নম্বরে পাঠাতে হয়। আমাদের বিকাশ নম্বর হলো শূন্য এক আট সাত শূন্য, শূন্য দুই তিন আট শূন্য চার। আর বাকি দুই হাজার ছয়শত টাকা কুরিয়ারে পার্সেল হাতে পেয়ে দেখে পরিশোধ করবেন ভাইয়া।";
       if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", voiceNagadReply, true);
       return voiceNagadReply;
     }
@@ -1979,11 +2025,15 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
   }
 
   // Dedicated Phone Number / Helpline / Call / Contact Query
-  const isHelplineOrPhoneQuery = 
-    /(?:number|namber|numbor|nombor|নম্বর|নাম্বার|ফোন|মোবাইল|phone|mobile|হেল্পলাইন|helpline|হটলাইন|hotline)\s*(?:den|din|dite|দাও|দেন|দিন|পাঠান|দিতে|কত|koto|plz|please|lagbe|হবে|চাই|পাব|হবে\s*কি)?/i.test(trimmedClean) ||
+  // Check if customer is merely SHARING their own phone number or saying "আমার ফোন নম্বর..."
+  const isCustomerSharingOwnNumber = /(?:amar|amr|আমার)\s*(?:phone|mobile|number|ফোন|মোবাইল|নম্বর|নাম্বার)/i.test(trimmedClean) ||
+    /(?:\+?880|0)?1[3-9]\d{8}/.test(trimmedClean);
+
+  const isHelplineOrPhoneQuery = !isCustomerSharingOwnNumber && (
+    /(?:number|namber|numbor|nombor|নম্বর|নাম্বার|ফোন|মোবাইল|phone|mobile|হেল্পলাইন|helpline|হটলাইন|hotline)\s*(?:den|din|dite|দাও|দেন|দিন|পাঠান|দিতে|কত|koto|plz|please|lagbe|হবে|চাই|পাব|হবে\s*কি)\b/i.test(trimmedClean) ||
     /(?:kotha\s*bolbo|কথা\s*বলব|কথা\s*বলতে|যোগাযোগ|jogajog|call\s*korbo|কল\s*করব|কল\s*দিতে).*(?:number|নাম্বার|নম্বর|phone|ফোন|দিন|দেন|চাই|কিসে)/i.test(trimmedClean) ||
     /(?:bkash|নগদ|nagad|বিকাশ).*(?:number|নাম্বার|নম্বর|টাকা|পাঠাব)/i.test(trimmedClean) ||
-    /(?:নাম্বার|নম্বর|phone|number)\s*(?:টা|টি)?\s*(?:দেন|দিন|দাও|বলেন|বলুন)/i.test(trimmedClean);
+    /(?:নাম্বার|নম্বর|phone|number)\s*(?:টা|টি)?\s*(?:দেন|দিন|দাও|বলেন|বলুন)/i.test(trimmedClean));
 
   if (isHelplineOrPhoneQuery) {
     // Check if customer is asking about bKash number to send advance payment
@@ -2007,7 +2057,7 @@ async function generateReply(customerMessage, senderName, senderId = null, recen
 
     // GUARD: Never give Hakim number initially! First gather health facts & symptoms!
     if (!_hasHealthDetails || _userMsgCount < 3) {
-      const earlyNumberReply = `জি ভাইয়া, আমি আমাদের কাস্টমার কেয়ার ও স্বাস্থ্য পরামর্শ বিভাগ থেকে মোহাম্মদ সাজ্জাদ বলছি। অবশ্যই আমাদের প্রধান হাকিম সাহেবের সাথে আপনার সরাসরি কথা বলিয়ে দেব। তবে তার আগে আপনার রোগের ধরন, সমস্যাটি কতদিন ধরে, কতদিন আগে বিয়ে করেছেন এবং আপনার রক্তের গ্রুপ কী—এগুলো বিস্তারিত জানা দরকার, যাতে আমি হাকিম সাহেবকে আপনার ফাইলটি বুঝিয়ে দিতে পারি। ভাইয়া, একটু বলুন তো আপনার ঠিক কী কী সমস্যা হচ্ছে এবং কতদিন ধরে?`;
+      const earlyNumberReply = `জি ভাইয়া, অবশ্যই বলুন। আমাদের এই ইনবক্সেই আপনি বিস্তারিত কথা বলতে পারেন, আমি আপনাকে সব পরামর্শ বুঝিয়ে দিচ্ছি। আপনার কী কী শারীরিক সমস্যা হচ্ছে বা কী বিষয়ে জানতে চাচ্ছেন, নিঃসঙ্কোচে খুলে বলুন ভাইয়া।`;
       if (typeof senderId !== "undefined" && senderId) customerMemory.appendChatMessage(senderId, "model", earlyNumberReply, isVoiceMode);
       return earlyNumberReply;
     }
@@ -4014,6 +4064,7 @@ async function pollPage(page) {
               }
             }
 
+            let orderHandled = false;
             if (parsedOrder || orderPlacedDetected || botConfirmedOrder) {
               // Customer gave order info or bot confirmed → cancel any pending reminder
               cancelScheduledReminder(senderId);
@@ -4047,17 +4098,23 @@ async function pollPage(page) {
                 const phMatch = enPhoneStr.match(/(?:\+?880|0)?1[3-9]\d{8}/);
                 const detectedPhone = parsedOrder?.phone || memProf?.phone || (phMatch ? (phMatch[0].startsWith("88") ? phMatch[0].slice(2) : phMatch[0]) : "");
 
+                const hasRealAddrKeywords = /(?:গ্রাম|রোড|রাস্তা|মহল্লা|এলাকা|ফ্ল্যাট|বাড়ি|বাড়ি|থানা|জেলা|বাজার|পোস্ট|ডাকঘর|সড়ক|উপজেলা)/i.test(messageText);
+                const msgWithoutPhone = messageText.replace(/(?:\+?880|0)?1[3-9]\d{8}/g, "").replace(/(?:আমার|ফোন|মোবাইল|নম্বর|নাম্বার|phone|number|mobile)/gi, "").trim();
+                const safeFallbackAddr = (hasRealAddrKeywords && msgWithoutPhone.length >= 5) ? messageText : "";
+
+                const safeCustName = (parsedOrder?.name && customerMemory.isValidPersonName(parsedOrder.name))
+                  ? parsedOrder.name
+                  : (nameFromReply && customerMemory.isValidPersonName(nameFromReply))
+                    ? nameFromReply
+                    : (memProf?.name && customerMemory.isValidPersonName(memProf.name))
+                      ? memProf.name : (customerMemory.isValidPersonName(customerName) ? customerName : "");
+
                 const orderData = {
-                  customerName: (parsedOrder?.name && parsedOrder.name.length > 1)
-                    ? parsedOrder.name
-                    : (nameFromReply && nameFromReply.length > 1)
-                      ? nameFromReply
-                      : (memProf?.name && !["ভাইয়া","customer"].includes(memProf.name.toLowerCase()))
-                        ? memProf.name : customerName,
+                  customerName: safeCustName,
                   phone:     detectedPhone,
                   district:  parsedOrder?.district || distFromReply || memProf?.district || "",
                   thana:     parsedOrder?.thana    || thanaFromReply || memProf?.thana || "",
-                  address:   parsedOrder?.address  || addrFromReply || memProf?.address || messageText,
+                  address:   parsedOrder?.address  || addrFromReply || memProf?.address || safeFallbackAddr,
                   product:   parsedOrder?.product || memProf?.productDiscussed || (threadMemory.has(senderId) ? threadMemory.get(senderId).name : "") || "কস্তুরী পাউডার (Kasturi Powder)",
                   quantity:  parsedOrder?.quantity || 1,
                   senderId:  String(senderId),
@@ -4087,30 +4144,42 @@ async function pollPage(page) {
                     orderData.phone,
                     orderData.district,
                     orderData.thana,
-                    orderData.address
+                    orderData.address,
+                    orderData.customerName
                   );
 
                   if (!validation.valid) {
-                    // ❌ Invalid order — send correction request to customer
-                    const errorLines = validation.issues.map(issue => issue.msg).join("\n\n");
-                    const correctionMsg =
-`⚠️ আপনার অর্ডারটি গ্রহণ করা সম্ভব হয়নি, কারণ কিছু তথ্য ঠিকমতো পাওয়া যায়নি:
+                    if (validation.isOnlyPhone) {
+                      // Polite human response when customer only gave their phone number
+                      const onlyPhoneMsg = `জি ভাইয়া, আপনার মোবাইল নম্বরটি (${orderData.phone}) পেয়েছি। পার্সেলটি বুকিং করে পাঠিয়ে দেওয়ার জন্য আপনার সম্পূর্ণ নাম এবং ডেলিভারির সম্পূর্ণ ঠিকানাটি (জেলা, থানা ও গ্রাম/এলাকা) একটু জানিয়ে দিন ভাইয়া।`;
+                      await sendSenderAction(senderId, "typing_on", page.accessToken);
+                      await sleep(800);
+                      await sendFacebookMessage(senderId, onlyPhoneMsg, page.accessToken);
+                      orderHandled = true;
+                      console.log(`[ORDER_VALIDATE] 📱 Customer ${senderId} shared only phone ${orderData.phone} — politely requested address`);
+                    } else {
+                      // ❌ Incomplete order details — send correction request
+                      const errorLines = validation.issues.map(issue => issue.msg).join("\n\n");
+                      const correctionMsg =
+`⚠️ অর্ডারটি কনফার্ম করতে নিচের তথ্যগুলো প্রয়োজন:
 
 ${errorLines}
 
-🔁 সঠিক তথ্য দিয়ে আবার পাঠান:
-নাম=আপনার পুরো নাম
-জেলা=আপনার জেলা
-থানা=আপনার থানা
-রিসিভ ঠিকানা=গ্রাম/রোড/ফ্ল্যাট নম্বর
-নাম্বার=01XXXXXXXXX
+🔁 অনুগ্রহ করে আপনার সঠিক তথ্যগুলো পাঠিয়ে দিন:
+নাম: আপনার পুরো নাম
+জেলা: আপনার জেলা
+থানা: আপনার থানা
+ডেলিভারি ঠিকানা: গ্রাম/রোড/বাসা নম্বর
+মোবাইল নম্বর: 01XXXXXXXXX
 
-✅ সঠিক তথ্য দিলে আমরা সাথে সাথে অর্ডার নিশ্চিত করব ইনশাআল্লাহ।`;
+ইনশাআল্লাহ তথ্যগুলো পেলেই সাথে সাথে পার্সেলটি পাঠিয়ে দেওয়া হবে।`;
 
-                    await sendSenderAction(senderId, "typing_on", page.accessToken);
-                    await sleep(800);
-                    await sendFacebookMessage(senderId, correctionMsg, page.accessToken);
-                    console.log(`[ORDER_VALIDATE] ❌ Invalid order from ${senderId} — issues: ${validation.issues.map(i=>i.field).join(", ")}`);
+                      await sendSenderAction(senderId, "typing_on", page.accessToken);
+                      await sleep(800);
+                      await sendFacebookMessage(senderId, correctionMsg, page.accessToken);
+                      orderHandled = true;
+                      console.log(`[ORDER_VALIDATE] ❌ Invalid order from ${senderId} — issues: ${validation.issues.map(i=>i.field).join(", ")}`);
+                    }
                   } else if (orderData.phone) {
                     // ✅ Valid — save to dashboard
                     // Save via direct DB
@@ -4156,7 +4225,7 @@ ${errorLines}
                   const isKasturiOrder = !isJoubonerRajaOrder && (/কস্তুরী|kosturi|kasturi|আব্দুল করিম/i.test(orderData.product || "") || /কস্তুরী|kosturi|kasturi/i.test(messageText || ""));
                   const isBajikaranOrder = !isJoubonerRajaOrder && (/বাজীকরণ|bajikaran|halua|হালুয়া/i.test(orderData.product || "") || /বাজীকরণ|bajikaran|halua|হালুয়া/i.test(messageText || "") || /ন্যাচারাল|হারবাল|natural|133420039845881/i.test(page?.pageName || ""));
                   const paymentLine = isJoubonerRajaOrder
-                    ? "💰 মূল্য: ৩,০০০ টাকা (বুকিং নিশ্চিত করতে বিকাশ বা নগদে মাত্র ২০০ টাকা অগ্রিম প্রযোজ্য, বাকি ২,৮০০ টাকা ক্যাশ অন ডেলিভারি)\n📱 বিকাশ/নগদ নম্বর: 01870-023804 (কল, হোয়াটসঅ্যাপ, ইমো ও মেসেঞ্জার সাপোর্ট)\n📌 দ্রষ্টব্য: যৌবনের রাজা পার্সেল বুকিং কনফার্ম করতে 01870-023804 নম্বরে ২০০ টাকা পাঠিয়ে লাস্ট ২/৩ ডিজিট এখানে জানান."
+                    ? "💰 মূল্য: ৩,০০০ টাকা (বুকিং নিশ্চিত করতে বিকাশ এ মাত্র ২০০ টাকা অগ্রিম প্রযোজ্য, বাকি ২,৮০০ টাকা ক্যাশ অন ডেলিভারি)\n📱 বিকাশ পার্সোনাল নম্বর: 01870-023804 (কল, হোয়াটসঅ্যাপ, ইমো ও মেসেঞ্জার সাপোর্ট)\n📌 দ্রষ্টব্য: যৌবনের রাজা পার্সেল বুকিং কনফার্ম করতে 01870-023804 নম্বরে ২০০ টাকা পাঠিয়ে লাস্ট ২/৩ ডিজিট এখানে জানান."
                     : isKasturiOrder
                       ? "💰 মূল্য: ২,৮০০ টাকা (বুকিং নিশ্চিত করতে ২০০ টাকা অগ্রিম বিকাশ প্রযোজ্য, বাকি ২,৬০০ টাকা ক্যাশ অন ডেলিভারি)\n📱 বিকাশ পার্সোনাল নম্বর: 01870-023804\n📌 দ্রষ্টব্য: কস্তুরী পাউডার পার্সেল বুকিং কনফার্ম করতে 01870-023804 নম্বরে ২০০ টাকা পাঠিয়ে লাস্ট ২/৩ ডিজিট এখানে জানান."
                       : isBajikaranOrder
@@ -4189,6 +4258,7 @@ ${paymentLine}
                   await sendSenderAction(senderId, "typing_on", page.accessToken);
                   // ── ORDER CONFIRM: Always send TEXT version ───────────────────
                   await sendFacebookMessage(senderId, confirmMsg, page.accessToken);
+                  orderHandled = true;
                   console.log(`[ORDER_CONFIRM] ✅ Confirmation (text) sent to ${senderId}`);
 
                   // ── ORDER CONFIRM: Also send VOICE version if customer prefers voice
@@ -4259,9 +4329,31 @@ ${paymentLine}
 
             // 2. Always send text message if customer sent text, or order form/phone, or if voice failed
             const customerSentAudio = Boolean(audioAttach);
-            const shouldSendText = !customerSentAudio || hasOrderFormOrPhone || !sentVoice;
+            const shouldSendText = !orderHandled && (!customerSentAudio || hasOrderFormOrPhone || !sentVoice);
 
             if (shouldSendText) {
+              // Anti-Repetition Guard: Check if reply is identical to previous bot message
+              const lastBotMsg = customerMemory.getLastBotMessage(senderId);
+              if (lastBotMsg && replyText) {
+                const cleanNew = replyText.replace(/\s+/g, " ").trim();
+                const cleanOld = lastBotMsg.replace(/\s+/g, " ").trim();
+                const isExactDuplicate = cleanNew === cleanOld;
+                const isPrefixDuplicate = cleanNew.length > 50 && cleanOld.length > 50 && cleanNew.slice(0, 60) === cleanOld.slice(0, 60);
+
+                if (isExactDuplicate || isPrefixDuplicate) {
+                  console.log(`[ANTI_REPEAT] Detected duplicate reply for ${senderId}. Generating dynamic human response...`);
+                  try {
+                    const freshPrompt = `Customer said: "${messageText}". Previously you sent them: "${lastBotMsg.slice(0, 120)}...". CRITICAL RULE: DO NOT repeat that answer. Speak warmly as a real human doctor in 2-3 natural Bengali sentences addressing their exact specific question or concern directly.`;
+                    const freshReply = await callGroqLlama(freshPrompt, "You are a warm, compassionate Bangladeshi herbal doctor answering a patient in fluent natural Bengali. Answer only what they specifically asked. Keep it 2 sentences.");
+                    if (freshReply && freshReply.trim().length > 10) {
+                      replyText = freshReply.trim();
+                    }
+                  } catch (freshErr) {
+                    console.warn('[ANTI_REPEAT_GEN_ERR]', freshErr.message);
+                  }
+                }
+              }
+
               const delay = calculateHumanTypingDelay(replyText);
               await sendSenderAction(senderId, "typing_on", page.accessToken);
               await sleep(Math.min(delay, 800));
