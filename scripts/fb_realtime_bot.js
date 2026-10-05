@@ -1406,11 +1406,20 @@ function handleNaturalHerbalConsultation(senderId, senderName, customerMessage, 
     return q;
   }
   if (!hasStep5) {
-    bajikaranData.lastAskedStep = 5;
-    if (senderId) customerMemory.updateCustomerProfile(senderId, { bajikaranData });
-    const q = "লিঙ্গের গঠন কেমন? (আগা মোটা গোড়া চিকন, নাকি ডান/বাম দিকে বাঁকা)।";
-    if (senderId) customerMemory.appendChatMessage(senderId, "model", q, isVoiceMode);
-    return q;
+    // If step 5 was ALREADY asked (lastAskedStep >= 5) but user gave unrecognized answer
+    // NEVER repeat this sensitive question. Auto-fill and proceed to closing.
+    if (lastAskedStep >= 5) {
+      bajikaranData.structure = "স্বাভাবিক";
+      bajikaranData.lastAskedStep = 6;
+      if (senderId) customerMemory.updateCustomerProfile(senderId, { bajikaranData });
+      // Fall through to closing reply below
+    } else {
+      bajikaranData.lastAskedStep = 5;
+      if (senderId) customerMemory.updateCustomerProfile(senderId, { bajikaranData });
+      const q = "লিঙ্গের গঠন কেমন? (আগা মোটা গোড়া চিকন, নাকি ডান/বাম দিকে বাঁকা)।";
+      if (senderId) customerMemory.appendChatMessage(senderId, "model", q, isVoiceMode);
+      return q;
+    }
   }
 
   // FINAL STEP: All 5 collected -> Prescription & Closing terms
