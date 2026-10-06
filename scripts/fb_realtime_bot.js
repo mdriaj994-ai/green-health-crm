@@ -47,6 +47,36 @@ function getTimeAwareGreeting() {
 }
 const { parseOrderFromMessage, saveOrderToDb } = require("./save_order_to_db.js");
 
+// ── TELEGRAM ALERT SYSTEM ─────────────────────────────────────────────────────
+const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8874694866:AAEmdXxd3DP3B8J4L2sHS0pIxVR98HV9vqI";
+const TELEGRAM_ADMIN_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID || "8279465535";
+
+async function sendTelegramAlert(text) {
+  try {
+    const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
+    const res = await fetch(url, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        chat_id: TELEGRAM_ADMIN_CHAT_ID,
+        text,
+        parse_mode: "HTML",
+        disable_web_page_preview: true,
+      }),
+      signal: AbortSignal.timeout(8000),
+    });
+    if (!res.ok) {
+      const err = await res.text();
+      console.warn("[TELEGRAM_ALERT_ERR]", err);
+    } else {
+      console.log("[TELEGRAM_ALERT] ✅ Notification sent to admin");
+    }
+  } catch (e) {
+    console.warn("[TELEGRAM_ALERT_WARN]", e.message);
+  }
+}
+// ── END TELEGRAM ALERT ────────────────────────────────────────────────────────
+
 const GLOBAL_BD_DISTRICTS = [
   "ঢাকা","চট্টগ্রাম","সিলেট","রাজশাহী","খুলনা","বরিশাল","ময়মনসিংহ","রংপুর",
   "কুমিল্লা","নোয়াখালী","ফেনী","গাজীপুর","নারায়ণগঞ্জ","মুন্সিগঞ্জ","মানিকগঞ্জ",
@@ -4167,6 +4197,23 @@ async function pollPage(page) {
                   if (saved) {
                     console.log(`[ORDER] 📦 Bot-confirmed order saved to dashboard for ${orderData.customerName} | Phone: ${orderData.phone}`);
                   }
+                  // ── TELEGRAM ALERT: Bot-confirmed order ────────────────────────
+                  try {
+                    const _addrA = [orderData.address, orderData.thana, orderData.district].filter(Boolean).join(', ');
+                    const _fbUrlA = `https://www.facebook.com/${senderId}`;
+                    await sendTelegramAlert(
+                      `🛒 <b>নতুন অর্ডার কনফার্ম!</b>\n\n` +
+                      `👤 নাম: <b>${orderData.customerName || 'অজানা'}</b>\n` +
+                      `📱 মোবাইল: <b>${orderData.phone || '—'}</b>\n` +
+                      `📍 ঠিকানা: ${_addrA || '—'}\n` +
+                      `💊 পণ্য: ${orderData.product || '—'}\n` +
+                      `📦 পরিমাণ: ${orderData.quantity || 1}\n` +
+                      `🏠 পেজ: ${page.pageName || page.pageId}\n\n` +
+                      `🔗 Facebook ID: <code>${senderId}</code>\n` +
+                      `👉 <a href="${_fbUrlA}">Messenger তে দেখুন</a>`
+                    );
+                  } catch (_tgErrA) { console.warn('[TG_ALERT_WARN_A]', _tgErrA.message); }
+                  // ── END TELEGRAM ALERT ──────────────────────────────────────────
                   try {
                     const _apiBase = `http://localhost:3000`;
                     await fetch(`${_apiBase}/api/orders`, {
@@ -4194,6 +4241,21 @@ async function pollPage(page) {
                       await sendFacebookMessage(senderId, onlyPhoneMsg, page.accessToken);
                       orderHandled = true;
                       console.log(`[ORDER_VALIDATE] 📱 Customer ${senderId} shared only phone ${orderData.phone} — politely requested address`);
+                      // ── TELEGRAM ALERT: Phone number only ────────────────────────
+                      try {
+                        const _fbUrlP = `https://www.facebook.com/${senderId}`;
+                        await sendTelegramAlert(
+                          `📱 <b>ফোন নম্বর পাওয়া গেছে! (ঠিকানা নেই)</b>\n\n` +
+                          `👤 নাম: ${orderData.customerName || customerName || 'অজানা'}\n` +
+                          `📱 মোবাইল: <b>${orderData.phone}</b>\n` +
+                          `💬 মেসেজ: <i>${(messageText || '').substring(0, 200)}</i>\n` +
+                          `🏠 পেজ: ${page.pageName || page.pageId}\n\n` +
+                          `🔗 Facebook ID: <code>${senderId}</code>\n` +
+                          `👉 <a href="${_fbUrlP}">Messenger তে দেখুন</a>\n\n` +
+                          `⚠️ ঠিকানা এখনো দেয়নি — bot ঠিকানা চেয়েছে।`
+                        );
+                      } catch (_tgErrP) { console.warn('[TG_ALERT_WARN_P]', _tgErrP.message); }
+                      // ── END TELEGRAM ALERT ──────────────────────────────────────
                     } else {
                       // ❌ Incomplete order details — send correction request
                       const errorLines = validation.issues.map(issue => issue.msg).join("\n\n");
@@ -4226,6 +4288,23 @@ ${errorLines}
                     } else {
                       console.log(`[ORDER] ⚠️ DB save returned false (duplicate or error), trying API fallback...`);
                     }
+                    // ── TELEGRAM ALERT: Valid full order received ────────────────
+                    try {
+                      const _addrB = [orderData.address, orderData.thana, orderData.district].filter(Boolean).join(', ');
+                      const _fbUrlB = `https://www.facebook.com/${senderId}`;
+                      await sendTelegramAlert(
+                        `🛒 <b>নতুন অর্ডার পাওয়া গেছে!</b>\n\n` +
+                        `👤 নাম: <b>${orderData.customerName || 'অজানা'}</b>\n` +
+                        `📱 মোবাইল: <b>${orderData.phone || '—'}</b>\n` +
+                        `📍 ঠিকানা: ${_addrB || '—'}\n` +
+                        `💊 পণ্য: ${orderData.product || '—'}\n` +
+                        `📦 পরিমাণ: ${orderData.quantity || 1}\n` +
+                        `🏠 পেজ: ${page.pageName || page.pageId}\n\n` +
+                        `🔗 Facebook ID: <code>${senderId}</code>\n` +
+                        `👉 <a href="${_fbUrlB}">Messenger তে দেখুন</a>`
+                      );
+                    } catch (_tgErrB) { console.warn('[TG_ALERT_WARN_B]', _tgErrB.message); }
+                    // ── END TELEGRAM ALERT ──────────────────────────────────────
                     // Also save via API (HTTP fallback — ensures 100% persistence on Coolify)
                     try {
                       const _apiBase = `http://localhost:3000`;
