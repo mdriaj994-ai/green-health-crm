@@ -52,6 +52,60 @@ const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8874694866:AAEmdXx
 const TELEGRAM_ADMIN_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID || "8279465535";
 const recentTelegramAlerts = new Map(); // senderId_key -> timestamp
 
+function cleanPersonName(name) {
+  if (!name) return "";
+  let clean = String(name)
+    .replace(/(?:\+?880|0)?1[3-9]\d{8,12}/g, "") // remove phone numbers
+    .replace(/[০-৯0-9]/g, "") // remove numbers
+    .replace(/(?:name|naam|nam|নাম|আমার নাম|আমার|ভাই|ভাইয়া|ভাইয়া|bolsi|bolchi|user|customer)\b/gi, "")
+    .replace(/['"’`\-_.,()\/\\+!?:;]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return clean;
+}
+
+function extractNameFromMessage(text) {
+  if (!text) return "";
+  const explicitMatch = text.match(/(?:(?:আমার\s+)?নাম|name)\s*[:=]?\s*([A-Za-z\u0980-\u09FF\s.]{2,30})/i);
+  if (explicitMatch && explicitMatch[1]) {
+    const cleaned = cleanPersonName(explicitMatch[1]);
+    if (cleaned.length >= 2) return cleaned;
+  }
+  const strippedPhone = text
+    .replace(/(?:\+?880|0)?1[3-9]\d{8,12}/g, "")
+    .replace(/[০-৯0-9]/g, "")
+    .replace(/(?:আমার|নাম্বার|নম্বর|ফোন|মোবাইল|phone|number|mobile|হলো|হল|বুকিং|অর্ডার|পার্সেল|ডেলিভারি|ঠিকানা)/gi, "")
+    .replace(/['"’`\-_.,()\/\\+!?:;]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  const words = strippedPhone.split(/\s+/).filter(Boolean);
+  if (words.length >= 1 && words.length <= 4 && strippedPhone.length >= 2 && strippedPhone.length <= 30) {
+    const candidate = cleanPersonName(strippedPhone);
+    if (candidate && candidate.length >= 2 && !["জি", "ভাইয়া", "vaiya", "vai", "hello", "hi", "ok", "yes", "user", "customer"].includes(candidate.toLowerCase())) {
+      return candidate;
+    }
+  }
+  return "";
+}
+
+function getPageAccurateProduct(page, messageText = "", memProf = null) {
+  const pageName = page?.pageName || "";
+  const pageId = String(page?.pageId || "");
+  const isNaturalHerbal = /ন্যাচারাল|হারবাল|natural|133420039845881|61559813291583|61551438782626/i.test(pageName) ||
+                          /133420039845881|61559813291583|61551438782626/.test(pageId);
+  const combined = (messageText || "") + " " + (memProf?.productDiscussed || "");
+  if (/যৌবনের\s*রাজা|jouboner\s*raja|joubon/i.test(combined)) {
+    return "যৌবনের রাজা (Jouboner Raja)";
+  }
+  if (isNaturalHerbal) {
+    return "বাজীকরণ হালুয়া (Bajikaran Halua)";
+  }
+  if (/বাজীকরণ|bajikaran|halua|হালুয়া/i.test(combined)) {
+    return "বাজীকরণ হালুয়া (Bajikaran Halua)";
+  }
+  return "কস্তুরী পাউডার (Kasturi Powder)";
+}
+
 function extractBdPhoneNumber(text) {
   if (!text) return "";
   const enStr = String(text).replace(/[০-৯]/g, d => "০১২৩৪৫৬৭৮৯".indexOf(d));
@@ -123,36 +177,60 @@ async function sendTelegramLeadAlert({
   messageText = "",
   pageName = "",
   alertType = "LEAD", // "ORDER_CONFIRMED", "PHONE_ONLY", "INCOMPLETE_ORDER", "LEAD"
+  hasExplicitAddress = false,
 }) {
   try {
     const cleanPhone = phone || extractBdPhoneNumber(messageText);
     const dedupKey = `${senderId}_${cleanPhone || ""}_${alertType}`;
     const now = Date.now();
     const lastSent = recentTelegramAlerts.get(dedupKey) || 0;
-    // Suppress rapid duplicates within 60s unless it's a confirmed order
-    if (alertType !== "ORDER_CONFIRMED" && now - lastSent < 60000) {
+    if (alertType !== "ORDER_CONFIRMED" && now - lastSent < 45000) {
       console.log(`[TELEGRAM_ALERT] ⏳ Suppressing duplicate lead alert for ${senderId}`);
       return;
     }
     recentTelegramAlerts.set(dedupKey, now);
 
-    let title = "📱 <b>কাস্টমার মোবাইল নম্বর দিয়েছে!</b>";
+    // 1. Resolve Best Customer Name (prioritize name customer typed in message)
+    let bestName = extractNameFromMessage(messageText) || cleanPersonName(customerName);
+    if (!bestName || ["ভাইয়া", "vaiya", "customer", "কাস্টমার", "user"].includes(bestName.toLowerCase())) {
+      bestName = "";
+    }
+    const safeCustName = bestName || "অজানা কাস্টমার (নাম দেয়নি)";
+
+    // 2. Resolve Phone Display
+    let safePhone = cleanPhone;
+    if (!safePhone) {
+      const pMatch = (messageText || "").match(/(?:\+?880|0)?1[3-9][০-৯0-9\s\-]{8,15}/);
+      safePhone = pMatch ? pMatch[0].replace(/[\s\-]/g, "") : "—";
+    }
+
+    // 3. Resolve Address Display: Never show stale memory address for unconfirmed leads!
+    let safeAddr = "দেওয়া হয়নি (বট ঠিকানার অনুরোধ করেছে)";
+    if (hasExplicitAddress || alertType === "ORDER_CONFIRMED") {
+      const fullAddr = [address, thana, district].filter(Boolean).join(", ");
+      if (fullAddr && fullAddr.length >= 4) safeAddr = fullAddr;
+    }
+
+    // 4. Resolve Product Display: Page-locked
+    const isNatural = /ন্যাচারাল|হারবাল|natural/i.test(pageName || "");
+    let safeProd = product;
+    if (!safeProd || (isNatural && /কস্তুরী|kasturi|soul mate/i.test(safeProd))) {
+      safeProd = isNatural ? "বাজীকরণ হালুয়া (Bajikaran Halua)" : "কস্তুরী পাউডার (Kasturi Powder)";
+    }
+
+    // 5. Title by status
+    let title = "📱 <b>নতুন লিড: কাস্টমার মোবাইল নম্বর দিয়েছে!</b>";
     if (alertType === "ORDER_CONFIRMED") {
       title = "🛒 <b>নতুন অর্ডার কনফার্ম!</b>";
     } else if (alertType === "PHONE_ONLY") {
-      title = "📱 <b>ফোন নম্বর পাওয়া গেছে! (ঠিকানা প্রয়োজন)</b>";
+      title = "📱 <b>কাস্টমার মোবাইল নম্বর দিয়েছে! (ঠিকানা প্রয়োজন)</b>";
     } else if (alertType === "INCOMPLETE_ORDER") {
-      title = "⚠️ <b>কাস্টমার তথ্য দিয়েছে (অসম্পূর্ণ অর্ডার)</b>";
+      title = "📱 <b>কাস্টমার তথ্য দিয়েছে (ঠিকানা প্রয়োজন)</b>";
     } else if (alertType === "LEAD") {
       title = "🔔 <b>নতুন কাস্টমার লিড / তথ্য পাওয়া গেছে!</b>";
     }
 
-    const fullAddr = [address, thana, district].filter(Boolean).join(", ");
     const fbProfileUrl = `https://www.facebook.com/${senderId}`;
-    const safeCustName = customerName && customerName !== "অজানা" ? customerName : "অজানা";
-    const safePhone = cleanPhone || "—";
-    const safeAddr = fullAddr || "—";
-    const safeProd = product || "কস্তুরী পাউডার / বাজীকরণ";
     const safeMsg = (messageText || "").trim().slice(0, 500);
 
     const tgHtml =
@@ -165,7 +243,7 @@ async function sendTelegramLeadAlert({
       `💬 <b>কাস্টমার মেসেজ:</b>\n` +
       `<i>"${escapeTelegramHtml(safeMsg)}"</i>\n\n` +
       `🔗 Facebook ID: <code>${senderId}</code>\n` +
-      `👉 <a href="${fbProfileUrl}">Messenger তে দেখুন</a>`;
+      `👉 <a href="${fbProfileUrl}">Messenger চ্যাট ওপেন করুন</a>`;
 
     await sendTelegramAlert(tgHtml);
   } catch (err) {
@@ -812,7 +890,7 @@ function findMatchedProduct(query, master) {
     "যৌবনের রাজা": ["যৌবনের রাজা", "যৌবন রাজা", "jouboner raja", "yowboner raja", "yauboner raja", "শামসুর ইসলাম", "কালাম ভাইয়ের মার্কেট", "আলীকদম"],
     "কস্তুরী পাউডার": ["কস্তুরী পাউডার", "কস্তুরি পাউডার", "kosturi powder", "kasturi powder", "কস্তুরী", "কস্তুরি", "আব্দুল করিম", "হাকিম আব্দুল করিম", "হাকিম মোহাম্মদ আব্দুল করিম", "abdul karim", "জনতা ইউনানী", "আলীকদম, বান্দরবান পার্বত্য জেলা", "দোকান ৩৩"],
     "বাজীকরণ হালুয়া": ["বাজীকরণ হালুয়া", "বাজীকরণ", "bajikaran halua", "bajikoron halua", "আরিফ", "কবিরাজ আরিফ", "রাঙ্গামাটি", "রিজার্ভ বাজার", "ব্যাংক এশিয়া", "ন্যাচারাল হারবাল", "ন্যাচারাল", "natural herbal", "natural", "হারবাল", "ইউনানি প্রস্তুতি", "বাজিকরন"],
-    "soul mate": ["soul mate", "soulmate", "সোল মেট", "সোলমেট", "সুল মেট", "কস্তুরী", "কস্তুরি", "হরিণের কস্তুরী", "হরিণের কস্তুরি", "kosturi", "kasturi", "horiner kosturi", "শিলাজিৎ", "জাফরান"],
+    "soul mate": ["soul mate", "soulmate", "সোল মেট", "সোলমেট", "সুল মেট", "শিলাজিৎ", "জাফরান"],
     "amber": ["amber", "ambar", "amber premium", "ambar premium", "আম্বার", "অম্বর", "অ্যাম্বার", "অंबर", "अंबर", "যৌন বিছানা রাজা", "বিছানা রাজা", "bistar raja", "tantra sutra"],
     "dream touch": ["dream touch", "dreamtouch", "ড্রিম টাচ", "ড্রিমটাচ", "ড্রিম"],
     "men's burner": ["men's burner", "mens burner", "men burner", "মেনস বার্নার", "বার্নার"],
@@ -4305,38 +4383,33 @@ async function pollPage(page) {
                 const msgWithoutPhone = messageText.replace(/(?:\+?880|0)?1[3-9]\d{8}/g, "").replace(/(?:আমার|ফোন|মোবাইল|নম্বর|নাম্বার|phone|number|mobile|ডেলিভারি|delivery|ঠিকানা|address)/gi, "").trim();
                 const safeFallbackAddr = (hasRealAddrKeywords && msgWithoutPhone.length >= 6) ? messageText : "";
 
-                // Clean customer name from phone numbers and extra words
-                let rawCustName = (parsedOrder?.name && customerMemory.isValidPersonName(parsedOrder.name))
-                  ? parsedOrder.name
-                  : (memProf?.name && customerMemory.isValidPersonName(memProf.name))
-                    ? memProf.name : (customerMemory.isValidPersonName(customerName) ? customerName : "");
-                let safeCustName = cleanPersonName(rawCustName);
-                if (!safeCustName) {
-                  // Check if message itself has name: e.g. "name rakib" or "নাম রাকিব"
-                  const nMatch = messageText.match(/(?:(?:আমার\s+)?নাম|name)\s*[:=]?\s*([A-Za-z\u0980-\u09FF]{2,20})/i);
-                  if (nMatch && nMatch[1]) safeCustName = cleanPersonName(nMatch[1]);
-                }
-                if (!safeCustName) safeCustName = cleanPersonName(customerName) || "ভাইয়া";
+                // Extract name strictly: prioritize current message
+                const msgName = extractNameFromMessage(messageText) || parsedOrder?.name;
+                const safeCustName = msgName
+                  ? cleanPersonName(msgName)
+                  : (memProf?.name ? cleanPersonName(memProf.name) : cleanPersonName(customerName));
 
-                // Page-aware default product:
-                // ন্যাচারাল হারবাল (133420039845881) sells "বাজীকরণ হালুয়া" (২,০০০ টাকা) or "যৌবনের রাজা" (৩,০০০ টাকা)
-                // হেলথ কেয়ার (932259009980880) sells "কস্তুরী পাউডার" (২,৮০০ টাকা)
-                const isNaturalHerbalPage = /ন্যাচারাল|হারবাল|natural|133420039845881|61559813291583|61551438782626/i.test(page?.pageName || "") || (page?.pageId && /133420039845881|61559813291583|61551438782626/.test(String(page.pageId)));
-                const defaultProdName = isNaturalHerbalPage
-                  ? "বাজীকরণ হালুয়া (Bajikaran Halua)"
-                  : "কস্তুরী পাউডার (Kasturi Powder)";
+                // Page-accurate product: strictly page-locked
+                const prodForPage = getPageAccurateProduct(page, messageText, memProf);
+
+                // Has customer given address in THIS message or parsedOrder?
+                const hasExplicitAddr = Boolean(
+                  (parsedOrder?.address && parsedOrder.address.trim().length >= 5) ||
+                  (safeFallbackAddr && safeFallbackAddr.length >= 5)
+                );
 
                 const orderData = {
-                  customerName: safeCustName,
+                  customerName: safeCustName || "ভাইয়া",
                   phone:     detectedPhone,
-                  district:  parsedOrder?.district || memProf?.district || "",
-                  thana:     parsedOrder?.thana    || memProf?.thana || "",
-                  address:   parsedOrder?.address  || memProf?.address || safeFallbackAddr,
-                  product:   parsedOrder?.product || memProf?.productDiscussed || (threadMemory.has(senderId) ? threadMemory.get(senderId).name : "") || defaultProdName,
+                  district:  parsedOrder?.district || (hasExplicitAddr ? memProf?.district : "") || "",
+                  thana:     parsedOrder?.thana    || (hasExplicitAddr ? memProf?.thana : "") || "",
+                  address:   parsedOrder?.address  || safeFallbackAddr || (hasExplicitAddr ? memProf?.address : "") || "",
+                  product:   prodForPage,
                   quantity:  parsedOrder?.quantity || 1,
                   senderId:  String(senderId),
                   facebookName: memProf?.facebookName || customerName || "",
                   pageId:    String(page.pageId),
+                  hasExplicitAddress: hasExplicitAddr,
                 };
                 console.log(`[ORDER_DATA] name="${orderData.customerName}" phone="${orderData.phone}" district="${orderData.district}" thana="${orderData.thana}" botConfirmed=${botConfirmedOrder}`);
 
@@ -4416,6 +4489,7 @@ async function pollPage(page) {
                           messageText,
                           pageName: page.pageName,
                           alertType: "PHONE_ONLY",
+                          hasExplicitAddress: Boolean(orderData.hasExplicitAddress),
                         });
                       } catch (_tgErrP) { console.warn('[TG_ALERT_WARN_P]', _tgErrP.message); }
                       // ── END TELEGRAM ALERT ──────────────────────────────────────
@@ -4455,6 +4529,7 @@ ${errorLines}
                           messageText,
                           pageName: page.pageName,
                           alertType: "INCOMPLETE_ORDER",
+                          hasExplicitAddress: Boolean(orderData.hasExplicitAddress),
                         });
                       } catch (_tgErrI) { console.warn('[TG_ALERT_WARN_I]', _tgErrI.message); }
                     }
