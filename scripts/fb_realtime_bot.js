@@ -875,8 +875,10 @@ function validateOrderDetails(phone, district, thana, address, customerName = ""
     issues.push({ field: "name", msg: "👤 আপনার পুরো নাম দেননি। সঠিক নাম দিন।" });
   }
 
-  // isOnlyPhone: Customer provided valid phone number, but NO delivery address
-  const isOnlyPhone = Boolean(validBdPhone && !hasRealAddress);
+  // isOnlyPhone: Customer provided a phone number attempt (valid OR malformed) but NO delivery address
+  // This catches cases like "0189878675432" (13 digits) which clearly is a phone attempt
+  const hasPhoneAttempt = Boolean(phone && /[0-9০-৯]{9,}/.test(String(phone).replace(/[\s\-+]/g, '')));
+  const isOnlyPhone = Boolean((validBdPhone || hasPhoneAttempt) && !hasRealAddress);
   if (issues.length === 0) return { valid: true };
   return { valid: false, issues, isOnlyPhone };
 }
@@ -4463,34 +4465,32 @@ async function pollPage(page) {
 
                   if (!validation.valid) {
                     if (validation.isOnlyPhone) {
-                      // Polite human response when customer only gave their phone number (or name + phone)
-                      const hasCustName = orderData.customerName && orderData.customerName !== 'ভাইয়া' && orderData.customerName !== 'Customer';
-                      const greetingName = hasCustName ? `${orderData.customerName} ভাইয়া` : 'ভাইয়া';
-                      const requestDetails = hasCustName
-                        ? 'ডেলিভারির সম্পূর্ণ ঠিকানাটি (জেলা, থানা ও গ্রাম/এলাকা)'
-                        : 'সম্পূর্ণ নাম এবং ডেলিভারির সম্পূর্ণ ঠিকানাটি (জেলা, থানা ও গ্রাম/এলাকা)';
-                      const onlyPhoneMsg = `জি ${greetingName}, আপনার মোবাইল নম্বরটি (${orderData.phone}) পেয়েছি। পার্সেলটি বুকিং করে পাঠিয়ে দেওয়ার জন্য আপনার ${requestDetails} একটু জানিয়ে দিন ভাইয়া।`;
+                      // ── HAKIM APPOINTMENT FLOW ─────────────────────────────────────
+                      // Customer gave only phone number → tell them Hakim will contact them
+                      const hasCustName = orderData.customerName && orderData.customerName !== 'ভাইয়া' && orderData.customerName !== 'Customer';
+                      const greetingName = hasCustName ? `${orderData.customerName} ভাইয়া` : 'ভাইয়া';
+                      // Messenger reply: warm acknowledgment that Hakim will reach out
+                      const onlyPhoneMsg = `জি ${greetingName}, আপনার নম্বরটি আমরা আমাদের হাকিম সাহেবকে দিয়েছি। হাকিম সাহেব ফ্রি হয়ে আপনাকে মেসেজ বা কল দেবেন। 🙏`;
                       await sendSenderAction(senderId, "typing_on", page.accessToken);
                       await sleep(800);
                       await sendFacebookMessage(senderId, onlyPhoneMsg, page.accessToken);
                       orderHandled = true;
-                      console.log(`[ORDER_VALIDATE] 📱 Customer ${senderId} shared only phone ${orderData.phone} — politely requested address`);
-                      // ── TELEGRAM ALERT: Phone number only ────────────────────────
+                      console.log(`[ORDER_VALIDATE] 📱 Customer ${senderId} shared only phone ${orderData.phone} — Hakim appointment flow triggered`);
+                      // ── TELEGRAM ALERT: Hakim consultation request ──────────────
                       try {
-                        await sendTelegramLeadAlert({
-                          senderId,
-                          customerName: orderData.customerName || customerName,
-                          phone: orderData.phone,
-                          address: orderData.address,
-                          thana: orderData.thana,
-                          district: orderData.district,
-                          product: orderData.product,
-                          quantity: orderData.quantity,
-                          messageText,
-                          pageName: page.pageName,
-                          alertType: "PHONE_ONLY",
-                          hasExplicitAddress: Boolean(orderData.hasExplicitAddress),
-                        });
+                        const hakimPhone = orderData.phone || extractBdPhoneNumber(messageText);
+                        const hakimName = hasCustName ? orderData.customerName : (extractNameFromMessage(messageText) || 'অজানা');
+                        const waLink = hakimPhone ? `https://wa.me/88${hakimPhone.replace(/^0/, '')}` : '';
+                        const hakimAlertHtml =
+                          `📞 <b>হাকিম সাহেবের সাথে কথা বলতে চায়!</b>\n\n` +
+                          `👤 নাম: <b>${escapeTelegramHtml(hakimName)}</b>\n` +
+                          `📱 মোবাইল: <b>${escapeTelegramHtml(hakimPhone || '—')}</b>\n` +
+                          `🏠 পেজ: ${escapeTelegramHtml(page.pageName || 'জনতা ইউনানী')}\n\n` +
+                          `💬 <b>কাস্টমার মেসেজ:</b>\n<i>"${escapeTelegramHtml((messageText || '').trim().slice(0, 300))}"</i>\n\n` +
+                          (waLink ? `📲 <a href="${waLink}">WhatsApp-এ মেসেজ দিন</a>\n` : '') +
+                          `🔗 Facebook ID: <code>${senderId}</code>\n` +
+                          `👉 <a href="https://www.facebook.com/${senderId}">Messenger চ্যাট ওপেন করুন</a>`;
+                        await sendTelegramAlert(hakimAlertHtml);
                       } catch (_tgErrP) { console.warn('[TG_ALERT_WARN_P]', _tgErrP.message); }
                       // ── END TELEGRAM ALERT ──────────────────────────────────────
                     } else {
