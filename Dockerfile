@@ -1,30 +1,53 @@
-FROM node:22-slim
+# ── Stage 1: Builder ──────────────────────────────────────────────────────────
+FROM node:22-slim AS builder
 WORKDIR /app
 
-# Non-interactive mode for Debian package manager
 ENV DEBIAN_FRONTEND=noninteractive
 
-# Install required build and runtime dependencies (OpenSSL for Prisma, Python/C++ compiler for better-sqlite3 native addon)
-RUN apt-get update -qq && apt-get install -y -qq --no-install-recommends openssl ca-certificates python3 make g++ && rm -rf /var/lib/apt/lists/*
+# Build tools needed ONLY for native addons (better-sqlite3) and OpenSSL (Prisma)
+RUN apt-get update -qq \
+  && apt-get install -y -qq --no-install-recommends \
+     openssl ca-certificates python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
 
-# Copy dependency manifests
+# Install dependencies (including devDeps for Next.js build)
 COPY package*.json ./
 COPY prisma ./prisma/
+RUN npm ci --include=dev --engine-strict=false \
+  && npm cache clean --force
 
-# Install all dependencies including devDependencies needed for build
-RUN npm ci --include=dev --engine-strict=false && npm cache clean --force
-
-# Copy application source code
+# Copy all source and build
 COPY . .
-
-# Generate Prisma Client and compile Next.js application in production mode
 RUN npx prisma generate
+
 ENV NODE_ENV=production
 ENV NEXT_TELEMETRY_DISABLED=1
-ENV NODE_OPTIONS="--max-old-space-size=1536"
+ENV NODE_OPTIONS="--max-old-space-size=1024"
 RUN npm run build
 
-# Configure runtime environment (switch to production after build)
+# ── Stage 2: Runtime ──────────────────────────────────────────────────────────
+FROM node:22-slim AS runner
+WORKDIR /app
+
+ENV DEBIAN_FRONTEND=noninteractive
+
+# Only runtime libs needed: openssl (Prisma) + libstdc++ (better-sqlite3 .node binary)
+RUN apt-get update -qq \
+  && apt-get install -y -qq --no-install-recommends \
+     openssl ca-certificates libstdc++6 \
+  && rm -rf /var/lib/apt/lists/*
+
+# Copy built artifacts from builder
+COPY --from=builder /app/public ./public
+COPY --from=builder /app/.next ./.next
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/data ./data-init
+COPY --from=builder /app/data ./data
+
+# Runtime environment
 ENV NODE_ENV=production
 ENV PORT=3000
 ENV HOSTNAME=0.0.0.0
@@ -45,10 +68,7 @@ ENV TELEGRAM_ADMIN_CHAT_ID="8279465535"
 
 EXPOSE 3000
 
-# Copy data directory to a backup location NOT covered by the volume mount
-RUN cp -r /app/data /app/data-init 2>/dev/null || mkdir -p /app/data-init
-
-# Declare /app/data as a persistent volume mount point
+# Persistent volume for runtime data
 VOLUME ["/app/data"]
 
 CMD ["node", "scripts/start-all.js"]
