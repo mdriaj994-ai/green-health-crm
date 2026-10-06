@@ -47,11 +47,32 @@ function getTimeAwareGreeting() {
 }
 const { parseOrderFromMessage, saveOrderToDb } = require("./save_order_to_db.js");
 
-// ── TELEGRAM ALERT SYSTEM ─────────────────────────────────────────────────────
+// ── TELEGRAM ALERT & LEAD SYSTEM ─────────────────────────────────────────────
 const TELEGRAM_BOT_TOKEN = process.env.TELEGRAM_BOT_TOKEN || "8874694866:AAEmdXxd3DP3B8J4L2sHS0pIxVR98HV9vqI";
 const TELEGRAM_ADMIN_CHAT_ID = process.env.TELEGRAM_ADMIN_CHAT_ID || "8279465535";
+const recentTelegramAlerts = new Map(); // senderId_key -> timestamp
 
-async function sendTelegramAlert(text) {
+function extractBdPhoneNumber(text) {
+  if (!text) return "";
+  const enStr = String(text).replace(/[০-৯]/g, d => "০১২৩৪৫৬৭৮৯".indexOf(d));
+  const m = enStr.match(/(?:\+?880|0)?1[3-9](?:[\s\-]?\d){8}/);
+  if (!m) return "";
+  let digits = m[0].replace(/[\s\-]/g, "");
+  if (digits.startsWith("+88")) digits = digits.slice(3);
+  else if (digits.startsWith("88")) digits = digits.slice(2);
+  if (!digits.startsWith("0")) digits = "0" + digits;
+  return digits;
+}
+
+function escapeTelegramHtml(str) {
+  if (!str) return "";
+  return String(str)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;");
+}
+
+async function sendTelegramAlert(text, plainFallback) {
   try {
     const url = `https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/sendMessage`;
     const res = await fetch(url, {
@@ -68,6 +89,20 @@ async function sendTelegramAlert(text) {
     if (!res.ok) {
       const err = await res.text();
       console.warn("[TELEGRAM_ALERT_ERR]", err);
+      // Fallback: retry as plain text if HTML parser error
+      if (err.includes("can't parse entities")) {
+        const plain = plainFallback || text.replace(/<[^>]+>/g, "");
+        await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            chat_id: TELEGRAM_ADMIN_CHAT_ID,
+            text: plain,
+            disable_web_page_preview: true,
+          }),
+          signal: AbortSignal.timeout(8000),
+        }).catch(() => null);
+      }
     } else {
       console.log("[TELEGRAM_ALERT] ✅ Notification sent to admin");
     }
@@ -75,7 +110,69 @@ async function sendTelegramAlert(text) {
     console.warn("[TELEGRAM_ALERT_WARN]", e.message);
   }
 }
-// ── END TELEGRAM ALERT ────────────────────────────────────────────────────────
+
+async function sendTelegramLeadAlert({
+  senderId,
+  customerName = "",
+  phone = "",
+  address = "",
+  thana = "",
+  district = "",
+  product = "",
+  quantity = 1,
+  messageText = "",
+  pageName = "",
+  alertType = "LEAD", // "ORDER_CONFIRMED", "PHONE_ONLY", "INCOMPLETE_ORDER", "LEAD"
+}) {
+  try {
+    const cleanPhone = phone || extractBdPhoneNumber(messageText);
+    const dedupKey = `${senderId}_${cleanPhone || ""}_${alertType}`;
+    const now = Date.now();
+    const lastSent = recentTelegramAlerts.get(dedupKey) || 0;
+    // Suppress rapid duplicates within 60s unless it's a confirmed order
+    if (alertType !== "ORDER_CONFIRMED" && now - lastSent < 60000) {
+      console.log(`[TELEGRAM_ALERT] ⏳ Suppressing duplicate lead alert for ${senderId}`);
+      return;
+    }
+    recentTelegramAlerts.set(dedupKey, now);
+
+    let title = "📱 <b>কাস্টমার মোবাইল নম্বর দিয়েছে!</b>";
+    if (alertType === "ORDER_CONFIRMED") {
+      title = "🛒 <b>নতুন অর্ডার কনফার্ম!</b>";
+    } else if (alertType === "PHONE_ONLY") {
+      title = "📱 <b>ফোন নম্বর পাওয়া গেছে! (ঠিকানা প্রয়োজন)</b>";
+    } else if (alertType === "INCOMPLETE_ORDER") {
+      title = "⚠️ <b>কাস্টমার তথ্য দিয়েছে (অসম্পূর্ণ অর্ডার)</b>";
+    } else if (alertType === "LEAD") {
+      title = "🔔 <b>নতুন কাস্টমার লিড / তথ্য পাওয়া গেছে!</b>";
+    }
+
+    const fullAddr = [address, thana, district].filter(Boolean).join(", ");
+    const fbProfileUrl = `https://www.facebook.com/${senderId}`;
+    const safeCustName = customerName && customerName !== "অজানা" ? customerName : "অজানা";
+    const safePhone = cleanPhone || "—";
+    const safeAddr = fullAddr || "—";
+    const safeProd = product || "কস্তুরী পাউডার / বাজীকরণ";
+    const safeMsg = (messageText || "").trim().slice(0, 500);
+
+    const tgHtml =
+      `${title}\n\n` +
+      `👤 নাম: <b>${escapeTelegramHtml(safeCustName)}</b>\n` +
+      `📱 মোবাইল: <b>${escapeTelegramHtml(safePhone)}</b>\n` +
+      `📍 ঠিকানা: ${escapeTelegramHtml(safeAddr)}\n` +
+      `💊 পণ্য: ${escapeTelegramHtml(safeProd)} (${quantity || 1})\n` +
+      `🏠 পেজ: ${escapeTelegramHtml(pageName || "জনতা ইউনানী")}\n\n` +
+      `💬 <b>কাস্টমার মেসেজ:</b>\n` +
+      `<i>"${escapeTelegramHtml(safeMsg)}"</i>\n\n` +
+      `🔗 Facebook ID: <code>${senderId}</code>\n` +
+      `👉 <a href="${fbProfileUrl}">Messenger তে দেখুন</a>`;
+
+    await sendTelegramAlert(tgHtml);
+  } catch (err) {
+    console.warn("[TELEGRAM_LEAD_ALERT_ERR]", err.message);
+  }
+}
+// ── END TELEGRAM ALERT & LEAD SYSTEM ─────────────────────────────────────────
 
 const GLOBAL_BD_DISTRICTS = [
   "ঢাকা","চট্টগ্রাম","সিলেট","রাজশাহী","খুলনা","বরিশাল","ময়মনসিংহ","রংপুর",
@@ -3725,6 +3822,42 @@ async function pollPage(page) {
               await sendFacebookMessage(senderId, replyText, page.accessToken, newestMsg.id);
               recordOutgoingBotMessageInDb(senderId, replyText, false);
               customerMemory.appendChatMessage(senderId, "model", replyText, false);
+
+              // ── SAVE BATCH ORDER & TELEGRAM ALERT ──
+              try {
+                const memProf = customerMemory.getCustomerProfile(senderId);
+                const orderData = {
+                  customerName: parsedBatchOrder.name || customerName || memProf?.name || "",
+                  phone: parsedBatchOrder.phone || extractBdPhoneNumber(fullBatchText),
+                  district: parsedBatchOrder.district || memProf?.district || "",
+                  thana: parsedBatchOrder.thana || memProf?.thana || "",
+                  address: parsedBatchOrder.address || memProf?.address || fullBatchText,
+                  product: parsedBatchOrder.product || memProf?.productDiscussed || "কস্তুরী পাউডার (Kasturi Powder)",
+                  quantity: parsedBatchOrder.quantity || 1,
+                  senderId: String(senderId),
+                  facebookName: memProf?.facebookName || customerName || "",
+                  pageId: String(page.pageId),
+                };
+                if (orderData.phone) {
+                  saveOrderToDb(orderData);
+                }
+                await sendTelegramLeadAlert({
+                  senderId,
+                  customerName: orderData.customerName,
+                  phone: orderData.phone,
+                  address: orderData.address,
+                  thana: orderData.thana,
+                  district: orderData.district,
+                  product: orderData.product,
+                  quantity: orderData.quantity,
+                  messageText: fullBatchText,
+                  pageName: page.pageName,
+                  alertType: (orderData.phone && (orderData.district || orderData.address)) ? "ORDER_CONFIRMED" : "PHONE_ONLY",
+                });
+              } catch (bErr) {
+                console.warn("[BATCH_ORDER_ALERT_ERR]", bErr.message);
+              }
+
               for (const m of unrepliedCustomerMsgs) {
                 saveProcessedId(m.id);
               }
@@ -3848,6 +3981,19 @@ async function pollPage(page) {
               console.log(`[FB_BOT] Replied to batch of ${resolvedItems.length} msgs (Status: ${sendRes.status}): "${itemReply.slice(0, 60)}..."`);
               recordOutgoingBotMessageInDb(senderId, itemReply, false);
               customerMemory.appendChatMessage(senderId, "model", itemReply, false);
+            }
+
+            // ── BATCH TELEGRAM LEAD ALERT (if customer shared phone or details in batch) ──
+            const batchPhone = extractBdPhoneNumber(fullBatchText);
+            if (batchPhone || isBatchOrderPlaced) {
+              await sendTelegramLeadAlert({
+                senderId,
+                customerName: customerName,
+                phone: batchPhone,
+                messageText: fullBatchText,
+                pageName: page.pageName,
+                alertType: batchPhone ? "PHONE_ONLY" : "LEAD",
+              });
             }
 
             // 5. Mark ALL messages in the batch as processed
@@ -4199,19 +4345,19 @@ async function pollPage(page) {
                   }
                   // ── TELEGRAM ALERT: Bot-confirmed order ────────────────────────
                   try {
-                    const _addrA = [orderData.address, orderData.thana, orderData.district].filter(Boolean).join(', ');
-                    const _fbUrlA = `https://www.facebook.com/${senderId}`;
-                    await sendTelegramAlert(
-                      `🛒 <b>নতুন অর্ডার কনফার্ম!</b>\n\n` +
-                      `👤 নাম: <b>${orderData.customerName || 'অজানা'}</b>\n` +
-                      `📱 মোবাইল: <b>${orderData.phone || '—'}</b>\n` +
-                      `📍 ঠিকানা: ${_addrA || '—'}\n` +
-                      `💊 পণ্য: ${orderData.product || '—'}\n` +
-                      `📦 পরিমাণ: ${orderData.quantity || 1}\n` +
-                      `🏠 পেজ: ${page.pageName || page.pageId}\n\n` +
-                      `🔗 Facebook ID: <code>${senderId}</code>\n` +
-                      `👉 <a href="${_fbUrlA}">Messenger তে দেখুন</a>`
-                    );
+                    await sendTelegramLeadAlert({
+                      senderId,
+                      customerName: orderData.customerName || customerName,
+                      phone: orderData.phone,
+                      address: orderData.address,
+                      thana: orderData.thana,
+                      district: orderData.district,
+                      product: orderData.product,
+                      quantity: orderData.quantity,
+                      messageText,
+                      pageName: page.pageName,
+                      alertType: "ORDER_CONFIRMED",
+                    });
                   } catch (_tgErrA) { console.warn('[TG_ALERT_WARN_A]', _tgErrA.message); }
                   // ── END TELEGRAM ALERT ──────────────────────────────────────────
                   try {
@@ -4243,17 +4389,19 @@ async function pollPage(page) {
                       console.log(`[ORDER_VALIDATE] 📱 Customer ${senderId} shared only phone ${orderData.phone} — politely requested address`);
                       // ── TELEGRAM ALERT: Phone number only ────────────────────────
                       try {
-                        const _fbUrlP = `https://www.facebook.com/${senderId}`;
-                        await sendTelegramAlert(
-                          `📱 <b>ফোন নম্বর পাওয়া গেছে! (ঠিকানা নেই)</b>\n\n` +
-                          `👤 নাম: ${orderData.customerName || customerName || 'অজানা'}\n` +
-                          `📱 মোবাইল: <b>${orderData.phone}</b>\n` +
-                          `💬 মেসেজ: <i>${(messageText || '').substring(0, 200)}</i>\n` +
-                          `🏠 পেজ: ${page.pageName || page.pageId}\n\n` +
-                          `🔗 Facebook ID: <code>${senderId}</code>\n` +
-                          `👉 <a href="${_fbUrlP}">Messenger তে দেখুন</a>\n\n` +
-                          `⚠️ ঠিকানা এখনো দেয়নি — bot ঠিকানা চেয়েছে।`
-                        );
+                        await sendTelegramLeadAlert({
+                          senderId,
+                          customerName: orderData.customerName || customerName,
+                          phone: orderData.phone,
+                          address: orderData.address,
+                          thana: orderData.thana,
+                          district: orderData.district,
+                          product: orderData.product,
+                          quantity: orderData.quantity,
+                          messageText,
+                          pageName: page.pageName,
+                          alertType: "PHONE_ONLY",
+                        });
                       } catch (_tgErrP) { console.warn('[TG_ALERT_WARN_P]', _tgErrP.message); }
                       // ── END TELEGRAM ALERT ──────────────────────────────────────
                     } else {
@@ -4278,6 +4426,22 @@ ${errorLines}
                       await sendFacebookMessage(senderId, correctionMsg, page.accessToken);
                       orderHandled = true;
                       console.log(`[ORDER_VALIDATE] ❌ Invalid order from ${senderId} — issues: ${validation.issues.map(i=>i.field).join(", ")}`);
+                      // ── TELEGRAM ALERT: Customer shared partial details / incomplete order ──
+                      try {
+                        await sendTelegramLeadAlert({
+                          senderId,
+                          customerName: orderData.customerName || customerName,
+                          phone: orderData.phone,
+                          address: orderData.address,
+                          thana: orderData.thana,
+                          district: orderData.district,
+                          product: orderData.product,
+                          quantity: orderData.quantity,
+                          messageText,
+                          pageName: page.pageName,
+                          alertType: "INCOMPLETE_ORDER",
+                        });
+                      } catch (_tgErrI) { console.warn('[TG_ALERT_WARN_I]', _tgErrI.message); }
                     }
                   } else if (orderData.phone) {
                     // ✅ Valid — save to dashboard
@@ -4290,19 +4454,19 @@ ${errorLines}
                     }
                     // ── TELEGRAM ALERT: Valid full order received ────────────────
                     try {
-                      const _addrB = [orderData.address, orderData.thana, orderData.district].filter(Boolean).join(', ');
-                      const _fbUrlB = `https://www.facebook.com/${senderId}`;
-                      await sendTelegramAlert(
-                        `🛒 <b>নতুন অর্ডার পাওয়া গেছে!</b>\n\n` +
-                        `👤 নাম: <b>${orderData.customerName || 'অজানা'}</b>\n` +
-                        `📱 মোবাইল: <b>${orderData.phone || '—'}</b>\n` +
-                        `📍 ঠিকানা: ${_addrB || '—'}\n` +
-                        `💊 পণ্য: ${orderData.product || '—'}\n` +
-                        `📦 পরিমাণ: ${orderData.quantity || 1}\n` +
-                        `🏠 পেজ: ${page.pageName || page.pageId}\n\n` +
-                        `🔗 Facebook ID: <code>${senderId}</code>\n` +
-                        `👉 <a href="${_fbUrlB}">Messenger তে দেখুন</a>`
-                      );
+                      await sendTelegramLeadAlert({
+                        senderId,
+                        customerName: orderData.customerName || customerName,
+                        phone: orderData.phone,
+                        address: orderData.address,
+                        thana: orderData.thana,
+                        district: orderData.district,
+                        product: orderData.product,
+                        quantity: orderData.quantity,
+                        messageText,
+                        pageName: page.pageName,
+                        alertType: "ORDER_CONFIRMED",
+                      });
                     } catch (_tgErrB) { console.warn('[TG_ALERT_WARN_B]', _tgErrB.message); }
                     // ── END TELEGRAM ALERT ──────────────────────────────────────
                     // Also save via API (HTTP fallback — ensures 100% persistence on Coolify)
@@ -4477,6 +4641,21 @@ ${paymentLine}
               console.log(`[FB_BOT] 🚀 [${page.pageName}] TEXT SENT [${sendResult.status}]:`, sendResult.data?.message_id || sendResult.data);
               recordOutgoingBotMessageInDb(senderId, replyText, false);
               customerMemory.appendChatMessage(senderId, "model", replyText, false);
+            }
+
+            // ── FALLBACK TELEGRAM LEAD ALERT (Any phone or order details in single message) ──
+            const singlePhone = extractBdPhoneNumber(messageText);
+            if (!orderHandled && (singlePhone || isOrderPlaced(messageText))) {
+              try {
+                await sendTelegramLeadAlert({
+                  senderId,
+                  customerName: customerName,
+                  phone: singlePhone,
+                  messageText,
+                  pageName: page.pageName,
+                  alertType: singlePhone ? "PHONE_ONLY" : "LEAD",
+                });
+              } catch (_tgErrF) { console.warn('[TG_ALERT_WARN_F]', _tgErrF.message); }
             }
 
             saveProcessedId(lastMsg.id); // Persist to file once successfully attempted
