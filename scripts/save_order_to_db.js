@@ -131,7 +131,9 @@ function parseOrderFromMessage(text) {
   if (!text) return null;
 
   // 1. Explicit form key match (নাম=, নাম্বার=, জেলা=, etc.)
-  const nameMatch     = text.match(/(?:নাম|name)\s*[=:]\s*([^\n,]+)/i) || text.match(/(?:আমার নাম|নাম হলো|নামঃ)\s*([^\n,]+)/i);
+  const nameMatch     = text.match(/(?:নাম|name)\s*[=:]\s*([^\n,]+)/i) ||
+                        text.match(/(?:আমার নাম|নাম হলো|নামঃ)\s*([^\n,]+)/i) ||
+                        text.match(/(?:(?:আমার\s+)?নাম|name)\s*[:=]?\s*([A-Za-z\u0980-\u09FF\s]{2,30})/i);
   const phoneMatch    = text.match(/(?:নাম্বার|number|phone|mobile|mob)\s*[=:]\s*([০-৯0-9\-\+\s]{7,15})/i) ||
                         text.match(/(?:\+?880|0)?1[3-9][০-৯0-9\-\s]{8,12}/);
   const districtMatch = text.match(/(?:জেলা|district|zela)\s*[=:]\s*([^\n,]+)/i);
@@ -140,7 +142,8 @@ function parseOrderFromMessage(text) {
   const qtyMatch      = text.match(/(?:পরিমাণ|কয়টা|সংখ্যা|quantity|qty|পিস|ফাইল)\s*[=:]\s*([০-৯0-9]+)/i) ||
                         text.match(/([০-৯0-9]+)\s*(?:টা|টি|ফাইল|পিস|কোটা|কৌটা|বোতল|pack|pcs|piece)/i);
 
-  const name     = nameMatch?.[1]?.trim() || "";
+  let rawCustName = nameMatch?.[1]?.trim() || "";
+  const name      = rawCustName.replace(/(?:\+?880|0)?1[3-9]\d{8}/g, "").replace(/[০-৯0-9]/g, "").trim();
   const rawPhone = phoneMatch?.[1] ? phoneMatch[1].trim().replace(/\s/g, "") : (phoneMatch?.[0] ? phoneMatch[0].trim().replace(/\s/g, "") : "");
   const phone    = rawPhone ? bnToEnNum(rawPhone).replace(/^\+?88/, "") : "";
   let rawDistrict = districtMatch?.[1]?.trim() || "";

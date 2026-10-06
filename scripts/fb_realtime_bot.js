@@ -713,18 +713,28 @@ function normalizeStr(s) {
 
 // ── Order Data Validator — checks phone & address before saving ───────────────
 // Returns: { valid: true } or { valid: false, issues: [...] }
+function cleanPersonName(name) {
+  if (!name) return "";
+  let clean = String(name)
+    .replace(/(?:\+?880|0)?1[3-9]\d{8}/g, "") // remove phone numbers
+    .replace(/[০-৯0-9]/g, "") // remove numbers
+    .replace(/(?:name|naam|nam|নাম|আমার নাম|আমার|ভাই|ভাইয়া|ভাইয়া|bolsi|bolchi|user|customer)\b/gi, "")
+    .replace(/['"’`\-_.,()\/\\+!?:;]/g, " ")
+    .replace(/\s+/g, " ")
+    .trim();
+  return clean;
+}
+
 function validateOrderDetails(phone, district, thana, address, customerName = "") {
   const issues = [];
 
-  // ── PHONE VALIDATION ──────────────────────────────────────────────────────
-  // Bangladesh mobile: 01[3-9]XXXXXXXX (11 digits total)
+  // ── PHONE VALIDATION ──
   const enPhone = (phone || "").replace(/[০-৯]/g, d => "০১২৩৪৫৬৭৮৯".indexOf(d)).replace(/[\s\-+]/g, "");
   const validBdPhone = /^(?:\+?88)?01[3-9]\d{8}$/.test(enPhone);
 
   if (!phone || phone.trim() === "") {
     issues.push({ field: "phone", msg: "📱 আপনার মোবাইল নম্বরটি দেননি। সঠিক বাংলাদেশি নম্বর দিন (যেমন: 01712345678)" });
   } else if (!validBdPhone) {
-    // Check for obviously wrong: too short/long, fake like 0000000000, sequential 12345...
     const digits = enPhone.replace(/\D/g, "");
     const isAllSame = digits.length >= 8 && /^(.)\1+$/.test(digits);
     const isSequential = ["0123456789", "9876543210", "1234567890", "01234567890"].some(seq => enPhone.includes(seq.slice(0, 8)));
@@ -735,8 +745,7 @@ function validateOrderDetails(phone, district, thana, address, customerName = ""
     }
   }
 
-  // ── ADDRESS VALIDATION ────────────────────────────────────────────────────
-  // Valid Bangladesh districts (all 64)
+  // ── DISTRICT VALIDATION ──
   const BD_DISTRICTS = [
     "ঢাকা","dhaka","চট্টগ্রাম","chittagong","সিলেট","sylhet","রাজশাহী","rajshahi",
     "খুলনা","khulna","বরিশাল","barishal","barisal","ময়মনসিংহ","mymensingh",
@@ -745,7 +754,7 @@ function validateOrderDetails(phone, district, thana, address, customerName = ""
     "মানিকগঞ্জ","manikganj","নরসিংদী","narsingdi","কিশোরগঞ্জ","kishoreganj",
     "টাঙ্গাইল","tangail","ফরিদপুর","faridpur","গোপালগঞ্জ","gopalganj",
     "মাদারীপুর","madaripur","শরীয়তপুর","shariatpur","রাজবাড়ী","rajbari",
-    "ময়মনসিংহ","জামালপুর","jamalpur","শেরপুর","sherpur","নেত্রকোণা","netrokona",
+    "জামালপুর","jamalpur","শেরপুর","sherpur","নেত্রকোণা","netrokona",
     "সুনামগঞ্জ","sunamganj","মৌলভীবাজার","moulvibazar","হবিগঞ্জ","habiganj",
     "কক্সবাজার","cox","বান্দরবান","bandarban","রাঙামাটি","rangamati","খাগড়াছড়ি","khagrachhari",
     "লক্ষ্মীপুর","lakshmipur","চাঁদপুর","chandpur","ব্রাহ্মণবাড়িয়া","brahmanbaria",
@@ -759,37 +768,41 @@ function validateOrderDetails(phone, district, thana, address, customerName = ""
     "বরগুনা","barguna","পিরোজপুর","pirojpur","ভোলা","bhola"
   ];
 
-  // Check if address is merely phone number text
+  // Strip punctuation & non-words from district
+  const cleanDist = (district || "").replace(/['"’`\-_.,()\/\\+!?:;]/g, " ").trim().toLowerCase();
+  const isValidDistrict = cleanDist && BD_DISTRICTS.some(d => cleanDist.includes(d) || d.includes(cleanDist));
+
+  // ── ADDRESS VALIDATION ──
+  // Strip out phone number, noise words & prompt instructions
   const cleanAddr = (address || "")
     .replace(/(?:\+?880|0)?1[3-9]\d{8}/g, "")
-    .replace(/(?:আমার|ফোন|মোবাইল|নম্বর|নাম্বার|phone|mobile|number|হলো|হল|নেন|দাও|দিন)/gi, "")
+    .replace(/(?:আমার|ফোন|মোবাইল|নম্বর|নাম্বার|phone|mobile|number|হলো|হল|নেন|দাও|দিন|ডেলিভারি|delivery|ঠিকানা|address|হোম ডেলিভারি|ক্যাশ অন ডেলিভারি|বুকিং|পার্সেল|অর্ডার)/gi, "")
+    .replace(/['"’`\-_.,()\/\\+!?:;]/g, " ")
+    .replace(/\s+/g, " ")
     .trim();
 
-  const hasRealAddress = cleanAddr.length >= 4 && (district || thana || /(?:গ্রাম|রোড|রাস্তা|মহল্লা|এলাকা|ফ্ল্যাট|বাড়ি|বাড়ি|থানা|জেলা|বাজার|পোস্ট|ডাকঘর|সড়ক|উপজেলা)/i.test(address || ""));
+  const hasAddrKeywords = /(?:গ্রাম|রোড|রাস্তা|মহল্লা|পাড়া|পাড়া|এলাকা|ফ্ল্যাট|বাড়ি|বাড়ি|থানা|উপজেলা|বাজার|পোস্ট|ডাকঘর|সড়ক|বিল্ডিং|হাউস|রোডs*নং|বাড়িs*নং)/i.test(address || "");
+  const hasRealAddress = cleanAddr.length >= 5 && (isValidDistrict || thana || hasAddrKeywords);
 
   if (!hasRealAddress) {
     issues.push({ field: "address", msg: "📍 ডেলিভারির সম্পূর্ণ ঠিকানা দেননি। জেলা, থানা এবং গ্রাম/রোড নম্বর দিন।" });
-  } else if (district) {
-    const districtLow = district.toLowerCase().trim();
-    const isValidDistrict = BD_DISTRICTS.some(d => districtLow.includes(d) || d.includes(districtLow));
-    if (!isValidDistrict && districtLow.length > 2) {
-      issues.push({ field: "address", msg: `📍 "${district}" বাংলাদেশের পরিচিত কোনো জেলা নয়। সঠিক জেলার নাম দিন (যেমন: ঢাকা, চট্টগ্রাম, সিলেট)।` });
-    }
+  } else if (cleanDist && !isValidDistrict) {
+    issues.push({ field: "address", msg: `📍 "${district}" বাংলাদেশের পরিচিত কোনো জেলা নয়। সঠিক জেলার নাম দিন (যেমন: ঢাকা, চট্টগ্রাম, সিলেট)।` });
   }
 
-  // Validate Name
-  const cleanName = (customerName || "").trim();
-  const isInvalidName = !cleanName || cleanName.length < 2 || ["জি", "ji", "customer", "কাস্টমার", "ভাইয়া", "ভাইয়া", "user"].includes(cleanName.toLowerCase()) || (customerMemory && !customerMemory.isValidPersonName(cleanName));
+  // ── NAME VALIDATION ──
+  const cName = cleanPersonName(customerName);
+  const isInvalidName = !cName || cName.length < 2 || ["জি", "ji", "customer", "কাস্টমার", "ভাইয়া", "ভাইয়া", "user"].includes(cName.toLowerCase());
   if (isInvalidName) {
     issues.push({ field: "name", msg: "👤 আপনার পুরো নাম দেননি। সঠিক নাম দিন।" });
   }
 
+  // isOnlyPhone: Customer provided valid phone number, but NO delivery address
   const isOnlyPhone = Boolean(validBdPhone && !hasRealAddress);
   if (issues.length === 0) return { valid: true };
   return { valid: false, issues, isOnlyPhone };
 }
 
-// ── Live Product Database Loader & Bilingual Matcher ────────────────────────
 function findMatchedProduct(query, master) {
   if (!query) return null;
   const normQ = normalizeStr(query);
@@ -4281,49 +4294,45 @@ async function pollPage(page) {
               try {
                 const memProf = customerMemory.getCustomerProfile(senderId);
 
-                // Extract any structured fields from bot replyText if bot confirmed
-                let nameFromReply = "";
-                let distFromReply = "";
-                let thanaFromReply = "";
-                let addrFromReply = "";
-                if (replyText) {
-                  const nm = replyText.match(/(?:জি\s+)?([^\s,।.!?]+)\s+ভাই(?:য়া|য়া)?/i);
-                  if (nm && nm[1] && customerMemory.isValidPersonName(nm[1])) nameFromReply = nm[1].trim();
-
-                  const dm = replyText.match(/([^\s,।.!?]+)\s*(?:জেলার|জেলা)/i);
-                  if (dm && dm[1]) distFromReply = dm[1].trim();
-
-                  const tm = replyText.match(/([^\s,।.!?]+)\s*(?:থানার|থানা|উপজেলার|উপজেলা)/i);
-                  if (tm && tm[1]) thanaFromReply = tm[1].trim();
-
-                  const am = replyText.match(/([^\s,।.!?]+)\s*(?:গ্রামের|গ্রাম|এলাকার|এলাকা|রোডের|রোড|ঠিকানায়|ঠিকানা)/i);
-                  if (am && am[1]) addrFromReply = am[1].trim();
-                }
-
                 // Extract phone from messageText, memProf, or chat history
                 const allTextForPhone = [messageText, memProf?.phone, ...(recentHistory || []).map(m => m.text)].join(" ");
                 const enPhoneStr = allTextForPhone.replace(/[০-৯]/g, d => "০১২৩৪৫৬৭৮৯".indexOf(d));
                 const phMatch = enPhoneStr.match(/(?:\+?880|0)?1[3-9]\d{8}/);
                 const detectedPhone = parsedOrder?.phone || memProf?.phone || (phMatch ? (phMatch[0].startsWith("88") ? phMatch[0].slice(2) : phMatch[0]) : "");
 
+                // Address fallback ONLY from real customer message keywords
                 const hasRealAddrKeywords = /(?:গ্রাম|রোড|রাস্তা|মহল্লা|এলাকা|ফ্ল্যাট|বাড়ি|বাড়ি|থানা|জেলা|বাজার|পোস্ট|ডাকঘর|সড়ক|উপজেলা)/i.test(messageText);
-                const msgWithoutPhone = messageText.replace(/(?:\+?880|0)?1[3-9]\d{8}/g, "").replace(/(?:আমার|ফোন|মোবাইল|নম্বর|নাম্বার|phone|number|mobile)/gi, "").trim();
-                const safeFallbackAddr = (hasRealAddrKeywords && msgWithoutPhone.length >= 5) ? messageText : "";
+                const msgWithoutPhone = messageText.replace(/(?:\+?880|0)?1[3-9]\d{8}/g, "").replace(/(?:আমার|ফোন|মোবাইল|নম্বর|নাম্বার|phone|number|mobile|ডেলিভারি|delivery|ঠিকানা|address)/gi, "").trim();
+                const safeFallbackAddr = (hasRealAddrKeywords && msgWithoutPhone.length >= 6) ? messageText : "";
 
-                const safeCustName = (parsedOrder?.name && customerMemory.isValidPersonName(parsedOrder.name))
+                // Clean customer name from phone numbers and extra words
+                let rawCustName = (parsedOrder?.name && customerMemory.isValidPersonName(parsedOrder.name))
                   ? parsedOrder.name
-                  : (nameFromReply && customerMemory.isValidPersonName(nameFromReply))
-                    ? nameFromReply
-                    : (memProf?.name && customerMemory.isValidPersonName(memProf.name))
-                      ? memProf.name : (customerMemory.isValidPersonName(customerName) ? customerName : "");
+                  : (memProf?.name && customerMemory.isValidPersonName(memProf.name))
+                    ? memProf.name : (customerMemory.isValidPersonName(customerName) ? customerName : "");
+                let safeCustName = cleanPersonName(rawCustName);
+                if (!safeCustName) {
+                  // Check if message itself has name: e.g. "name rakib" or "নাম রাকিব"
+                  const nMatch = messageText.match(/(?:(?:আমার\s+)?নাম|name)\s*[:=]?\s*([A-Za-z\u0980-\u09FF]{2,20})/i);
+                  if (nMatch && nMatch[1]) safeCustName = cleanPersonName(nMatch[1]);
+                }
+                if (!safeCustName) safeCustName = cleanPersonName(customerName) || "ভাইয়া";
+
+                // Page-aware default product:
+                // ন্যাচারাল হারবাল (133420039845881) sells "বাজীকরণ হালুয়া" (২,০০০ টাকা) or "যৌবনের রাজা" (৩,০০০ টাকা)
+                // হেলথ কেয়ার (932259009980880) sells "কস্তুরী পাউডার" (২,৮০০ টাকা)
+                const isNaturalHerbalPage = /ন্যাচারাল|হারবাল|natural|133420039845881|61559813291583|61551438782626/i.test(page?.pageName || "") || (page?.pageId && /133420039845881|61559813291583|61551438782626/.test(String(page.pageId)));
+                const defaultProdName = isNaturalHerbalPage
+                  ? "বাজীকরণ হালুয়া (Bajikaran Halua)"
+                  : "কস্তুরী পাউডার (Kasturi Powder)";
 
                 const orderData = {
                   customerName: safeCustName,
                   phone:     detectedPhone,
-                  district:  parsedOrder?.district || distFromReply || memProf?.district || "",
-                  thana:     parsedOrder?.thana    || thanaFromReply || memProf?.thana || "",
-                  address:   parsedOrder?.address  || addrFromReply || memProf?.address || safeFallbackAddr,
-                  product:   parsedOrder?.product || memProf?.productDiscussed || (threadMemory.has(senderId) ? threadMemory.get(senderId).name : "") || "কস্তুরী পাউডার (Kasturi Powder)",
+                  district:  parsedOrder?.district || memProf?.district || "",
+                  thana:     parsedOrder?.thana    || memProf?.thana || "",
+                  address:   parsedOrder?.address  || memProf?.address || safeFallbackAddr,
+                  product:   parsedOrder?.product || memProf?.productDiscussed || (threadMemory.has(senderId) ? threadMemory.get(senderId).name : "") || defaultProdName,
                   quantity:  parsedOrder?.quantity || 1,
                   senderId:  String(senderId),
                   facebookName: memProf?.facebookName || customerName || "",
@@ -4331,10 +4340,11 @@ async function pollPage(page) {
                 };
                 console.log(`[ORDER_DATA] name="${orderData.customerName}" phone="${orderData.phone}" district="${orderData.district}" thana="${orderData.thana}" botConfirmed=${botConfirmedOrder}`);
 
+                // REAL destination check: must have non-empty address AND (district or thana)
                 const hasValidOrderDestination = Boolean(
-                  (orderData.address && orderData.address.trim().length >= 4) ||
-                  orderData.district ||
-                  orderData.thana
+                  orderData.address &&
+                  orderData.address.trim().length >= 6 &&
+                  (orderData.district || orderData.thana)
                 );
                 if (botConfirmedOrder && hasValidOrderDestination && orderData.phone) {
                   // ── CASE A: Bot AI ALREADY confirmed order to customer in replyText! ──
@@ -4380,8 +4390,13 @@ async function pollPage(page) {
 
                   if (!validation.valid) {
                     if (validation.isOnlyPhone) {
-                      // Polite human response when customer only gave their phone number
-                      const onlyPhoneMsg = `জি ভাইয়া, আপনার মোবাইল নম্বরটি (${orderData.phone}) পেয়েছি। পার্সেলটি বুকিং করে পাঠিয়ে দেওয়ার জন্য আপনার সম্পূর্ণ নাম এবং ডেলিভারির সম্পূর্ণ ঠিকানাটি (জেলা, থানা ও গ্রাম/এলাকা) একটু জানিয়ে দিন ভাইয়া।`;
+                      // Polite human response when customer only gave their phone number (or name + phone)
+                      const hasCustName = orderData.customerName && orderData.customerName !== 'ভাইয়া' && orderData.customerName !== 'Customer';
+                      const greetingName = hasCustName ? `${orderData.customerName} ভাইয়া` : 'ভাইয়া';
+                      const requestDetails = hasCustName
+                        ? 'ডেলিভারির সম্পূর্ণ ঠিকানাটি (জেলা, থানা ও গ্রাম/এলাকা)'
+                        : 'সম্পূর্ণ নাম এবং ডেলিভারির সম্পূর্ণ ঠিকানাটি (জেলা, থানা ও গ্রাম/এলাকা)';
+                      const onlyPhoneMsg = `জি ${greetingName}, আপনার মোবাইল নম্বরটি (${orderData.phone}) পেয়েছি। পার্সেলটি বুকিং করে পাঠিয়ে দেওয়ার জন্য আপনার ${requestDetails} একটু জানিয়ে দিন ভাইয়া।`;
                       await sendSenderAction(senderId, "typing_on", page.accessToken);
                       await sleep(800);
                       await sendFacebookMessage(senderId, onlyPhoneMsg, page.accessToken);
@@ -4501,9 +4516,18 @@ ${errorLines}
                   const randPart = Math.floor(1000 + Math.random() * 9000);
                   const orderRef = `ORD-${dateStr}-${randPart}`;
 
+                  const isNaturalHerbalPageNow = /ন্যাচারাল|হারবাল|natural|133420039845881|61559813291583|61551438782626/i.test(page?.pageName || "") || (page?.pageId && /133420039845881|61559813291583|61551438782626/.test(String(page.pageId)));
                   const isJoubonerRajaOrder = /যৌবনের রাজা|jouboner raja|joubon/i.test(orderData.product || "") || /যৌবনের রাজা|jouboner raja/i.test(messageText || "");
-                  const isKasturiOrder = !isJoubonerRajaOrder && (/কস্তুরী|kosturi|kasturi|আব্দুল করিম/i.test(orderData.product || "") || /কস্তুরী|kosturi|kasturi/i.test(messageText || ""));
-                  const isBajikaranOrder = !isJoubonerRajaOrder && (/বাজীকরণ|bajikaran|halua|হালুয়া/i.test(orderData.product || "") || /বাজীকরণ|bajikaran|halua|হালুয়া/i.test(messageText || "") || /ন্যাচারাল|হারবাল|natural|133420039845881/i.test(page?.pageName || ""));
+                  const isBajikaranOrder = !isJoubonerRajaOrder && (
+                    /বাজীকরণ|bajikaran|halua|হালুয়া/i.test(orderData.product || "") ||
+                    /বাজীকরণ|bajikaran|halua|হালুয়া/i.test(messageText || "") ||
+                    isNaturalHerbalPageNow
+                  );
+                  const isKasturiOrder = !isJoubonerRajaOrder && !isBajikaranOrder && (
+                    /কস্তুরী|kosturi|kasturi|আব্দুল করিম/i.test(orderData.product || "") ||
+                    /কস্তুরী|kosturi|kasturi/i.test(messageText || "") ||
+                    !isNaturalHerbalPageNow
+                  );
                   const paymentLine = isJoubonerRajaOrder
                     ? "💰 মূল্য: ৩,০০০ টাকা (বুকিং নিশ্চিত করতে বিকাশ এ মাত্র ২০০ টাকা অগ্রিম প্রযোজ্য, বাকি ২,৮০০ টাকা ক্যাশ অন ডেলিভারি)\n📱 বিকাশ পার্সোনাল নম্বর: 01870-023804 (কল, হোয়াটসঅ্যাপ, ইমো ও মেসেঞ্জার সাপোর্ট)\n📌 দ্রষ্টব্য: যৌবনের রাজা পার্সেল বুকিং কনফার্ম করতে 01870-023804 নম্বরে ২০০ টাকা পাঠিয়ে লাস্ট ২/৩ ডিজিট এখানে জানান."
                     : isKasturiOrder
