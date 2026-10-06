@@ -4453,6 +4453,7 @@ async function pollPage(page) {
                       body: JSON.stringify(orderData)
                     }).catch(() => null);
                   } catch {}
+                  orderHandled = true; // ✅ CASE A done — prevent AI reply from also sending
                 } else {
                   // ── CASE B: Raw customer order submission (check validation) ──
                   const validation = validateOrderDetails(
@@ -4475,6 +4476,7 @@ async function pollPage(page) {
                       await sleep(800);
                       await sendFacebookMessage(senderId, onlyPhoneMsg, page.accessToken);
                       orderHandled = true;
+                      replyText = null; // ✅ Suppress AI reply — Hakim message already sent
                       console.log(`[ORDER_VALIDATE] 📱 Customer ${senderId} shared only phone ${orderData.phone} — Hakim appointment flow triggered`);
                       // ── TELEGRAM ALERT: Hakim consultation request ──────────────
                       try {
