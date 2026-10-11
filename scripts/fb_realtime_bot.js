@@ -431,6 +431,11 @@ const PROCESSED_FILE = path.join(process.cwd(), "data", "processed_msg_ids.json"
 const THREAD_MEMORY_FILE = path.join(process.cwd(), "data", "thread_memory.json");
 const VOICE_USERS_FILE = path.join(process.cwd(), "data", "voice_users.json");
 const SCHEDULED_REMINDERS_FILE = path.join(process.cwd(), "data", "scheduled_reminders.json");
+// ── HUMAN TAKEOVER SYSTEM ────────────────────────────────────────────────────
+// যখন admin manually কোনো customer কে reply করে, bot সেই customer কে আর reply করবে না
+const HUMAN_TAKEOVER_FILE = path.join(process.cwd(), "data", "human_takeover.json");
+// Map: senderId -> { takenAt: timestamp, pageId: string, reason: string }
+const humanTakeoverMap = new Map();
 const processedIds = new Set();
 const inFlightMsgIds = new Set();
 const msgFailCounts = new Map();
@@ -513,10 +518,8 @@ function isBotSentMessage(msg) {
   if (msg.id && botSentMsgIds.has(String(msg.id))) return true;
   const mText = (msg.message || "").trim();
   if (mText && botSentTexts.has(mText)) return true;
-  // Bot voice note attachment
-  if (msg.attachments?.data?.some(a => a.name?.includes('audioclip') || a.mime_type?.includes('audio') || a.type === 'audio')) return true;
-  // Bot signature phrases and templates
-  if (/পরবর্তীতে কোনো পরামর্শ|বাজীকরণ হালুয়া|কস্তুরী পাউডার|মোহাম্মদ সাজ্জাদ|জনতা ইউনানী চিকিৎসালয়|কবিরাজ মোহাম্মদ আরিফ|ক্যাশ অন ডেলিভারিতে|বিকাশ ২০০ টাকা|হাকিম সাহেব|কীভাবে সহযোগিতা করতে পারি/i.test(mText)) return true;
+  // Bot signature phrases and templates (strictly unique bot persona signatures)
+  if (/জনতা ইউনানী চিকিৎসালয়|কস্তুরী পাউডার|বাজীকরণ হালুয়া|মোহাম্মদ সাজ্জাদ|কবিরাজ মোহাম্মদ আরিফ|হাকিম মো: আব্দুল করিম|হাকিম সাহেব/i.test(mText)) return true;
   return false;
 }
 
@@ -753,6 +756,94 @@ function saveProcessedId(id) {
       if (list.length > 500) list = list.slice(-500);
       fs.writeFileSync(PROCESSED_FILE, JSON.stringify(list), "utf-8");
     }
+  } catch {}
+}
+
+// ── HUMAN TAKEOVER FUNCTIONS ─────────────────────────────────────────────────
+// Load takeover data from disk (survive restarts)
+function loadHumanTakeover() {
+  try {
+    if (fs.existsSync(HUMAN_TAKEOVER_FILE)) {
+      const data = JSON.parse(fs.readFileSync(HUMAN_TAKEOVER_FILE, "utf-8"));
+      if (typeof data === "object" && data !== null) {
+        for (const [sid, info] of Object.entries(data)) {
+          humanTakeoverMap.set(String(sid), info);
+        }
+      }
+    }
+  } catch {}
+}
+loadHumanTakeover();
+
+// ২৪ ঘণ্টা পর automatic expire (default)
+const HUMAN_TAKEOVER_TTL_MS = 24 * 60 * 60 * 1000;
+
+/**
+ * Check if a sender is currently under human takeover
+ * Returns true → bot should SKIP this customer entirely
+ */
+function isHumanTakenOver(senderId, pageId) {
+  if (!senderId) return false;
+  const sid = String(senderId);
+  const key = pageId ? `${pageId}:${sid}` : sid;
+
+  let info = humanTakeoverMap.get(key) || humanTakeoverMap.get(sid);
+  if (!info) {
+    loadHumanTakeover();
+    info = humanTakeoverMap.get(key) || humanTakeoverMap.get(sid);
+  }
+  if (!info) return false;
+
+  // Auto-expire after TTL (24h)
+  if (Date.now() - info.takenAt > HUMAN_TAKEOVER_TTL_MS) {
+    humanTakeoverMap.delete(key);
+    humanTakeoverMap.delete(sid);
+    _saveHumanTakeover();
+    console.log(`[HUMAN_TAKEOVER] Auto-expired for sender ${senderId} on page ${pageId}`);
+    return false;
+  }
+  return true;
+}
+
+/**
+ * Mark a sender as "human taken over" — bot will skip them
+ * Called automatically when admin reply is detected in polling loop
+ */
+function markHumanTakeover(senderId, pageId, reason = "human_reply_detected") {
+  if (!senderId) return;
+  const sid = String(senderId);
+  const pid = pageId ? String(pageId) : "all";
+  const key = `${pid}:${sid}`;
+  const info = { takenAt: Date.now(), pageId: pid, senderId: sid, reason };
+  humanTakeoverMap.set(key, info);
+  humanTakeoverMap.set(sid, info); // also map by sid directly so page-agnostic lookups succeed
+  _saveHumanTakeover();
+  console.log(`[HUMAN_TAKEOVER] ✋ Admin replied to customer ${sid} on page ${pid} — bot paused for this customer! (${reason})`);
+}
+
+/**
+ * Release a sender from human takeover — bot resumes replying
+ * Can be called from API endpoint or manually
+ */
+function releaseHumanTakeover(senderId, pageId) {
+  if (!senderId) return false;
+  const sid = String(senderId);
+  const key = pageId ? `${pageId}:${sid}` : sid;
+  const existed = humanTakeoverMap.has(key) || humanTakeoverMap.has(sid);
+  humanTakeoverMap.delete(key);
+  humanTakeoverMap.delete(sid);
+  _saveHumanTakeover();
+  if (existed) console.log(`[HUMAN_TAKEOVER] ✅ Bot resumed for ${sid} on page ${pageId || 'all'}`);
+  return existed;
+}
+
+function _saveHumanTakeover() {
+  try {
+    const dir = path.join(process.cwd(), "data");
+    if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+    const obj = {};
+    for (const [k, v] of humanTakeoverMap.entries()) obj[k] = v;
+    fs.writeFileSync(HUMAN_TAKEOVER_FILE, JSON.stringify(obj, null, 2), "utf-8");
   } catch {}
 }
 
@@ -3807,10 +3898,45 @@ async function pollPage(page) {
         const msgs = conv.messages?.data || [];
         if (msgs.length === 0) continue;
 
-        // 1. Collect ALL unprocessed customer messages from this thread.
+        // ── 1. IDENTIFY CUSTOMER IN THIS THREAD ──
+        const custMsgInThread = msgs.find(m => m.from?.id && String(m.from.id) !== String(page.pageId));
+        const threadCustomerId = custMsgInThread ? String(custMsgInThread.from.id) : null;
+        if (!threadCustomerId) continue; // No customer found in thread
+
+        // ── 2. CHECK IF THIS CUSTOMER IS ALREADY UNDER HUMAN TAKEOVER ──
+        // If an admin manually replied previously, the bot will NEVER touch this customer!
+        if (isHumanTakenOver(threadCustomerId, page.pageId)) {
+          // Keep marking customer messages as processed so queue doesn't back up
+          for (const m of msgs) {
+            if (m.from?.id && String(m.from.id) === threadCustomerId) {
+              saveProcessedId(m.id);
+            }
+          }
+          continue;
+        }
+
+        // ── 3. CHECK IF LATEST REPLY FROM PAGE WAS SENT MANUALLY BY HUMAN ADMIN ──
+        // Find the most recent message sent from our Page (ignoring automated Facebook greetings)
+        const latestPageMsg = msgs.find(m => {
+          const isFromPage = m.from?.id && String(m.from.id) === String(page.pageId);
+          if (!isFromPage) return false;
+          if (isFacebookAutomatedMessage(m)) return false;
+          return true;
+        });
+
+        if (latestPageMsg && !isBotSentMessage(latestPageMsg)) {
+          console.log(`[HUMAN_TAKEOVER] ✋ Manual reply detected from admin (msg: "${latestPageMsg.message || 'attachment'}"). Pausing bot for customer ${threadCustomerId}!`);
+          markHumanTakeover(threadCustomerId, page.pageId, "manual_admin_reply_detected");
+          for (const m of msgs) {
+            if (m.from?.id && String(m.from.id) === threadCustomerId) {
+              saveProcessedId(m.id);
+            }
+          }
+          continue;
+        }
+
+        // ── 4. COLLECT ALL UNPROCESSED CUSTOMER MESSAGES FROM THIS THREAD ──
         // msgs is sorted newest-first.
-        // If customer sent another message while bot was replying or right before,
-        // we must NOT drop it just because a bot reply was posted!
         for (const m of msgs) {
           const isFromCustomer = m.from?.id && String(m.from.id) !== String(page.pageId);
           if (isFromCustomer) {
@@ -3821,16 +3947,20 @@ async function pollPage(page) {
             unrepliedCustomerMsgs.push(m);
           } else {
             // This message is from the Page.
-            // 1. If it's Facebook's automated ad message or greeting, continue checking!
             if (isFacebookAutomatedMessage(m)) {
               continue;
             }
-            // 2. If it's an automated message sent by our bot, continue checking!
-            // Customer may have sent another message immediately before, during, or right after the bot's reply.
             if (isBotSentMessage(m)) {
               continue;
             }
-            // 3. If a human agent manually intervened from Meta Business Suite / Page Inbox:
+            // If a human agent manually intervened earlier in the thread:
+            console.log(`[HUMAN_TAKEOVER] ✋ Earlier human reply in thread detected. Pausing bot for customer ${threadCustomerId}!`);
+            markHumanTakeover(threadCustomerId, page.pageId, "human_reply_in_thread");
+            for (const cm of msgs) {
+              if (cm.from?.id && String(cm.from.id) === threadCustomerId) {
+                saveProcessedId(cm.id);
+              }
+            }
             break;
           }
         }
@@ -3841,14 +3971,21 @@ async function pollPage(page) {
         senderId = newestMsg.from?.id ? String(newestMsg.from.id) : null;
         if (!senderId) continue;
 
+        // ── FINAL HUMAN TAKEOVER GUARD ──
+        if (isHumanTakenOver(senderId, page.pageId)) {
+          console.log(`[HUMAN_TAKEOVER] ⏭️ Skipping ${senderId} — human agent is handling this conversation.`);
+          for (const m of unrepliedCustomerMsgs) saveProcessedId(m.id);
+          continue;
+        }
+
         // ── SMART MULTI-MESSAGE BURST AGGREGATOR ──
-        // When customer sends messages in rapid bursts (e.g. sends "na", then types "apnar name ki bsai kothai"),
-        // give a brief 3.5s window to capture the follow-up message so both are answered together in ONE unified reply!
+        // When customer sends 2-5 messages in rapid succession (e.g. "apnar kase ki ki paoya jai" / "koto tk dam" / "kivabe order korbo" / "kotodin lagbe"),
+        // wait 5.5s for them to finish typing before generating ONE unified reply for all messages!
         const newestAgeMs = Date.now() - new Date(newestMsg.created_time || Date.now()).getTime();
-        if (newestAgeMs < 4500) {
+        if (newestAgeMs < 8000) {
           await sendSenderAction(senderId, "mark_seen", page.accessToken).catch(() => {});
           await sendSenderAction(senderId, "typing_on", page.accessToken).catch(() => {});
-          await sleep(3500);
+          await sleep(5500);
 
           try {
             const freshThreadRes = await fetch(
@@ -3866,8 +4003,15 @@ async function pollPage(page) {
                   freshUnreplied.push(fm);
                 } else {
                   if (isFacebookAutomatedMessage(fm) || isBotSentMessage(fm)) continue;
+                  // Admin intervened while waiting for burst!
+                  markHumanTakeover(senderId, page.pageId, "admin_replied_during_burst_wait");
                   break;
                 }
+              }
+              if (isHumanTakenOver(senderId, page.pageId)) {
+                console.log(`[HUMAN_TAKEOVER] ⏭️ Skipping ${senderId} — admin replied during burst delay.`);
+                for (const m of unrepliedCustomerMsgs) saveProcessedId(m.id);
+                continue;
               }
               if (freshUnreplied.length > unrepliedCustomerMsgs.length) {
                 console.log(`[FB_BOT] ⚡ Multi-message burst captured: ${freshUnreplied.length} messages from ${senderId}`);
@@ -3900,8 +4044,9 @@ async function pollPage(page) {
         const _isRealName = _memName && !["ভাইয়া","Customer","কাস্টমার","NOT PROVIDED YET","customer","vaiya",""].includes(_memName.trim().toLowerCase());
         const customerName = _isRealName ? _memName : "ভাইয়া";
 
-        // Sort batch into chronological order; limit to at most 3 latest messages to prevent massive stalls
-        const customerBatch = [...unrepliedCustomerMsgs].reverse().slice(-3);
+        // Sort batch into chronological order; support up to 6 messages per burst
+        // (customer may send 4-5 quick questions like "ki ki ase / dam koto / order korbo kivabe / kotodin lagbe")
+        const customerBatch = [...unrepliedCustomerMsgs].reverse().slice(-6);
 
         // Resolve text and transcribe voice notes for each message in the batch
         const resolvedItems = [];
@@ -5356,7 +5501,11 @@ if (require.main === module) {
     saveProcessedId,
     fetchConversations,
     pollOnce,
-    pollPage
+    pollPage,
+    // Human Takeover API
+    markHumanTakeover,
+    releaseHumanTakeover,
+    isHumanTakenOver
   };
 }
 
