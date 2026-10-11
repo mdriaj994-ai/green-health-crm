@@ -196,13 +196,30 @@ export default function MessagesPage() {
     return () => clearTimeout(timer);
   }, [search]);
 
+  const [isMobile, setIsMobile] = useState(false);
+  useEffect(() => {
+    const handleResize = () => setIsMobile(window.innerWidth < 768);
+    handleResize();
+    window.addEventListener("resize", handleResize);
+    return () => window.removeEventListener("resize", handleResize);
+  }, []);
+
   const realCount = conversations.filter((c) => c.isRealUser).length;
   const testCount = conversations.length - realCount;
 
   return (
     <div style={{ display: "flex", height: "100%", overflow: "hidden", background: "var(--bg-base, #0b0a07)", fontFamily: "'Inter', 'Segoe UI', sans-serif" }}>
       {/* Left Panel */}
-      <div style={{ width: selected ? 360 : "100%", maxWidth: selected ? 360 : "none", minWidth: selected ? 300 : "auto", display: "flex", flexDirection: "column", borderRight: selected ? "1px solid rgba(245, 158, 11, 0.15)" : "none", background: "rgba(0,0,0,0.3)", overflow: "hidden" }}>
+      <div style={{
+        width: isMobile ? "100%" : (selected ? 360 : "100%"),
+        maxWidth: isMobile ? "none" : (selected ? 360 : "none"),
+        minWidth: isMobile ? "auto" : (selected ? 300 : "auto"),
+        display: (isMobile && selected) ? "none" : "flex",
+        flexDirection: "column",
+        borderRight: (selected && !isMobile) ? "1px solid rgba(245, 158, 11, 0.15)" : "none",
+        background: "rgba(0,0,0,0.3)",
+        overflow: "hidden"
+      }}>
         {/* Header */}
         <div style={{ padding: "20px 20px 16px", background: "linear-gradient(135deg, rgba(245,158,11,0.08), rgba(180,83,9,0.04))", borderBottom: "1px solid rgba(245,158,11,0.12)" }}>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 14 }}>
