@@ -511,7 +511,12 @@ function recordBotSentMessage(messageId, text = null) {
 function isBotSentMessage(msg) {
   if (!msg) return false;
   if (msg.id && botSentMsgIds.has(String(msg.id))) return true;
-  if (msg.message && botSentTexts.has(String(msg.message).trim())) return true;
+  const mText = (msg.message || "").trim();
+  if (mText && botSentTexts.has(mText)) return true;
+  // Bot voice note attachment
+  if (msg.attachments?.data?.some(a => a.name?.includes('audioclip') || a.mime_type?.includes('audio') || a.type === 'audio')) return true;
+  // Bot signature phrases and templates
+  if (/পরবর্তীতে কোনো পরামর্শ|বাজীকরণ হালুয়া|কস্তুরী পাউডার|মোহাম্মদ সাজ্জাদ|জনতা ইউনানী চিকিৎসালয়|কবিরাজ মোহাম্মদ আরিফ|ক্যাশ অন ডেলিভারিতে|বিকাশ ২০০ টাকা|হাকিম সাহেব|কীভাবে সহযোগিতা করতে পারি/i.test(mText)) return true;
   return false;
 }
 
@@ -3816,11 +3821,16 @@ async function pollPage(page) {
             unrepliedCustomerMsgs.push(m);
           } else {
             // This message is from the Page.
-            // If it's Facebook's automated ad message or greeting, ignore it and continue checking customer messages!
+            // 1. If it's Facebook's automated ad message or greeting, continue checking!
             if (isFacebookAutomatedMessage(m)) {
               continue;
             }
-            // If it's a real message from our Page (bot or human agent), everything older has already been addressed!
+            // 2. If it's an automated message sent by our bot, continue checking!
+            // Customer may have sent another message immediately before, during, or right after the bot's reply.
+            if (isBotSentMessage(m)) {
+              continue;
+            }
+            // 3. If a human agent manually intervened from Meta Business Suite / Page Inbox:
             break;
           }
         }
@@ -3830,6 +3840,44 @@ async function pollPage(page) {
         newestMsg = unrepliedCustomerMsgs[0];
         senderId = newestMsg.from?.id ? String(newestMsg.from.id) : null;
         if (!senderId) continue;
+
+        // ── SMART MULTI-MESSAGE BURST AGGREGATOR ──
+        // When customer sends messages in rapid bursts (e.g. sends "na", then types "apnar name ki bsai kothai"),
+        // give a brief 3.5s window to capture the follow-up message so both are answered together in ONE unified reply!
+        const newestAgeMs = Date.now() - new Date(newestMsg.created_time || Date.now()).getTime();
+        if (newestAgeMs < 4500) {
+          await sendSenderAction(senderId, "mark_seen", page.accessToken).catch(() => {});
+          await sendSenderAction(senderId, "typing_on", page.accessToken).catch(() => {});
+          await sleep(3500);
+
+          try {
+            const freshThreadRes = await fetch(
+              `https://graph.facebook.com/v19.0/${conv.id}?fields=messages.limit(10){id,created_time,from,message,sticker,attachments{id,type,mime_type,name,file_url,image_data,payload}}&access_token=${page.accessToken}`,
+              { signal: AbortSignal.timeout(6000) }
+            );
+            if (freshThreadRes.ok) {
+              const freshThreadData = await freshThreadRes.json();
+              const freshMsgs = freshThreadData.messages?.data || [];
+              const freshUnreplied = [];
+              for (const fm of freshMsgs) {
+                const fIsCust = fm.from?.id && String(fm.from.id) !== String(page.pageId);
+                if (fIsCust) {
+                  if (isProcessedId(fm.id)) break;
+                  freshUnreplied.push(fm);
+                } else {
+                  if (isFacebookAutomatedMessage(fm) || isBotSentMessage(fm)) continue;
+                  break;
+                }
+              }
+              if (freshUnreplied.length > unrepliedCustomerMsgs.length) {
+                console.log(`[FB_BOT] ⚡ Multi-message burst captured: ${freshUnreplied.length} messages from ${senderId}`);
+                unrepliedCustomerMsgs.length = 0;
+                unrepliedCustomerMsgs.push(...freshUnreplied);
+                newestMsg = unrepliedCustomerMsgs[0];
+              }
+            }
+          } catch (burstErr) {}
+        }
 
         // Track in-flight message IDs so parallel poll ticks don't duplicate
         for (const m of unrepliedCustomerMsgs) {
