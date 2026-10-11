@@ -172,6 +172,7 @@ export default function DashboardBotControlPage() {
   };
 
   const filteredList = conversations.filter((c) => {
+    if (!c.isRealUser && !search.includes("test")) return false;
     if (filter === "paused") return pausedSet.has(c.senderId);
     return true;
   });
@@ -299,7 +300,7 @@ export default function DashboardBotControlPage() {
                 cursor: "pointer"
               }}
             >
-              সব চ্যাট ({conversations.length})
+              সব কাস্টমার ({filteredList.length})
             </button>
             <button
               onClick={() => setFilter("paused")}
@@ -366,9 +367,11 @@ export default function DashboardBotControlPage() {
                 >
                   <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
                     <div>
-                      <div style={{ fontSize: 15, fontWeight: 700 }}>{conv.name || "কাস্টমার"}</div>
-                      <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 2 }}>
-                        {conv.phone || `ID: ${conv.senderId.slice(-8)}`} • {formatTime(conv.lastTs)}
+                      <div style={{ fontSize: 16, fontWeight: 800, color: "#f8fafc", letterSpacing: "-0.01em" }}>
+                        👤 {conv.name || "সম্মানিত গ্রাহক"}
+                      </div>
+                      <div style={{ fontSize: 11, color: "#94a3b8", marginTop: 3 }}>
+                        {conv.phone ? <span style={{ color: "#34d399", fontWeight: 700 }}>📞 {conv.phone}</span> : `ID: ${conv.senderId.slice(-8)}`} • {formatTime(conv.lastTs)}
                       </div>
                     </div>
                     <div
