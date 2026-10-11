@@ -765,19 +765,33 @@ function saveProcessedId(id) {
 
 // ── HUMAN TAKEOVER FUNCTIONS ─────────────────────────────────────────────────
 // Load takeover data from disk (survive restarts)
-function loadHumanTakeover() {
+function loadHumanTakeover(clearExpiredOnLoad = false) {
   try {
     if (fs.existsSync(HUMAN_TAKEOVER_FILE)) {
       const data = JSON.parse(fs.readFileSync(HUMAN_TAKEOVER_FILE, "utf-8"));
+      const now = Date.now();
+      // Use 30-minute TTL (synced with HUMAN_TAKEOVER_TTL_MS below)
+      const TTL = 30 * 60 * 1000;
+      let hadExpired = false;
       if (typeof data === "object" && data !== null) {
         for (const [sid, info] of Object.entries(data)) {
+          if (now - (info.takenAt || 0) > TTL) {
+            // Expired entry — skip it (auto-clear on next save)
+            hadExpired = true;
+            continue;
+          }
           humanTakeoverMap.set(String(sid), info);
         }
+      }
+      // If clearExpiredOnLoad (startup), rewrite file without expired entries
+      if (clearExpiredOnLoad && hadExpired) {
+        _saveHumanTakeover();
+        console.log("[HUMAN_TAKEOVER] Cleared expired takeover entries on startup.");
       }
     }
   } catch {}
 }
-loadHumanTakeover();
+loadHumanTakeover(true); // true = clear expired entries on startup
 
 // ৩০ মিনিট পর automatic expire (যাতে অ্যাডমিন ভুলে গেলেও কাস্টমার চিরতরে আটকে না থাকে)
 const HUMAN_TAKEOVER_TTL_MS = 30 * 60 * 1000;
