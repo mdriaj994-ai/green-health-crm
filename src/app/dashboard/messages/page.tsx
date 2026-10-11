@@ -1,4 +1,4 @@
-﻿"use client";
+"use client";
 
 import { useState, useEffect, useRef } from "react";
 import {
@@ -106,6 +106,8 @@ export default function MessagesPage() {
   const [msgLoading, setMsgLoading] = useState(false);
   const [filterReal, setFilterReal] = useState(false);
   const [error, setError] = useState("");
+  const [botPaused, setBotPaused] = useState(false);
+  const [toggleLoading, setToggleLoading] = useState(false);
   const chatRef = useRef<HTMLDivElement>(null);
 
   const loadConversations = async (q = "") => {
@@ -141,6 +143,43 @@ export default function MessagesPage() {
       setMessages([]);
     } finally {
       setMsgLoading(false);
+    }
+
+    // Fetch human takeover status for this customer
+    try {
+      fetch("/api/human-takeover")
+        .then((r) => r.json())
+        .then((d) => {
+          const isPaused = (d.paused || []).some((p: any) => p.senderId === conv.senderId);
+          setBotPaused(isPaused);
+        })
+        .catch(() => {});
+    } catch {}
+  };
+
+  const toggleBot = async () => {
+    if (!selected) return;
+    setToggleLoading(true);
+    try {
+      if (botPaused) {
+        await fetch("/api/human-takeover", {
+          method: "DELETE",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ senderId: selected.senderId, pageId: "all" })
+        });
+        setBotPaused(false);
+      } else {
+        await fetch("/api/human-takeover", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ senderId: selected.senderId, pageId: "all", reason: "dashboard_button_click" })
+        });
+        setBotPaused(true);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setToggleLoading(false);
     }
   };
 
@@ -261,7 +300,30 @@ export default function MessagesPage() {
                 {profile?.lastContact && <span>সর্বশেষ: {formatTime(profile.lastContact)}</span>}
               </div>
             </div>
-            <div style={{ display: "flex", gap: 8 }}>
+            <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+              <button
+                onClick={toggleBot}
+                disabled={toggleLoading}
+                style={{
+                  padding: "6px 14px",
+                  borderRadius: 8,
+                  border: botPaused ? "1px solid rgba(239,68,68,0.5)" : "1px solid rgba(16,185,129,0.5)",
+                  background: botPaused ? "rgba(239,68,68,0.18)" : "rgba(16,185,129,0.18)",
+                  color: botPaused ? "#f87171" : "#34d399",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 6,
+                  fontFamily: "inherit",
+                  transition: "all 0.2s ease"
+                }}
+                title={botPaused ? "ক্লিক করে বট আবার চালু করুন" : "ক্লিক করে এই কাস্টমারের জন্য বট বন্ধ করুন"}
+              >
+                <Bot size={13} />
+                {toggleLoading ? "অপেক্ষা..." : botPaused ? "🛑 Bot: OFF (হাতে নেওয়া)" : "🟢 Bot: ON (অটো রিপ্লাই)"}
+              </button>
               {profile?.phone && <div style={{ padding: "5px 10px", borderRadius: 8, background: "rgba(52,211,153,0.08)", border: "1px solid rgba(52,211,153,0.2)", color: "#34d399", fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}><Phone size={11} />{profile.phone}</div>}
               {profile?.district && <div style={{ padding: "5px 10px", borderRadius: 8, background: "rgba(96,165,250,0.08)", border: "1px solid rgba(96,165,250,0.2)", color: "#60a5fa", fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}><MapPin size={11} />{profile.district}</div>}
               {profile?.productDiscussed && <div style={{ padding: "5px 10px", borderRadius: 8, background: "rgba(167,139,250,0.08)", border: "1px solid rgba(167,139,250,0.2)", color: "#a78bfa", fontSize: 12, display: "flex", alignItems: "center", gap: 5 }}><Package size={11} />{profile.productDiscussed}</div>}

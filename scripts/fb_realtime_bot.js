@@ -3904,15 +3904,27 @@ async function pollPage(page) {
         if (!threadCustomerId) continue; // No customer found in thread
 
         // ── 2. CHECK IF THIS CUSTOMER IS ALREADY UNDER HUMAN TAKEOVER ──
-        // If an admin manually replied previously, the bot will NEVER touch this customer!
+        // If an admin manually replied previously, check if they sent an ON command to resume:
         if (isHumanTakenOver(threadCustomerId, page.pageId)) {
-          // Keep marking customer messages as processed so queue doesn't back up
-          for (const m of msgs) {
-            if (m.from?.id && String(m.from.id) === threadCustomerId) {
-              saveProcessedId(m.id);
+          const latestMsgInThread = msgs[0];
+          const isFromPage = latestMsgInThread?.from?.id && String(latestMsgInThread.from.id) === String(page.pageId);
+          const txt = (latestMsgInThread?.message || "").trim().toLowerCase();
+          const isExplicitOn = isFromPage && /^(\.on|#on|\/on|!on|bot\s*on|বট\s*অন|resume)$/i.test(txt);
+
+          if (isExplicitOn) {
+            console.log(`[HUMAN_TAKEOVER] 🟢 Admin sent ON command ('${txt}') for customer ${threadCustomerId}! Resuming bot.`);
+            releaseHumanTakeover(threadCustomerId, page.pageId);
+            saveProcessedId(latestMsgInThread.id);
+            // Now released! Proceed to process conversation.
+          } else {
+            // Still under takeover - skip!
+            for (const m of msgs) {
+              if (m.from?.id && String(m.from.id) === threadCustomerId) {
+                saveProcessedId(m.id);
+              }
             }
+            continue;
           }
-          continue;
         }
 
         // ── 3. CHECK IF LATEST REPLY FROM PAGE WAS SENT MANUALLY BY HUMAN ADMIN ──
@@ -3925,14 +3937,24 @@ async function pollPage(page) {
         });
 
         if (latestPageMsg && !isBotSentMessage(latestPageMsg)) {
-          console.log(`[HUMAN_TAKEOVER] ✋ Manual reply detected from admin (msg: "${latestPageMsg.message || 'attachment'}"). Pausing bot for customer ${threadCustomerId}!`);
-          markHumanTakeover(threadCustomerId, page.pageId, "manual_admin_reply_detected");
-          for (const m of msgs) {
-            if (m.from?.id && String(m.from.id) === threadCustomerId) {
-              saveProcessedId(m.id);
+          const txt = (latestPageMsg.message || "").trim().toLowerCase();
+          const isExplicitOn = /^(\.on|#on|\/on|!on|bot\s*on|বট\s*অন|resume)$/i.test(txt);
+
+          if (isExplicitOn) {
+            console.log(`[HUMAN_TAKEOVER] 🟢 Admin sent ON command ('${txt}') for customer ${threadCustomerId}! Resuming bot.`);
+            releaseHumanTakeover(threadCustomerId, page.pageId);
+            saveProcessedId(latestPageMsg.id);
+            // Released! Continue so bot can reply to pending customer messages.
+          } else {
+            console.log(`[HUMAN_TAKEOVER] ✋ Manual reply detected from admin (msg: "${latestPageMsg.message || 'attachment'}"). Pausing bot for customer ${threadCustomerId}!`);
+            markHumanTakeover(threadCustomerId, page.pageId, "manual_admin_reply_detected");
+            for (const m of msgs) {
+              if (m.from?.id && String(m.from.id) === threadCustomerId) {
+                saveProcessedId(m.id);
+              }
             }
+            continue;
           }
-          continue;
         }
 
         // ── 4. COLLECT ALL UNPROCESSED CUSTOMER MESSAGES FROM THIS THREAD ──
