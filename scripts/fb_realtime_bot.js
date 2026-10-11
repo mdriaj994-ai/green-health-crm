@@ -3859,7 +3859,14 @@ async function pollPage(page) {
             itemText = transcribed || "[Customer sent a voice message]";
             setVoiceMode(senderId, true);
           }
-          const imageAttach = item.attachments?.data?.find(a => a.image_data || a.type === "image" || a.mime_type?.includes("image"));
+          // Detect sticker: skip image processing for stickers (type=sticker, or sticker_id in payload)
+          const stickerAttach = item.attachments?.data?.find(a =>
+            a.type === 'sticker' ||
+            a.sticker_id ||
+            a.payload?.sticker_id ||
+            (a.payload?.url && /sticker/i.test(a.payload.url))
+          );
+          const imageAttach = stickerAttach ? null : item.attachments?.data?.find(a => a.image_data || a.type === 'image' || a.mime_type?.includes('image'));
           let imageUrl = imageAttach?.image_data?.url || imageAttach?.file_url || imageAttach?.payload?.url || imageAttach?.image_data?.preview_url || "";
           if (!imageUrl && imageAttach?.id) {
             try {
@@ -3876,6 +3883,7 @@ async function pollPage(page) {
               text: itemText,
               created_time: item.created_time,
               hasAudio: Boolean(audioAttach),
+              hasSticker: Boolean(stickerAttach),
               hasImage: Boolean(imageAttach),
               imageUrl: imageUrl,
               rawItem: item,
@@ -4100,6 +4108,19 @@ async function pollPage(page) {
           const lastMsg = resolvedItems[0].rawItem;
           let messageText = resolvedItems[0].text;
           const audioAttach = resolvedItems[0].hasAudio;
+          const hasSticker = resolvedItems[0].hasSticker;
+
+          // ── STICKER: Ignore image processing, give a warm friendly reply ──
+          if (hasSticker && !messageText) {
+            // Customer only sent a sticker — respond warmly without treating it as an image
+            const stickerReply = 'জি ভাইয়া 😊 বলুন, কীভাবে সাহায্য করতে পারি?';
+            await sendSenderAction(senderId, "typing_on", page.accessToken);
+            await sleep(500);
+            await sendFacebookMessage(senderId, stickerReply, page.accessToken);
+            saveProcessedId(lastMsg.id);
+            console.log(`[FB_BOT] 🎯 Sticker from ${senderId} — replied with warm greeting`);
+            continue;
+          }
 
           console.log(`[FB_BOT] 🔔 [${page.pageName}] FALLBACK NEW MESSAGE from ${customerName} (${senderId}): "${messageText}"`);
 
