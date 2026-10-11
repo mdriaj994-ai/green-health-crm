@@ -13169,5 +13169,70 @@
       "chronic": "dybatis ase",
       "structure": "কাস্টমার সংকোচ বোধ করেছেন"
     }
+  },
+  "sender_test_abc": {
+    "senderId": "sender_test_abc",
+    "name": "",
+    "age": "",
+    "maritalStatus": "",
+    "symptoms": [],
+    "duration": "",
+    "productDiscussed": "",
+    "productsDiscussedAll": [],
+    "orderStatus": "inquiry",
+    "ordersPlaced": [],
+    "phone": "",
+    "district": "",
+    "thana": "",
+    "address": "",
+    "lastVoiceTranscript": "",
+    "sessionSummaries": [],
+    "chatLog": [
+      {
+        "role": "user",
+        "text": "emon asen",
+        "isVoice": false,
+        "time": 1791281741781
+      },
+      {
+        "role": "model",
+        "text": "আলহামদুলিল্লাহ ভাইয়া, আল্লাহর রহমতে ভালো আছি। আপনি কেমন আছেন?",
+        "isVoice": false,
+        "time": 1791281763283
+      },
+      {
+        "role": "user",
+        "text": "ami ki boli apni ki bolen",
+        "isVoice": false,
+        "time": 1791281763468
+      },
+      {
+        "role": "model",
+        "text": "আন্তরিকভাবে দুঃখিত ভাইয়া, হয়তো বুঝতে একটু ভুল হয়েছে। আপনি কী বলতে চাচ্ছেন বা কী বিষয়ে সাহায্য লাগবে, দয়া করে একটু বুঝিয়ে বলুন ভাইয়া, আমি মনোযোগ দিয়ে শুনছি।",
+        "isVoice": false,
+        "time": 1791281770340
+      }
+    ],
+    "firstContact": 1791281741579,
+    "lastContact": 1791281770340,
+    "totalMessages": 4,
+    "prefersVoice": false,
+    "bloodGroup": "",
+    "diabetes": "",
+    "bloodPressure": "",
+    "previousMedication": "",
+    "marriageDuration": "",
+    "diagnosticStage": 0,
+    "timing": "",
+    "erectionQuality": "",
+    "semenQuality": "",
+    "preCum": "",
+    "sleepQuality": "",
+    "gastric": "",
+    "probashi": "",
+    "extraFacts": [],
+    "mentionedLocations": [],
+    "allHealthKeywords": [],
+    "budgetMentioned": []
   }
 }

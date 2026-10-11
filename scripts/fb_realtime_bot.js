@@ -3491,6 +3491,10 @@ function getKnowledgeBaseContext() {
 // ── Gemini Vision Image Analysis for incoming customer product/prescription photos ───
 async function analyzeImageWithGemini(imageUrl, pageAccessToken = PAGE_TOKEN, pageName = "হেলথ কেয়ার", userText = "", customerName = "ভাইয়া", recentHistory = []) {
   if (!imageUrl) return "";
+  // Safety guard: if sticker URL detected, immediately return friendly greeting without treating as product image
+  if (/t39\.1997-|sticker/i.test(imageUrl)) {
+    return "জি ভাইয়া 😊 বলুন, কীভাবে সাহায্য করতে পারি?";
+  }
   try {
     const url = imageUrl.includes("access_token") ? imageUrl : imageUrl + (imageUrl.includes("?") ? "&" : "?") + "access_token=" + pageAccessToken;
     console.log(`[FB_BOT_VISION] Fetching customer product/prescription image...`);
@@ -3522,6 +3526,9 @@ async function analyzeImageWithGemini(imageUrl, pageAccessToken = PAGE_TOKEN, pa
 
 ধাপ ২ — সেই লেখা দিয়ে বলুন এটা কী:
 
+■ যদি ছবিটি কোনো স্টিকার (sticker), কার্টুন (cartoon), ইমোজি (emoji), থাম্বস আপ, জিআইএফ (gif), শুভেচ্ছা বা সাধারণ ছবি হয়:
+→ কোনোভাবেই "এটি আমাদের পণ্যের ছবি নয়" বা ওষুধের কথা বলবেন না! একদম স্বাভাবিক ও আন্তরিকভাবে বলুন: "জি ভাইয়া 😊 বলুন, কীভাবে সাহায্য করতে পারি?"
+
 ■ যদি লেখায় পাওয়া যায়: "কস্তুরী পাউডার", "Kasturi Powder", "কস্তুরী", "kasturi"
 → এটা আমাদের কস্তুরী পাউডার। বলুন: "জি ভাইয়া, এটা আমাদের আসল কস্তুরী পাউডার। ২৫০ গ্রাম, মূল্য ২,৮০০ টাকা। প্রতিদিন সকালে খালি পেটে ১ চামচ গরম দুধে মিশিয়ে খেতে হয়। আপনি কি এটি নিতে চান?"
 
@@ -3531,7 +3538,7 @@ async function analyzeImageWithGemini(imageUrl, pageAccessToken = PAGE_TOKEN, pa
 ■ যদি লেখায় পাওয়া যায়: "যৌবনের রাজা", "Jouboner Raja"
 → এটা আমাদের যৌবনের রাজা। confirm করুন — ৩,০০০ টাকা (বিকাশ ২০০ টাকা এডভান্স, বাকি ২,৮০০ টাকা ক্যাশ অন ডেলিভারি)।
 
-■ যদি ছবিতে মানুষ, খেলোয়াড়, ব্যাগ, ইলেকট্রনিক্স, প্রকৃতি বা অন্য কোনো পণ্য আছে যা আমাদের ওষুধ নয়:
+■ যদি ছবিতে কোনো বাস্তব অন্য পণ্য (যেমন ব্যাগ, ইলেকট্রনিক্স, জামাকাপড়) থাকে যা আমাদের ওষুধ নয়:
 → বলুন: "ভাইয়া, এটি আমাদের পণ্যের ছবি নয়। আপনার কি কোনো শারীরিক সমস্যা আছে? বললে সাহায্য করতে পারব।"
 
 ■ যদি অন্য কোনো ওষুধ বা প্রেসক্রিপশন হয়:
@@ -3744,7 +3751,7 @@ async function sendFacebookVoiceNote(recipientId, text, pageAccessToken = PAGE_T
 
 // ── Fetch Recent Conversations from Facebook ─────────────────────────────────
 async function fetchConversations(pageId = PAGE_ID, pageAccessToken = PAGE_TOKEN) {
-  const url = `https://graph.facebook.com/v19.0/${pageId}/conversations?fields=messages.limit(15){message,from,created_time,id,attachments{id,type,mime_type,name,file_url,image_data,payload}}&access_token=${pageAccessToken}`;
+  const url = `https://graph.facebook.com/v19.0/${pageId}/conversations?fields=messages.limit(15){message,from,created_time,id,sticker,attachments{id,type,mime_type,name,file_url,image_data,payload}}&access_token=${pageAccessToken}`;
   const res = await fetch(url, { signal: AbortSignal.timeout(20000) });
   if (!res.ok) return [];
   const data = await res.json();
@@ -3859,14 +3866,21 @@ async function pollPage(page) {
             itemText = transcribed || "[Customer sent a voice message]";
             setVoiceMode(senderId, true);
           }
-          // Detect sticker: skip image processing for stickers (type=sticker, or sticker_id in payload)
+          // Detect sticker: Facebook sticker via item.sticker, image_data.render_as_sticker, sticker_id, or CDN URL
+          const isStickerMsg = Boolean(item.sticker);
           const stickerAttach = item.attachments?.data?.find(a =>
             a.type === 'sticker' ||
             a.sticker_id ||
+            a.image_data?.sticker_id ||
+            a.image_data?.render_as_sticker === true ||
             a.payload?.sticker_id ||
-            (a.payload?.url && /sticker/i.test(a.payload.url))
+            String(a.id || '').startsWith('sticker') ||
+            String(a.name || '').toLowerCase().startsWith('sticker') ||
+            /t39\.1997-/i.test(a.image_data?.url || a.file_url || a.payload?.url || '') ||
+            /sticker/i.test(a.image_data?.url || a.file_url || a.payload?.url || a.name || '')
           );
-          const imageAttach = stickerAttach ? null : item.attachments?.data?.find(a => a.image_data || a.type === 'image' || a.mime_type?.includes('image'));
+          const hasAnySticker = isStickerMsg || Boolean(stickerAttach);
+          const imageAttach = hasAnySticker ? null : item.attachments?.data?.find(a => a.image_data || a.type === 'image' || a.mime_type?.includes('image'));
           let imageUrl = imageAttach?.image_data?.url || imageAttach?.file_url || imageAttach?.payload?.url || imageAttach?.image_data?.preview_url || "";
           if (!imageUrl && imageAttach?.id) {
             try {
@@ -3877,13 +3891,13 @@ async function pollPage(page) {
               }
             } catch (e) {}
           }
-          if (itemText || item.attachments?.data?.length > 0) {
+          if (itemText || item.attachments?.data?.length > 0 || isStickerMsg) {
             resolvedItems.push({
               id: item.id,
               text: itemText,
               created_time: item.created_time,
               hasAudio: Boolean(audioAttach),
-              hasSticker: Boolean(stickerAttach),
+              hasSticker: Boolean(hasAnySticker),
               hasImage: Boolean(imageAttach),
               imageUrl: imageUrl,
               rawItem: item,
@@ -3912,6 +3926,22 @@ async function pollPage(page) {
           if (resolvedItems.length > 1) {
             console.log(`[FB_BOT] 🔔 Multi-message batch detected from ${customerName} (${senderId}) with ${resolvedItems.length} messages.`);
             const fullBatchText = resolvedItems.map(i => i.text).filter(Boolean).join(" \n ");
+
+            // If the entire batch is stickers with no text:
+            const allStickersInBatch = resolvedItems.every(i => i.hasSticker);
+            if (allStickersInBatch && !fullBatchText.trim()) {
+              const stickerReply = 'জি ভাইয়া 😊 বলুন, কীভাবে সাহায্য করতে পারি?';
+              await sendSenderAction(senderId, "typing_on", page.accessToken);
+              await sleep(500);
+              await sendFacebookMessage(senderId, stickerReply, page.accessToken, newestMsg.id);
+              recordOutgoingBotMessageInDb(senderId, stickerReply, false);
+              customerMemory.appendChatMessage(senderId, "model", stickerReply, false);
+              for (const m of unrepliedCustomerMsgs) {
+                saveProcessedId(m.id);
+              }
+              console.log(`[FB_BOT] 🎯 Sticker batch from ${senderId} — replied with warm greeting`);
+              continue;
+            }
 
             // Check if all messages together form an order submission
             const parsedBatchOrder = parseOrderFromMessage(fullBatchText);
@@ -4116,8 +4146,10 @@ async function pollPage(page) {
             const stickerReply = 'জি ভাইয়া 😊 বলুন, কীভাবে সাহায্য করতে পারি?';
             await sendSenderAction(senderId, "typing_on", page.accessToken);
             await sleep(500);
-            await sendFacebookMessage(senderId, stickerReply, page.accessToken);
+            await sendFacebookMessage(senderId, stickerReply, page.accessToken, lastMsg.id);
             saveProcessedId(lastMsg.id);
+            recordOutgoingBotMessageInDb(senderId, stickerReply, false);
+            customerMemory.appendChatMessage(senderId, "model", stickerReply, false);
             console.log(`[FB_BOT] 🎯 Sticker from ${senderId} — replied with warm greeting`);
             continue;
           }
