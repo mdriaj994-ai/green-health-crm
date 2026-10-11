@@ -2,12 +2,16 @@
 // API to manually pause/resume the bot for a specific customer
 // POST   /api/human-takeover  { senderId, pageId }             → pause bot for this customer
 // DELETE /api/human-takeover  { senderId, pageId }             → resume bot for this customer  
+// DELETE /api/human-takeover  { clearAll: true }               → resume ALL paused customers
 // GET    /api/human-takeover                                   → list all paused customers
 import { NextResponse } from "next/server";
 import path from "path";
 import fs from "fs";
 
 const HUMAN_TAKEOVER_FILE = path.join(process.cwd(), "data", "human_takeover.json");
+
+// Must match fb_realtime_bot.js HUMAN_TAKEOVER_TTL_MS = 30 minutes
+const TTL_MS = 30 * 60 * 1000;
 
 function readTakeoverFile() {
   try {
@@ -30,16 +34,15 @@ function writeTakeoverFile(data) {
 export async function GET() {
   const data = readTakeoverFile();
   const now = Date.now();
-  const TTL = 24 * 60 * 60 * 1000;
   const active = Object.entries(data)
-    .filter(([, v]) => now - v.takenAt < TTL)
+    .filter(([, v]) => now - v.takenAt < TTL_MS)
     .map(([key, v]) => ({
       key,
       senderId: v.senderId,
       pageId: v.pageId,
       reason: v.reason,
       takenAt: new Date(v.takenAt).toISOString(),
-      expiresIn: Math.round((TTL - (now - v.takenAt)) / 60000) + " min"
+      expiresIn: Math.round((TTL_MS - (now - v.takenAt)) / 60000) + " min"
     }));
   return NextResponse.json({ paused: active, total: active.length });
 }
@@ -54,6 +57,8 @@ export async function POST(req) {
     const data = readTakeoverFile();
     const key = `${pageId}:${senderId}`;
     data[key] = { takenAt: Date.now(), pageId: String(pageId), senderId: String(senderId), reason };
+    // Also write legacy single-key format for backward compatibility
+    data[String(senderId)] = { takenAt: Date.now(), pageId: String(pageId), senderId: String(senderId), reason };
     writeTakeoverFile(data);
     console.log(`[HUMAN_TAKEOVER_API] ✋ Bot paused for ${senderId} on page ${pageId}`);
     return NextResponse.json({ success: true, message: `Bot paused for customer ${senderId}. They will not receive bot replies.` });
@@ -62,18 +67,33 @@ export async function POST(req) {
   }
 }
 
-// DELETE — resume bot for a customer (release takeover)
+// DELETE — resume bot for a customer (release takeover), or clear ALL
 export async function DELETE(req) {
   try {
-    const { senderId, pageId } = await req.json();
-    if (!senderId || !pageId) {
-      return NextResponse.json({ error: "senderId and pageId are required" }, { status: 400 });
+    const body = await req.json();
+
+    // ── Clear ALL paused customers ──────────────────────────────────────────
+    if (body.clearAll === true) {
+      writeTakeoverFile({});
+      console.log(`[HUMAN_TAKEOVER_API] ✅ ALL human takeovers cleared!`);
+      return NextResponse.json({ success: true, message: "All customer bots resumed. Bot is now active for everyone." });
     }
+
+    const { senderId, pageId } = body;
+    if (!senderId) {
+      return NextResponse.json({ error: "senderId is required (or pass clearAll: true)" }, { status: 400 });
+    }
+
     const data = readTakeoverFile();
-    const key = `${pageId}:${senderId}`;
-    const existed = key in data;
-    delete data[key];
+
+    // Delete both key formats to ensure complete removal
+    const key1 = `${pageId}:${senderId}`;
+    const key2 = String(senderId);
+    const existed = key1 in data || key2 in data;
+    delete data[key1];
+    delete data[key2];
     writeTakeoverFile(data);
+
     console.log(`[HUMAN_TAKEOVER_API] ✅ Bot resumed for ${senderId} on page ${pageId}`);
     return NextResponse.json({
       success: true,
