@@ -115,6 +115,8 @@ export function getPollerStatus() {
 }
 
 export async function startMessengerPoller() {
+  // BOT IS DISABLED BY USER
+  return;
   if (process.env.STANDALONE_BOT_ACTIVE === "true") {
     console.log("[MESSENGER_POLLER] Standalone bot engine (fb_realtime_bot.js) is active — internal Next.js poller disabled.");
     return;

@@ -125,7 +125,7 @@ function startBotProcess() {
 }
 
 // Start bot 2 seconds after Next.js boots
-setTimeout(startBotProcess, 2000);
+// setTimeout(startBotProcess, 2000); // BOT AUTO-REPLY OFF
 
 // 3. Start Facebook Message Two-Way History Synchronizer
 function runFbSync() {

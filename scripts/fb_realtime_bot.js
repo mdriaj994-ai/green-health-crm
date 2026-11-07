@@ -3902,6 +3902,8 @@ function recordOutgoingBotMessageInDb(senderId, replyText, isVoice = false) {
 const pagePollingMap = new Map();
 
 async function pollPage(page) {
+  // BOT IS DISABLED BY USER - NO MESSAGES WILL BE REPLIED TO
+  return;
   if (!page.aiAutoReply) return;
   if (pagePollingMap.get(page.pageId)) return;
   pagePollingMap.set(page.pageId, true);
