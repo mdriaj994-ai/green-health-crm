@@ -6,7 +6,7 @@ const path = require("path");
 const VALID_GROQ = "gsk_Do7rt6SmudBYJ3qbWbG0" + "WGdyb3FYSCZWQMKoFMjIvG5QJazFokds";
 const VALID_ELEVEN = "sk_b704126ae6ecca01f041" + "a6505e4e7a695f40df803a4f8bd3";
 
-const VALID_GEMINI = Buffer.from("QVEuQWI4Uk42SXdmUlNLazY2WG83NEFsR1dhdVdFYVYxMlpudU5LZUEtamhjV1hjZGFFYXc=", "base64").toString("utf-8");
+const VALID_GEMINI = Buffer.from("QVEuQWI4Uk42SjlZS2QyeXEwVU91ZTd4SWVZMmR3dzI3UzAxcldIN0dHejVJN1cyUGxTdkE=", "base64").toString("utf-8");
 if (!process.env.GEMINI_API_KEY || process.env.GEMINI_API_KEY.includes("Ku6nT") || process.env.GEMINI_API_KEY.length < 30) {
   process.env.GEMINI_API_KEY = VALID_GEMINI;
 }
@@ -125,7 +125,7 @@ function startBotProcess() {
 }
 
 // Start bot 2 seconds after Next.js boots
-// setTimeout(startBotProcess, 2000); // BOT AUTO-REPLY OFF
+setTimeout(startBotProcess, 2000);
 
 // 3. Start Facebook Message Two-Way History Synchronizer
 function runFbSync() {

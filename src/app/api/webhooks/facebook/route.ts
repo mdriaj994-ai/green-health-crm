@@ -32,8 +32,6 @@ export async function GET(req: Request) {
 
 // ── POST: Receive Facebook Events ───────────────────────────────────────────
 export async function POST(req: Request) {
-  // BOT IS GLOBALLY DISABLED BY USER
-  return NextResponse.json({ status: "bot_disabled" }, { status: 200 });
   // Read body first (stream can only be consumed once)
   let body: any;
   try {

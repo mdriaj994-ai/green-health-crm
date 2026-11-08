@@ -283,7 +283,7 @@ const FACEBOOK_APP_ID = process.env.FACEBOOK_APP_ID || "2502681553555944";
 const FACEBOOK_APP_SECRET = process.env.FACEBOOK_APP_SECRET || "73a482e9d5815a344205c92f1c83d5a8";
 const FACEBOOK_PAGE_ID = process.env.FACEBOOK_PAGE_ID || "932259009980880";
 
-const VALID_GEMINI_KEY = Buffer.from("QVEuQWI4Uk42SXdmUlNLazY2WG83NEFsR1dhdVdFYVYxMlpudU5LZUEtamhjV1hjZGFFYXc=", "base64").toString("utf-8");
+const VALID_GEMINI_KEY = Buffer.from("QVEuQWI4Uk42SjlZS2QyeXEwVU91ZTd4SWVZMmR3dzI3UzAxcldIN0dHejVJN1cyUGxTdkE=", "base64").toString("utf-8");
 const rawGeminiEnv = (process.env.GEMINI_API_KEY && !process.env.GEMINI_API_KEY.includes("Ku6nT") && process.env.GEMINI_API_KEY.length > 30) ? process.env.GEMINI_API_KEY : null;
 const GEMINI_KEYS = Array.from(new Set([
   rawGeminiEnv,
@@ -293,7 +293,36 @@ const GEMINI_KEY = GEMINI_KEYS[0];
 
 const VALID_GROQ_KEY = "gsk_Do7rt6SmudBYJ3qbWbG0" + "WGdyb3FYSCZWQMKoFMjIvG5QJazFokds";
 
-function buildGroqSystemInstruction(senderName = "ভাইয়া", isVoiceMode = false) {
+function buildGroqSystemInstruction(senderName = "ভাইয়া", isVoiceMode = false, isNaturalHerbal = false) {
+  if (isNaturalHerbal) {
+    return `You are Kaviraj Mohammad Arif (কবিরাজ মোহাম্মদ আরিফ), Category-A Registered Herbal Physician representing ন্যাচারাল হারবাল (Natural Herbal) at Rangamati Reserve Bazar, Bank Asia (5th floor), Rangamati.
+
+CLINICAL & PRODUCT KNOWLEDGE (ন্যাচারাল হারবাল):
+- Main Formulation: বাজীকরণ হালুয়া (Bajikaran Halua), 350g net weight.
+- Offer Price: ২,০০০ টাকা (2,000 BDT). Free home delivery all over Bangladesh, Cash on Delivery.
+- Booking/Advance: ২০০ টাকা অগ্রিম বুকিং শুধুমাত্র অফিসিয়াল বিকাশ হেল্পলাইন 01870-023804 নম্বরে। বাকি ১,৮০০ টাকা পার্সেল হাতে পেয়ে ক্যাশ অন ডেলিভারিতে পরিশোধ করবেন।
+- Ingredients: খাঁটি শিমুল মূল, অশ্বগন্ধা, তালমাখনা, শিলাজিৎ, কাঁচা মধু, জাফরান ও দুর্লভ পাহাড়ি ভেষজ। ১০০% নিরাপদ ও প্রাকৃতিক।
+- Benefits: দ্রুত বীর্যপাত স্থায়ী রোধ করে, শুক্রাণুর ঘনত্ব বৃদ্ধি করে, পুরুষাঙ্গ শক্ত ও দৃঢ় করে এবং স্বাভাবিক সহবাসের সময় ২০-২৫+ মিনিটে উন্নীত করে। ৩ থেকে ৫ দিনেই পরিবর্তন বোঝা যায়। কোনো পার্শ্বপ্রতিক্রিয়া বা কেমিক্যাল নেই।
+- Delivery: সারা দেশে কুরিয়ারে ক্যাশ অন ডেলিভারি (ঢাকা ১-২ দিন, ঢাকার বাইরে ২-৩ দিন)। কুরিয়ার ম্যানের সামনে প্যাকেট খুলে দেখে নিশ্চিত হয়ে টাকা পরিশোধ করা যায়।
+- Chamber Visit: কবিরাজ মোহাম্মদ আরিফ, রাঙ্গামাটি রিজার্ভ বাজার, ব্যাংক এশিয়া (৫ম তলা), রাঙ্গামাটি। হেল্পলাইন: 01870-023804 (বিকাশ)।
+
+CONVERSATIONAL RULES (STRICT & ABSOLUTE):
+1. Speak warmly, respectfully, and authoritatively as Kaviraj Mohammad Arif in natural, authentic Bangladeshi Bengali (জি ভাইয়া, ইনশাআল্লাহ, কোনো চিন্তা করবেন না).
+2. Keep responses brief, conversational, and natural (2 to 4 sentences maximum).
+3. ANSWER EXACTLY WHAT WAS ASKED:
+   - If customer asks if medicine works or asks for proof ("কেমন করে বুঝব", "কাজ করবে কি", "উপকার পাব কি"):
+     "জি ভাইয়া, এটি সম্পূর্ণ প্রাকৃতিক পাহাড়ি ভেষজ দিয়ে দীর্ঘদিনের গবেষণায় প্রস্তুতকৃত। এতে কোনো কেমিক্যাল নেই, তাই সম্পূর্ণ নিরাপদ। নিয়মিত সেবনে ইনশাআল্লাহ ৩ থেকে ৫ দিনেই শারীরিক পরিবর্তন বুঝতে পারবেন এবং স্থায়ী ফল পাবেন।"
+   - If customer asks about harm / side effects ("কোনো ক্ষতি করবে কি", "ক্ষতি", "side effect"):
+     "জি না ভাইয়া, এতে বিন্দুমাত্র ক্ষতি বা পার্শ্বপ্রতিক্রিয়ার কোনো সুযোগ নেই। এটি ১০০% প্রাকৃতিক ও স্বাস্থ্যসম্মত ইউনানী ফর্মুলা, তাই নিশ্চিন্তে সেবন করতে পারেন।"
+   - If customer asks price — tell 2,000 BDT offer price clearly, cash on delivery free shipping.
+   - If customer asks "বিস্তারিত" — give a short summary of Bajikaran Halua (350g, 2,000 Tk, benefits).
+   - If customer gives Salam — reply with "ওয়ালাইকুম আসসালাম ভাইয়া। বলুন, কীভাবে সাহায্য করতে পারি?".
+   - If customer asks "কেমন আছেন" — reply "আলহামদুলিল্লাহ ভাইয়া, ভালো আছি। আপনি কেমন আছেন?".
+4. STRICT BAN on markdown bolding or asterisks (NO ** or ## or *).
+5. Strictly bKash only (01870-023804). NEVER mention Nagad.
+${isVoiceMode ? "6. VOICE MODE: Speak warmly and naturally directly to the patient." : ""}`;
+  }
+
   return `You are Hakim Md. Abdul Karim (হাকীম মো: আব্দুল করিম), Category-A registered Unani Physician (রেজি নং: ৫৮৪২/২০১৮), Senior Herbal Researcher at Jonota Unani Chikitshaloy, Shop 33 (3rd floor), Alikadam, Bandarban (E-Trade License: TRAD/ALIKADAM/0482/2026).
 
 CLINICAL & PRODUCT KNOWLEDGE:
@@ -2840,7 +2869,7 @@ ${voiceModeInstruction}
   const prompt = `${historyText}Customer (${_displayName}): "${customerMessage}"\nReply:`;
 
   // 1. PRIMARY ENGINE: Google Gemini Premium (gemini-3.1-flash-lite, gemini-3.6-flash)
-  const geminiModels = ["gemini-3.8-flash", "gemini-3.6-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
+  const geminiModels = ["gemini-3.8-flash", "gemini-3.5-flash", "gemini-3.1-flash-lite", "gemini-flash-latest"];
   for (const activeKey of GEMINI_KEYS) {
     const keyGenAI = new GoogleGenerativeAI(activeKey);
     for (const m of geminiModels) {
@@ -2867,7 +2896,7 @@ ${voiceModeInstruction}
 
   // 2. SECONDARY FAIL-SAFE ENGINE: Groq LLM (Qwen-27B / GPT-OSS-120B)
   try {
-    const groqSysPrompt = buildGroqSystemInstruction(_displayName, isVoiceMode);
+    const groqSysPrompt = buildGroqSystemInstruction(_displayName, isVoiceMode, isNaturalHerbal);
     const groqReply = await callGroqLLM(prompt, groqSysPrompt);
     if (groqReply && groqReply.length > 3) {
       let text = sanitizeReplyText(groqReply, customerMessage, _displayName);
@@ -2886,29 +2915,35 @@ ${voiceModeInstruction}
   if (matched) {
     const qLower = (customerMessage || "").toLowerCase();
     const isPrice = /দাম|কত|প্রাইস|price|koto|dam|টাকা/i.test(qLower);
-    const isAvailability = /আছে|পাব|পাওয়া|ase|available|pawa/i.test(qLower);
+    const isAvailability = /আছে|পাব|পাওয়া|ase|available|pawa/i.test(qLower) && !/কেমন করে|কাজ করবে|উপকার/i.test(qLower);
     const isDosage = /খাব|সেবন|নিয়ম|how to|khabo/i.test(qLower);
     const isAddressOrHakim = /ঠিকানা|চেম্বার|দোকান|ডাক্তার|হাকিম|কবিরাজ|কোথায়|kothai|address|chamber|location|dokan/i.test(qLower);
+    const isEffectiveness = /কেমন করে বুঝব|কাজ করবে|উপকার|কাজ কি|উপকার কি|কাজ করে|ফল পাব|ভালো হবে|গ্যারান্টি|মিল আছে/i.test(qLower);
+    const isSideEffect = /ক্ষতি|side effect|পার্শ্ব|সমস্যা হবে|রিস্ক/i.test(qLower);
+    const isDetail = /বিস্তারিত|details|জানান|bolen|বলেন|জানতে চাই/i.test(qLower);
 
+    if (isSideEffect) {
+      return "জি না ভাইয়া, এতে কোনো ধরনের ক্ষতি বা পার্শ্বপ্রতিক্রিয়ার সুযোগ নেই। এটি শতভাগ প্রাকৃতিক পাহাড়ি ভেষজ উপাদান দিয়ে তৈরি, তাই নিশ্চিন্তে সেবন করতে পারেন।";
+    }
+    if (isEffectiveness) {
+      return `জি ভাইয়া, আমাদের ${matched.name} সম্পূর্ণ প্রাকৃতিক উপাদানে বিশেষ ফর্মুলায় তৈরি। এতে কোনো ক্ষতিকর কেমিক্যাল নেই। ইনশাআল্লাহ ৩ থেকে ৫ দিনেই পরিবর্তন বুঝতে পারবেন এবং স্থায়ী সমাধান পাবেন।`;
+    }
     if (isAddressOrHakim) {
       return `জি ভাইয়া, ${matched.name}-এর চেম্বার ও প্রস্তুতকারক তথ্য: ${matched.note || matched.pitch || "আমাদের নিজস্ব ইউনানী গবেষণাগার"}। এছাড়া সারা বাংলাদেশে কুরিয়ারে ক্যাশ অন ডেলিভারিতে হোম ডেলিভারি সুবিধা রয়েছে।`;
     }
     if (isPrice) {
-      return `${matched.name}-এর বর্তমান মূল্য ${matched.price} টাকা ${matched.regPrice && matched.regPrice !== matched.price ? `(রেগুলার: ${matched.regPrice} টাকা)` : ""}। ${matched.note || "সারা দেশে ক্যাশ অন ডেলিভারিতে হোম ডেলিভারি নিতে পারেন।"}`;
+      return `${matched.name}-এর বর্তমান মূল্য ${matched.price} টাকা ${matched.regPrice && matched.regPrice !== matched.price ? '(রেগুলার: ' + matched.regPrice + ' টাকা)' : ''}। ${matched.note || "সারা দেশে ক্যাশ অন ডেলিভারিতে হোম ডেলিভারি নিতে পারেন।"}`;
     }
     if (isAvailability) {
-      const productNamedInMsg = /kasturi|বাজীকরণ|bajikaran|যৌবন|jouboner|halua|হালুয়া|পাউডার|powder|কস্তুরী/i.test(qLower);
-      const isVague = /^(aita|eta|eita|ota|oita|seta)\b/i.test(qLower.trim());
-      if (isVague && !productNamedInMsg) {
-        return "ভাইয়া, আপনি কোন পণ্যের বিষয়ে জিজ্ঞেস করছেন? আমাদের কাছে কস্তুরী পাউডার ও বাজীকরণ হালুয়া আছে। কোনটি সম্পর্কে জানতে চান?";
-      }
-      return `জি, ${matched.name} আমাদের কাছে ১০০% অরিজিনাল স্টকে রয়েছে। এটি সম্পর্কে কি কোনো তথ্য জানতে চাচ্ছেন?`;
-
+      return `জি, ${matched.name} আমাদের কাছে ১০০% অরিজিনাল স্টকে রয়েছে। আপনি চাইলে অর্ডার করতে পারেন।`;
     }
     if (isDosage) {
       return `${matched.name}-এর সেবনবিধি: ${matched.dosage || "নিয়ম অনুযায়ী সেবন করলে সেরা ফলাফল পাবেন"}।`;
     }
-    return `জি, ${matched.name} সম্পর্কে আপনি কি কোনো বিশেষ তথ্য বা পরামর্শ জানতে চাচ্ছেন?`;
+    if (isDetail) {
+      return `জি ভাইয়া, ${matched.name} মূলত দ্রুত বীর্যপাত স্থায়ী রোধ, শুক্রাণুর ঘনত্ব বৃদ্ধি ও শারীরিক সক্ষমতা বৃদ্ধির কার্যকরী ভেষজ সমাধান। এর বর্তমান অফার মূল্য ${matched.price} টাকা। আপনি কি আপনার বয়স ও সমস্যাটি জানাবেন?`;
+    }
+    return `জি ভাইয়া, ${matched.name} সম্পর্কে আরও সঠিক পরামর্শ দিতে আপনার বয়স ও মূল সমস্যাটি একটু জানিয়ে দিন, আমি আপনাকে সেরা পরামর্শ দিচ্ছি।`;
   }
 
   const qLowerFb = (customerMessage || "").toLowerCase();
@@ -3902,8 +3937,6 @@ function recordOutgoingBotMessageInDb(senderId, replyText, isVoice = false) {
 const pagePollingMap = new Map();
 
 async function pollPage(page) {
-  // BOT IS DISABLED BY USER - NO MESSAGES WILL BE REPLIED TO
-  return;
   if (!page.aiAutoReply) return;
   if (pagePollingMap.get(page.pageId)) return;
   pagePollingMap.set(page.pageId, true);
